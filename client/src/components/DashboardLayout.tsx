@@ -24,12 +24,14 @@ import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   Calendar,
-  ChevronRight,
+  FolderOpen,
   LayoutDashboard,
   LogOut,
+  Moon,
   PanelLeft,
   Settings,
   Shield,
+  Sun,
   Upload,
   Users,
   Users2,
@@ -39,11 +41,13 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
+import { useTheme } from "../contexts/ThemeContext";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
   { icon: Users, label: "Clients", path: "/clients" },
+  { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Users2, label: "Crew", path: "/crew", adminOnly: true },
   { icon: Upload, label: "Import", path: "/import", adminOnly: true },
 ];
@@ -51,8 +55,8 @@ const navItems = [
 const bottomNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
+  { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Users, label: "Clients", path: "/clients" },
-  { icon: Users2, label: "Crew", path: "/crew" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
@@ -72,36 +76,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
+  // No login wall — app is accessible without authentication.
+  // Show skeleton only during the brief auth check, then render regardless.
   if (loading) return <DashboardLayoutSkeleton />;
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-sm w-full mx-4">
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary" />
-              </div>
-              <span className="text-xl font-bold tracking-tight">Wired Works</span>
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-center">Welcome back</h1>
-            <p className="text-sm text-muted-foreground text-center">
-              Sign in to manage your crew, clients, and schedule.
-            </p>
-          </div>
-          <Button
-            onClick={() => { window.location.href = getLoginUrl(); }}
-            size="lg"
-            className="w-full"
-          >
-            Sign in to continue
-            <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <SidebarProvider style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
@@ -129,6 +106,7 @@ function DashboardLayoutContent({
 
   const isAdmin = user?.role === "admin";
   const visibleNav = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -263,15 +241,21 @@ function DashboardLayoutContent({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={toggleTheme}>
+                    {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation("/settings")}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
+                  {user ? (
+                    <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign out
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             </SidebarFooter>
@@ -306,18 +290,24 @@ function DashboardLayoutContent({
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setLocation("/settings")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={toggleTheme}>
+                    {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation("/settings")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {user ? (
+                    <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign out
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
           </div>
         )}
 

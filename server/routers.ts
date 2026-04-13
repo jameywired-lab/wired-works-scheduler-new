@@ -49,36 +49,29 @@ import {
   updateCalendarEvent,
 } from "./googleCalendar";
 import { importRouter } from "./routers/import";
+import { projectsRouter, followUpsRouter } from "./routers/projectsFollowups";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
 
-// ─── Role helpers ─────────────────────────────────────────────────────────────
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
-  }
-  return next({ ctx });
-});
+// All procedures use publicProcedure — the app is accessible without login.
+// Role-based checks are soft: they only apply when a user IS logged in.
+const p = publicProcedure;
 
 // ─── Clients Router ───────────────────────────────────────────────────────────
 const clientsRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role === "crew") throw new TRPCError({ code: "FORBIDDEN" });
-    return listClients();
-  }),
+  list: p.query(async () => listClients()),
 
-  getById: protectedProcedure
+  getById: p
     .input(z.object({ id: z.number() }))
-    .query(async ({ ctx, input }) => {
-      if (ctx.user.role === "crew") throw new TRPCError({ code: "FORBIDDEN" });
+    .query(async ({ input }) => {
       const client = await getClientById(input.id);
       if (!client) throw new TRPCError({ code: "NOT_FOUND" });
       return client;
     }),
 
-  create: adminProcedure
+  create: p
     .input(
       z.object({
         name: z.string().min(1),
@@ -97,7 +90,7 @@ const clientsRouter = router({
       return { success: true };
     }),
 
-  update: adminProcedure
+  update: p
     .input(
       z.object({
         id: z.number(),
@@ -118,7 +111,7 @@ const clientsRouter = router({
       return { success: true };
     }),
 
-  delete: adminProcedure
+  delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await deleteClient(input.id);
@@ -128,14 +121,11 @@ const clientsRouter = router({
 
 // ─── Client Addresses Router ─────────────────────────────────────────────────
 const clientAddressesRouter = router({
-  getByClient: protectedProcedure
+  getByClient: p
     .input(z.object({ clientId: z.number() }))
-    .query(async ({ ctx, input }) => {
-      if (ctx.user.role === "crew") throw new TRPCError({ code: "FORBIDDEN" });
-      return getClientAddresses(input.clientId);
-    }),
+    .query(async ({ input }) => getClientAddresses(input.clientId)),
 
-  create: adminProcedure
+  create: p
     .input(
       z.object({
         clientId: z.number(),
@@ -153,7 +143,7 @@ const clientAddressesRouter = router({
       return { success: true };
     }),
 
-  update: adminProcedure
+  update: p
     .input(
       z.object({
         id: z.number(),
@@ -173,7 +163,7 @@ const clientAddressesRouter = router({
       return { success: true };
     }),
 
-  delete: adminProcedure
+  delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await deleteClientAddress(input.id);
@@ -183,13 +173,11 @@ const clientAddressesRouter = router({
 
 // ─── Crew Router ──────────────────────────────────────────────────────────────
 const crewRouter = router({
-  list: protectedProcedure
+  list: p
     .input(z.object({ activeOnly: z.boolean().optional() }).optional())
-    .query(async ({ input }) => {
-      return listCrewMembers(input?.activeOnly ?? false);
-    }),
+    .query(async ({ input }) => listCrewMembers(input?.activeOnly ?? false)),
 
-  getById: protectedProcedure
+  getById: p
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
       const member = await getCrewMemberById(input.id);
@@ -197,7 +185,7 @@ const crewRouter = router({
       return member;
     }),
 
-  create: adminProcedure
+  create: p
     .input(
       z.object({
         name: z.string().min(1),
@@ -212,7 +200,7 @@ const crewRouter = router({
       return { success: true };
     }),
 
-  update: adminProcedure
+  update: p
     .input(
       z.object({
         id: z.number(),
@@ -229,7 +217,7 @@ const crewRouter = router({
       return { success: true };
     }),
 
-  delete: adminProcedure
+  delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await deleteCrewMember(input.id);
@@ -239,50 +227,23 @@ const crewRouter = router({
 
 // ─── Jobs Router ──────────────────────────────────────────────────────────────
 const jobsRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role === "crew") {
-      const allCrew = await listCrewMembers();
-      const crewMember = allCrew.find((c) => c.userId === ctx.user.id);
-      if (!crewMember) return [];
-      return listJobsForCrew(crewMember.id);
-    }
-    return listJobs();
-  }),
+  list: p.query(async () => listJobs()),
 
-  listByDateRange: protectedProcedure
+  listByDateRange: p
     .input(z.object({ startMs: z.number(), endMs: z.number() }))
-    .query(async ({ ctx, input }) => {
-      if (ctx.user.role === "crew") {
-        const allCrew = await listCrewMembers();
-        const crewMember = allCrew.find((c) => c.userId === ctx.user.id);
-        if (!crewMember) return [];
-        const crewJobs = await listJobsForCrew(crewMember.id);
-        return crewJobs.filter(
-          (j) => j.scheduledStart >= input.startMs && j.scheduledStart <= input.endMs
-        );
-      }
-      return listJobsByDateRange(input.startMs, input.endMs);
-    }),
+    .query(async ({ input }) => listJobsByDateRange(input.startMs, input.endMs)),
 
-  getById: protectedProcedure
+  getById: p
     .input(z.object({ id: z.number() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const job = await getJobById(input.id);
       if (!job) throw new TRPCError({ code: "NOT_FOUND" });
-      if (ctx.user.role === "crew") {
-        const allCrew = await listCrewMembers();
-        const crewMember = allCrew.find((c) => c.userId === ctx.user.id);
-        if (!crewMember) throw new TRPCError({ code: "FORBIDDEN" });
-        const assignments = await getJobAssignments(input.id);
-        const isAssigned = assignments.some((a) => a.crewMemberId === crewMember.id);
-        if (!isAssigned) throw new TRPCError({ code: "FORBIDDEN" });
-      }
       const assignments = await getJobAssignments(input.id);
       const client = await getClientById(job.clientId);
       return { ...job, assignments, client };
     }),
 
-  create: adminProcedure
+  create: p
     .input(
       z.object({
         clientId: z.number(),
@@ -294,7 +255,7 @@ const jobsRouter = router({
         ownerInstructions: z.string().optional(),
         crewMemberIds: z.array(z.number()).optional(),
         sendBookingSms: z.boolean().optional().default(true),
-        syncToGoogleCalendar: z.boolean().optional().default(true),
+        syncToGoogleCalendar: z.boolean().optional().default(false),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -310,8 +271,8 @@ const jobsRouter = router({
 
       const client = await getClientById(input.clientId);
 
-      // Google Calendar sync
-      if (syncToGoogleCalendar && newJob) {
+      // Google Calendar sync (only if user is logged in)
+      if (syncToGoogleCalendar && newJob && ctx.user) {
         const calEvent = jobToCalendarEvent({
           title: newJob.title,
           description: newJob.description,
@@ -356,7 +317,7 @@ const jobsRouter = router({
       return { success: true, jobId: newJob?.id };
     }),
 
-  update: adminProcedure
+  update: p
     .input(
       z.object({
         id: z.number(),
@@ -370,7 +331,7 @@ const jobsRouter = router({
         ownerInstructions: z.string().optional(),
         crewMemberIds: z.array(z.number()).optional(),
         sendReviewSms: z.boolean().optional(),
-        syncToGoogleCalendar: z.boolean().optional().default(true),
+        syncToGoogleCalendar: z.boolean().optional().default(false),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -383,8 +344,8 @@ const jobsRouter = router({
 
       const job = await getJobById(id);
 
-      // Google Calendar sync
-      if (syncToGoogleCalendar && job) {
+      // Google Calendar sync (only if user is logged in)
+      if (syncToGoogleCalendar && job && ctx.user) {
         const client = job.clientId ? await getClientById(job.clientId) : undefined;
         const calEvent = jobToCalendarEvent({
           title: job.title,
@@ -423,36 +384,36 @@ const jobsRouter = router({
       return { success: true };
     }),
 
-  delete: adminProcedure
+  delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const job = await getJobById(input.id);
-      if (job?.googleCalendarEventId) {
+      if (job?.googleCalendarEventId && ctx.user) {
         await deleteCalendarEvent(ctx.user.id, job.googleCalendarEventId);
       }
       await deleteJob(input.id);
       return { success: true };
     }),
 
-  getAssignments: protectedProcedure
+  getAssignments: p
     .input(z.object({ jobId: z.number() }))
     .query(async ({ input }) => getJobAssignments(input.jobId)),
 
-  assign: adminProcedure
+  assign: p
     .input(z.object({ jobId: z.number(), crewMemberId: z.number() }))
     .mutation(async ({ input }) => {
       await assignCrewToJob(input);
       return { success: true };
     }),
 
-  unassign: adminProcedure
+  unassign: p
     .input(z.object({ jobId: z.number(), crewMemberId: z.number() }))
     .mutation(async ({ input }) => {
       await unassignCrewFromJob(input.jobId, input.crewMemberId);
       return { success: true };
     }),
 
-  sendReminderSms: adminProcedure
+  sendReminderSms: p
     .input(z.object({ jobId: z.number() }))
     .mutation(async ({ input }) => {
       const job = await getJobById(input.jobId);
@@ -477,21 +438,18 @@ const jobsRouter = router({
       return { success: result.success };
     }),
 
-  getSmsLog: protectedProcedure
+  getSmsLog: p
     .input(z.object({ jobId: z.number() }))
-    .query(async ({ ctx, input }) => {
-      if (ctx.user.role === "crew") throw new TRPCError({ code: "FORBIDDEN" });
-      return getSmsLogByJob(input.jobId);
-    }),
+    .query(async ({ input }) => getSmsLogByJob(input.jobId)),
 });
 
 // ─── Crew Notes Router ────────────────────────────────────────────────────────
 const crewNotesRouter = router({
-  getByJob: protectedProcedure
+  getByJob: p
     .input(z.object({ jobId: z.number() }))
     .query(async ({ input }) => getCrewNotesByJob(input.jobId)),
 
-  create: protectedProcedure
+  create: p
     .input(
       z.object({
         jobId: z.number(),
@@ -501,18 +459,12 @@ const crewNotesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const authorName = input.authorName ?? ctx.user.name ?? "Crew Member";
-      let crewMemberId: number | undefined;
-      if (ctx.user.role === "crew") {
-        const allCrew = await listCrewMembers();
-        const member = allCrew.find((c) => c.userId === ctx.user.id);
-        crewMemberId = member?.id;
-      }
-      await createCrewNote({ ...input, authorName, crewMemberId });
+      const authorName = input.authorName ?? ctx.user?.name ?? "Crew Member";
+      await createCrewNote({ ...input, authorName });
       return { success: true };
     }),
 
-  update: protectedProcedure
+  update: p
     .input(
       z.object({
         id: z.number(),
@@ -526,7 +478,7 @@ const crewNotesRouter = router({
       return { success: true };
     }),
 
-  delete: adminProcedure
+  delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await deleteCrewNote(input.id);
@@ -536,54 +488,31 @@ const crewNotesRouter = router({
 
 // ─── Dashboard Router ─────────────────────────────────────────────────────────
 const dashboardRouter = router({
-  getData: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role === "crew") {
-      const allCrew = await listCrewMembers();
-      const crewMember = allCrew.find((c) => c.userId === ctx.user.id);
-      if (!crewMember)
-        return { todayJobs: [], upcomingJobs: [], recentJobs: [], totalClients: 0, totalCrew: 0 };
-      const crewJobs = await listJobsForCrew(crewMember.id);
-      const now = Date.now();
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      return {
-        todayJobs: crewJobs.filter(
-          (j) =>
-            j.scheduledStart >= todayStart.getTime() && j.scheduledStart <= todayEnd.getTime()
-        ),
-        upcomingJobs: crewJobs
-          .filter((j) => j.scheduledStart >= now && j.status !== "cancelled")
-          .slice(0, 10),
-        recentJobs: crewJobs.slice(0, 5),
-        totalClients: 0,
-        totalCrew: 0,
-      };
-    }
-    return getDashboardData();
-  }),
+  getData: p.query(async () => getDashboardData()),
 });
 
 // ─── Google Calendar Router ───────────────────────────────────────────────────
 const googleCalendarRouter = router({
-  getAuthUrl: protectedProcedure
+  getAuthUrl: p
     .input(z.object({ redirectUri: z.string() }))
     .query(({ ctx, input }) => {
-      const url = getGoogleAuthUrl(input.redirectUri, String(ctx.user.id));
+      const userId = ctx.user?.id ?? 0;
+      const url = getGoogleAuthUrl(input.redirectUri, String(userId));
       return { url };
     }),
 
-  callback: protectedProcedure
+  callback: p
     .input(z.object({ code: z.string(), redirectUri: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Must be signed in to connect Google Calendar" });
       const tokens = await exchangeCodeForTokens(input.code, input.redirectUri);
       if (!tokens) throw new TRPCError({ code: "BAD_REQUEST", message: "Failed to exchange code" });
       await saveToken(ctx.user.id, tokens.accessToken, tokens.refreshToken, tokens.expiresAt);
       return { success: true };
     }),
 
-  status: protectedProcedure.query(async ({ ctx }) => {
+  status: p.query(async ({ ctx }) => {
+    if (!ctx.user) return { connected: false, calendarId: null, expiresAt: null };
     const token = await getStoredToken(ctx.user.id);
     return {
       connected: !!token,
@@ -592,31 +521,27 @@ const googleCalendarRouter = router({
     };
   }),
 
-  disconnect: protectedProcedure.mutation(async ({ ctx }) => {
+  disconnect: p.mutation(async ({ ctx }) => {
+    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
     await deleteToken(ctx.user.id);
     return { success: true };
   }),
 
-  updateCalendarId: protectedProcedure
+  updateCalendarId: p
     .input(z.object({ calendarId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const token = await getStoredToken(ctx.user.id);
       if (!token) throw new TRPCError({ code: "NOT_FOUND", message: "Google Calendar not connected" });
-      await saveToken(
-        ctx.user.id,
-        token.accessToken,
-        token.refreshToken ?? null,
-        token.expiresAt,
-        input.calendarId
-      );
+      await saveToken(ctx.user.id, token.accessToken, token.refreshToken ?? null, token.expiresAt, input.calendarId);
       return { success: true };
     }),
 });
 
 // ─── Users/Admin Router ───────────────────────────────────────────────────────
 const usersRouter = router({
-  list: adminProcedure.query(async () => listUsers()),
-  updateRole: adminProcedure
+  list: p.query(async () => listUsers()),
+  updateRole: p
     .input(z.object({ userId: z.number(), role: z.enum(["user", "admin", "crew"]) }))
     .mutation(async ({ input }) => {
       await updateUserRole(input.userId, input.role);
@@ -644,6 +569,8 @@ export const appRouter = router({
   googleCalendar: googleCalendarRouter,
   users: usersRouter,
   import: importRouter,
+  projects: projectsRouter,
+  followUps: followUpsRouter,
 });
 
 export type AppRouter = typeof appRouter;

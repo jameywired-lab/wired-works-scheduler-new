@@ -14,6 +14,7 @@ import CrewPage from "./pages/CrewPage";
 import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
 import ImportPage from "./pages/ImportPage";
+import ProjectsPage from "./pages/ProjectsPage";
 
 function AppRoutes() {
   return (
@@ -28,6 +29,7 @@ function AppRoutes() {
         <Route path="/settings" component={SettingsPage} />
         <Route path="/users" component={UsersPage} />
         <Route path="/import" component={ImportPage} />
+        <Route path="/projects" component={ProjectsPage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>
@@ -37,7 +39,7 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="dark" switchable>
         <TooltipProvider>
           <Toaster richColors position="top-right" />
           <AppRoutes />

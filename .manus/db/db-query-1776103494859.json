@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `projects` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`clientId` int,\n\t`title` varchar(255) NOT NULL,\n\t`description` text,\n\t`status` enum('active','on_hold','completed','cancelled') NOT NULL DEFAULT 'active',\n\t`startDate` bigint,\n\t`dueDate` bigint,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `projects_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user j5qKiZUYQMRfMo2.b7f9ad3c878a --database gYJ9uUE9i5ygur2GefRATd --execute CREATE TABLE `projects` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`clientId` int,\n\t`title` varchar(255) NOT NULL,\n\t`description` text,\n\t`status` enum('active','on_hold','completed','cancelled') NOT NULL DEFAULT 'active',\n\t`startDate` bigint,\n\t`dueDate` bigint,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `projects_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 131
+}

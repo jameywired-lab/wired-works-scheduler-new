@@ -74,3 +74,56 @@
 - [x] Import results summary (success count, skipped rows, errors)
 - [x] Add "Import" nav item in sidebar (admin only)
 - [x] QuickBooks / Jobber integration guidance panel in Import page (Export Guides tab)
+
+## UX Improvements
+- [ ] Remove login wall — make app accessible without requiring authentication
+- [ ] Add dark/light mode toggle in sidebar and mobile header
+- [ ] Make ThemeProvider switchable so toggle persists across sessions
+
+## Login Removal & Theme Toggle
+- [ ] Remove global auth redirect from main.tsx
+- [ ] Remove login wall from DashboardLayout (show app without requiring sign-in)
+- [ ] Make all backend tRPC procedures public (no UNAUTHORIZED errors for unauthenticated users)
+- [ ] Add dark/light mode toggle button in sidebar footer and mobile header dropdown
+
+## Projects Feature
+- [ ] DB: projects table (title, description, clientId, status, startDate, dueDate, createdAt)
+- [ ] DB: projectMilestones table (projectId, title, isComplete, dueDate, sortOrder)
+- [ ] DB: projectReminders table (projectId, message, remindAt, isDismissed)
+- [ ] Backend: CRUD routes for projects, milestones, reminders
+- [ ] Backend: milestone toggle (mark complete/incomplete)
+- [ ] Frontend: Projects page with client-linked project cards
+- [ ] Frontend: Project detail with milestone checklist, progress bar, deadlines
+- [ ] Frontend: Add/edit reminder with date picker on each project
+- [ ] Frontend: Reminder badge/alert when a reminder is due
+- [ ] Nav: Add Projects to sidebar navigation
+
+## Follow-Up Feature
+- [ ] DB: followUps table (contactName, phone, type: call/text/manual, note, isFollowedUp, contactedAt, createdAt)
+- [ ] Backend: CRUD routes for follow-ups (list by date, create, toggle followedUp)
+- [ ] Backend: OpenPhone webhook endpoint to auto-log incoming calls/texts
+- [ ] Frontend: Follow-Up tab on Dashboard home page
+- [ ] Frontend: Daily follow-up list with check-off toggle
+- [ ] Frontend: Manual add follow-up entry (name, phone, note, type)
+- [ ] Frontend: Filter by date (today / this week / all)
+
+## Completed (this session)
+- [x] Remove global auth redirect from main.tsx
+- [x] Remove login wall from DashboardLayout (app accessible without sign-in)
+- [x] Make all backend tRPC procedures public (no UNAUTHORIZED errors)
+- [x] Add dark/light mode toggle in sidebar footer and mobile header dropdown
+- [x] Make ThemeProvider switchable so toggle persists
+- [x] DB: projects, projectMilestones, projectReminders, followUps tables created and migrated
+- [x] Backend: CRUD routes for projects, milestones, reminders (projectsFollowups.ts)
+- [x] Backend: milestone toggle (mark complete/incomplete)
+- [x] Backend: getDueReminders query
+- [x] Frontend: Projects page with client-linked project cards, milestone checklist, progress bar
+- [x] Frontend: Project detail panel with reminders, add/dismiss/delete
+- [x] Frontend: Reminder due banner on Projects page and Dashboard Projects tab
+- [x] Nav: Projects added to sidebar and mobile bottom nav
+- [x] Frontend: Follow-Up tab on Dashboard with pending/done sections
+- [x] Frontend: Daily follow-up list with check-off toggle (optimistic update)
+- [x] Frontend: Manual add follow-up entry (name, phone, note, type)
+- [x] Frontend: Filter by Today / This Week / All Time
+- [x] Frontend: Dashboard tabs — Schedule, Follow-Up, Projects
+- [x] Tests: 24 tests passing across 4 test files (0 TypeScript errors)

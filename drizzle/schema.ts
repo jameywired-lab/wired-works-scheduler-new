@@ -172,3 +172,63 @@ export const clientAddresses = mysqlTable("clientAddresses", {
 
 export type ClientAddress = typeof clientAddresses.$inferSelect;
 export type InsertClientAddress = typeof clientAddresses.$inferInsert;
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+export const projects = mysqlTable("projects", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").references(() => clients.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  status: mysqlEnum("status", ["active", "on_hold", "completed", "cancelled"]).default("active").notNull(),
+  startDate: bigint("startDate", { mode: "number" }), // UTC ms
+  dueDate: bigint("dueDate", { mode: "number" }),     // UTC ms
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = typeof projects.$inferInsert;
+
+// ─── Project Milestones ───────────────────────────────────────────────────────
+export const projectMilestones = mysqlTable("projectMilestones", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull().references(() => projects.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  isComplete: boolean("isComplete").default(false).notNull(),
+  dueDate: bigint("dueDate", { mode: "number" }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ProjectMilestone = typeof projectMilestones.$inferSelect;
+export type InsertProjectMilestone = typeof projectMilestones.$inferInsert;
+
+// ─── Project Reminders ────────────────────────────────────────────────────────
+export const projectReminders = mysqlTable("projectReminders", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull().references(() => projects.id),
+  message: text("message").notNull(),
+  remindAt: bigint("remindAt", { mode: "number" }).notNull(), // UTC ms
+  isDismissed: boolean("isDismissed").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ProjectReminder = typeof projectReminders.$inferSelect;
+export type InsertProjectReminder = typeof projectReminders.$inferInsert;
+
+// ─── Follow-Ups ───────────────────────────────────────────────────────────────
+export const followUps = mysqlTable("followUps", {
+  id: int("id").autoincrement().primaryKey(),
+  contactName: varchar("contactName", { length: 255 }),
+  phone: varchar("phone", { length: 32 }),
+  type: mysqlEnum("type", ["call", "text", "manual"]).default("manual").notNull(),
+  note: text("note"),
+  isFollowedUp: boolean("isFollowedUp").default(false).notNull(),
+  contactedAt: bigint("contactedAt", { mode: "number" }), // UTC ms — when the call/text came in
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FollowUp = typeof followUps.$inferSelect;
+export type InsertFollowUp = typeof followUps.$inferInsert;

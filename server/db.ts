@@ -9,8 +9,12 @@ import {
   InsertClientAddress,
   InsertCrewMember,
   InsertCrewNote,
+  InsertFollowUp,
   InsertJob,
   InsertJobAssignment,
+  InsertProject,
+  InsertProjectMilestone,
+  InsertProjectReminder,
   InsertSmsLog,
   InsertUser,
   Job,
@@ -18,8 +22,12 @@ import {
   clients,
   crewMembers,
   crewNotes,
+  followUps,
   jobAssignments,
   jobs,
+  projectMilestones,
+  projectReminders,
+  projects,
   smsLog,
   users,
 } from "../drizzle/schema";
@@ -420,4 +428,142 @@ export async function getDashboardData() {
     totalClients: clientCount[0]?.count ?? 0,
     totalCrew: crewCount[0]?.count ?? 0,
   };
+}
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+export async function listProjects() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projects).orderBy(desc(projects.updatedAt));
+}
+
+export async function getProjectById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function createProject(data: InsertProject) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(projects).values(data);
+}
+
+export async function updateProject(id: number, data: Partial<InsertProject>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(projects).set(data).where(eq(projects.id, id));
+}
+
+export async function deleteProject(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  // milestones and reminders cascade-delete via FK
+  await db.delete(projects).where(eq(projects.id, id));
+}
+
+// ─── Project Milestones ───────────────────────────────────────────────────────
+export async function getMilestonesByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectMilestones)
+    .where(eq(projectMilestones.projectId, projectId))
+    .orderBy(projectMilestones.sortOrder, projectMilestones.createdAt);
+}
+
+export async function createMilestone(data: InsertProjectMilestone) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(projectMilestones).values(data);
+}
+
+export async function updateMilestone(id: number, data: Partial<InsertProjectMilestone>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(projectMilestones).set(data).where(eq(projectMilestones.id, id));
+}
+
+export async function deleteMilestone(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(projectMilestones).where(eq(projectMilestones.id, id));
+}
+
+// ─── Project Reminders ────────────────────────────────────────────────────────
+export async function getRemindersByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectReminders)
+    .where(eq(projectReminders.projectId, projectId))
+    .orderBy(projectReminders.remindAt);
+}
+
+export async function getDueReminders(nowMs: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectReminders)
+    .where(
+      and(
+        lte(projectReminders.remindAt, nowMs),
+        eq(projectReminders.isDismissed, false)
+      )
+    )
+    .orderBy(projectReminders.remindAt);
+}
+
+export async function createReminder(data: InsertProjectReminder) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(projectReminders).values(data);
+}
+
+export async function updateReminder(id: number, data: Partial<InsertProjectReminder>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(projectReminders).set(data).where(eq(projectReminders.id, id));
+}
+
+export async function deleteReminder(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(projectReminders).where(eq(projectReminders.id, id));
+}
+
+// ─── Follow-Ups ───────────────────────────────────────────────────────────────
+export async function listFollowUps(opts?: { startMs?: number; endMs?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (opts?.startMs !== undefined) conditions.push(gte(followUps.createdAt, new Date(opts.startMs)));
+  if (opts?.endMs !== undefined) conditions.push(lte(followUps.createdAt, new Date(opts.endMs)));
+  const query = db.select().from(followUps);
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).orderBy(desc(followUps.createdAt));
+  }
+  return query.orderBy(desc(followUps.createdAt));
+}
+
+export async function createFollowUp(data: InsertFollowUp) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(followUps).values(data);
+}
+
+export async function updateFollowUp(id: number, data: Partial<InsertFollowUp>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(followUps).set(data).where(eq(followUps.id, id));
+}
+
+export async function deleteFollowUp(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(followUps).where(eq(followUps.id, id));
 }
