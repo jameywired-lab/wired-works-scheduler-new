@@ -1,22 +1,22 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import {
+  boolean,
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  varchar,
+  bigint,
+} from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
+// ─── Users (auth) ────────────────────────────────────────────────────────────
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "crew"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -25,4 +25,150 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// ─── Clients ─────────────────────────────────────────────────────────────────
+export const clients = mysqlTable("clients", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 32 }),
+  email: varchar("email", { length: 320 }),
+  addressLine1: varchar("addressLine1", { length: 255 }),
+  addressLine2: varchar("addressLine2", { length: 255 }),
+  city: varchar("city", { length: 128 }),
+  state: varchar("state", { length: 64 }),
+  zip: varchar("zip", { length: 20 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Client = typeof clients.$inferSelect;
+export type InsertClient = typeof clients.$inferInsert;
+
+// ─── Crew Members ─────────────────────────────────────────────────────────────
+export const crewMembers = mysqlTable("crewMembers", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").references(() => users.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 32 }),
+  email: varchar("email", { length: 320 }),
+  role: varchar("role", { length: 128 }).default("Technician"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CrewMember = typeof crewMembers.$inferSelect;
+export type InsertCrewMember = typeof crewMembers.$inferInsert;
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
+export const jobs = mysqlTable("jobs", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId")
+    .notNull()
+    .references(() => clients.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  status: mysqlEnum("status", [
+    "scheduled",
+    "in_progress",
+    "completed",
+    "cancelled",
+  ])
+    .default("scheduled")
+    .notNull(),
+  scheduledStart: bigint("scheduledStart", { mode: "number" }).notNull(), // UTC ms
+  scheduledEnd: bigint("scheduledEnd", { mode: "number" }).notNull(),     // UTC ms
+  address: varchar("address", { length: 512 }),
+  ownerInstructions: text("ownerInstructions"),
+  googleCalendarEventId: varchar("googleCalendarEventId", { length: 255 }),
+  // SMS tracking
+  bookingSmsSent: boolean("bookingSmsSent").default(false).notNull(),
+  reminderSmsSent: boolean("reminderSmsSent").default(false).notNull(),
+  reviewSmsSent: boolean("reviewSmsSent").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Job = typeof jobs.$inferSelect;
+export type InsertJob = typeof jobs.$inferInsert;
+
+// ─── Job Assignments (crew → job) ─────────────────────────────────────────────
+export const jobAssignments = mysqlTable("jobAssignments", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId")
+    .notNull()
+    .references(() => jobs.id),
+  crewMemberId: int("crewMemberId")
+    .notNull()
+    .references(() => crewMembers.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type JobAssignment = typeof jobAssignments.$inferSelect;
+export type InsertJobAssignment = typeof jobAssignments.$inferInsert;
+
+// ─── Crew Notes (field notes from crew after job) ─────────────────────────────
+export const crewNotes = mysqlTable("crewNotes", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId")
+    .notNull()
+    .references(() => jobs.id),
+  crewMemberId: int("crewMemberId").references(() => crewMembers.id),
+  authorName: varchar("authorName", { length: 255 }),
+  content: text("content").notNull(),
+  // Sensitive: client credentials or access codes
+  credentials: text("credentials"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CrewNote = typeof crewNotes.$inferSelect;
+export type InsertCrewNote = typeof crewNotes.$inferInsert;
+
+// ─── SMS Log ──────────────────────────────────────────────────────────────────
+export const smsLog = mysqlTable("smsLog", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").references(() => jobs.id),
+  clientId: int("clientId").references(() => clients.id),
+  toPhone: varchar("toPhone", { length: 32 }).notNull(),
+  messageType: mysqlEnum("messageType", ["booking", "reminder", "review"]).notNull(),
+  body: text("body").notNull(),
+  status: varchar("status", { length: 64 }).default("sent"),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+});
+
+export type SmsLog = typeof smsLog.$inferSelect;
+export type InsertSmsLog = typeof smsLog.$inferInsert;
+
+// ─── Google Tokens ────────────────────────────────────────────────────────────
+export const googleTokens = mysqlTable("googleTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  accessToken: text("accessToken").notNull(),
+  refreshToken: text("refreshToken"),
+  expiresAt: bigint("expiresAt", { mode: "number" }).notNull(),
+  calendarId: varchar("calendarId", { length: 255 }).default("primary"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type GoogleToken = typeof googleTokens.$inferSelect;
+export type InsertGoogleToken = typeof googleTokens.$inferInsert;
+
+// ─── Client Addresses ────────────────────────────────────────────────────────
+export const clientAddresses = mysqlTable("clientAddresses", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").notNull().references(() => clients.id),
+  label: varchar("label", { length: 64 }).notNull().default("Home"), // Home, Business, Vacation, Other, or custom
+  addressLine1: varchar("addressLine1", { length: 255 }).notNull(),
+  addressLine2: varchar("addressLine2", { length: 255 }),
+  city: varchar("city", { length: 128 }),
+  state: varchar("state", { length: 64 }),
+  zip: varchar("zip", { length: 20 }),
+  isPrimary: boolean("isPrimary").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ClientAddress = typeof clientAddresses.$inferSelect;
+export type InsertClientAddress = typeof clientAddresses.$inferInsert;

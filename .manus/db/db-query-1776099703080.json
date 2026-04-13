@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `smsLog` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`jobId` int,\n\t`clientId` int,\n\t`toPhone` varchar(32) NOT NULL,\n\t`messageType` enum('booking','reminder','review') NOT NULL,\n\t`body` text NOT NULL,\n\t`status` varchar(64) DEFAULT 'sent',\n\t`sentAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `smsLog_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `smsLog_jobId_jobs_id_fk` FOREIGN KEY (`jobId`) REFERENCES `jobs`(`id`) ON DELETE no action ON UPDATE no action,\n\tCONSTRAINT `smsLog_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action\n)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user j5qKiZUYQMRfMo2.b7f9ad3c878a --database gYJ9uUE9i5ygur2GefRATd --execute CREATE TABLE `smsLog` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`jobId` int,\n\t`clientId` int,\n\t`toPhone` varchar(32) NOT NULL,\n\t`messageType` enum('booking','reminder','review') NOT NULL,\n\t`body` text NOT NULL,\n\t`status` varchar(64) DEFAULT 'sent',\n\t`sentAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `smsLog_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `smsLog_jobId_jobs_id_fk` FOREIGN KEY (`jobId`) REFERENCES `jobs`(`id`) ON DELETE no action ON UPDATE no action,\n\tCONSTRAINT `smsLog_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action\n)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 169
+}
