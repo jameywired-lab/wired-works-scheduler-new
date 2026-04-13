@@ -172,3 +172,11 @@
 - [x] messaging.sendToClient tRPC procedure (OpenPhone API)
 - [x] listJobs now joins with clients to return clientName and clientPhone
 - [x] 29 tests passing across 5 test files (0 TypeScript errors)
+
+## Bug Fix — Add Client Button Missing
+- [ ] ClientsPage: Add Client button not visible — remove all remaining isAdmin/auth gates
+
+## Login & Auth Fix
+- [ ] Add Login button to sidebar footer when user is not signed in
+- [ ] Make all CRUD buttons unconditional (no isAdmin check) across ClientsPage, JobDetailPage, CrewPage, etc.
+- [ ] Audit all pages for isAdmin gates hiding buttons and remove them

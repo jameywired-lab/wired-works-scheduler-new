@@ -26,6 +26,7 @@ import {
   Calendar,
   FolderOpen,
   LayoutDashboard,
+  LogIn,
   LogOut,
   Moon,
   PanelLeft,
@@ -272,7 +273,12 @@ function DashboardLayoutContent({
                       <LogOut className="mr-2 h-4 w-4" />
                       Sign out
                     </DropdownMenuItem>
-                  ) : null}
+                  ) : (
+                    <DropdownMenuItem onClick={() => window.location.href = getLoginUrl()}>
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign in
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </SidebarFooter>
@@ -322,7 +328,12 @@ function DashboardLayoutContent({
                       <LogOut className="mr-2 h-4 w-4" />
                       Sign out
                     </DropdownMenuItem>
-                  ) : null}
+                  ) : (
+                    <DropdownMenuItem onClick={() => window.location.href = getLoginUrl()}>
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign in
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
           </div>

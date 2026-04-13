@@ -30,8 +30,6 @@ type CrewForm = {
 const emptyForm: CrewForm = { name: "", phone: "", email: "", role: "", isActive: true };
 
 export default function CrewPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const utils = trpc.useUtils();
 
   const [showForm, setShowForm] = useState(false);
@@ -101,12 +99,10 @@ export default function CrewPage() {
             {isLoading ? "Loading…" : `${crew?.length ?? 0} crew members`}
           </p>
         </div>
-        {isAdmin && (
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Member
-          </Button>
-        )}
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add Member
+        </Button>
       </div>
 
       {isLoading ? (
@@ -117,11 +113,9 @@ export default function CrewPage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <UserCircle2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
           <p className="font-medium text-muted-foreground">No crew members yet</p>
-          {isAdmin && (
-            <Button variant="outline" size="sm" className="mt-4" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1.5" /> Add your first crew member
-            </Button>
-          )}
+          <Button variant="outline" size="sm" className="mt-4" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1.5" /> Add your first crew member
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -144,16 +138,14 @@ export default function CrewPage() {
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Inactive</Badge>
                       )}
                     </div>
-                    {isAdmin && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(member)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                        <button onClick={() => setDeleteConfirm(member.id)} className="p-1.5 rounded-lg hover:bg-destructive/15 transition-colors">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEdit(member)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                      <button onClick={() => setDeleteConfirm(member.id)} className="p-1.5 rounded-lg hover:bg-destructive/15 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </button>
+                    </div>
                   </div>
                   {member.role && (
                     <p className="text-xs text-muted-foreground mt-0.5">{member.role}</p>

@@ -33,7 +33,6 @@ export default function CalendarPage() {
   });
   const calendarRef = useRef<FullCalendar>(null);
   const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin";
   const utils = trpc.useUtils();
 
   const { data: jobs, isLoading } = trpc.jobs.listByDateRange.useQuery({
@@ -59,7 +58,6 @@ export default function CalendarPage() {
   };
 
   const handleDateSelect = (info: DateSelectArg) => {
-    if (!isAdmin) return;
     setSelectedDate(info.start);
     setShowJobForm(true);
   };
@@ -78,12 +76,10 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Schedule and manage all jobs</p>
         </div>
-        {isAdmin && (
-          <Button size="sm" onClick={() => { setSelectedDate(undefined); setShowJobForm(true); }}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            New Job
-          </Button>
-        )}
+        <Button size="sm" onClick={() => { setSelectedDate(undefined); setShowJobForm(true); }}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          New Job
+        </Button>
       </div>
 
       <div className="bg-card border border-border rounded-xl p-3 md:p-5">
@@ -102,8 +98,8 @@ export default function CalendarPage() {
             right: isMobile ? "listWeek,dayGridMonth" : "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
           }}
           events={events}
-          selectable={isAdmin}
-          selectMirror={isAdmin}
+          selectable={true}
+          selectMirror={true}
           select={handleDateSelect}
           eventClick={handleEventClick}
           datesSet={handleDatesSet}

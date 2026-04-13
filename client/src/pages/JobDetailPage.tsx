@@ -46,7 +46,6 @@ export default function JobDetailPage() {
   const jobId = Number(id);
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const utils = trpc.useUtils();
 
   const [showEditForm, setShowEditForm] = useState(false);
@@ -60,7 +59,7 @@ export default function JobDetailPage() {
 
   const { data: job, isLoading } = trpc.jobs.getById.useQuery({ id: jobId });
   const { data: crewNotes } = trpc.crewNotes.getByJob.useQuery({ jobId });
-  const { data: smsLog } = trpc.jobs.getSmsLog.useQuery({ jobId }, { enabled: isAdmin });
+  const { data: smsLog } = trpc.jobs.getSmsLog.useQuery({ jobId });
   const { data: jobPhotos } = trpc.jobPhotos.getByJob.useQuery({ jobId });
 
   const createNote = trpc.crewNotes.create.useMutation();
@@ -179,11 +178,9 @@ export default function JobDetailPage() {
             </button>
           )}
         </div>
-        {isAdmin && (
-          <Button size="sm" variant="outline" onClick={() => setShowEditForm(true)} className="shrink-0">
-            <Edit2 className="h-3.5 w-3.5 mr-1.5" /> Edit
-          </Button>
-        )}
+        <Button size="sm" variant="outline" onClick={() => setShowEditForm(true)} className="shrink-0">
+          <Edit2 className="h-3.5 w-3.5 mr-1.5" /> Edit
+        </Button>
       </div>
 
       {/* Job details */}
@@ -282,9 +279,8 @@ export default function JobDetailPage() {
         </Card>
       )}
 
-      {/* SMS Panel (admin only) */}
-      {isAdmin && (
-        <Card className="bg-card border-border">
+      {/* SMS Panel */}
+      <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" /> SMS Notifications
@@ -342,7 +338,6 @@ export default function JobDetailPage() {
             )}
           </CardContent>
         </Card>
-      )}
 
       {/* In-App Messaging Panel */}
       {job.client?.phone && (
@@ -480,14 +475,12 @@ export default function JobDetailPage() {
                           >
                             <Edit2 className="h-3 w-3 text-muted-foreground" />
                           </button>
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleDeleteNote(note.id)}
-                              className="p-1 rounded hover:bg-destructive/15 transition-colors"
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            className="p-1 rounded hover:bg-destructive/15 transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </button>
                         </div>
                       </div>
                       <p className="text-sm text-foreground/80 whitespace-pre-wrap">{note.content}</p>
