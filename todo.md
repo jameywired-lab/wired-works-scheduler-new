@@ -76,36 +76,36 @@
 - [x] QuickBooks / Jobber integration guidance panel in Import page (Export Guides tab)
 
 ## UX Improvements
-- [ ] Remove login wall — make app accessible without requiring authentication
-- [ ] Add dark/light mode toggle in sidebar and mobile header
-- [ ] Make ThemeProvider switchable so toggle persists across sessions
+- [x] Remove login wall — make app accessible without requiring authentication
+- [x] Add dark/light mode toggle in sidebar and mobile header
+- [x] Make ThemeProvider switchable so toggle persists across sessions
 
 ## Login Removal & Theme Toggle
-- [ ] Remove global auth redirect from main.tsx
-- [ ] Remove login wall from DashboardLayout (show app without requiring sign-in)
-- [ ] Make all backend tRPC procedures public (no UNAUTHORIZED errors for unauthenticated users)
-- [ ] Add dark/light mode toggle button in sidebar footer and mobile header dropdown
+- [x] Remove global auth redirect from main.tsx
+- [x] Remove login wall from DashboardLayout (show app without requiring sign-in)
+- [x] Make all backend tRPC procedures public (no UNAUTHORIZED errors for unauthenticated users)
+- [x] Add dark/light mode toggle button in sidebar footer and mobile header dropdown
 
 ## Projects Feature
-- [ ] DB: projects table (title, description, clientId, status, startDate, dueDate, createdAt)
-- [ ] DB: projectMilestones table (projectId, title, isComplete, dueDate, sortOrder)
-- [ ] DB: projectReminders table (projectId, message, remindAt, isDismissed)
-- [ ] Backend: CRUD routes for projects, milestones, reminders
-- [ ] Backend: milestone toggle (mark complete/incomplete)
-- [ ] Frontend: Projects page with client-linked project cards
-- [ ] Frontend: Project detail with milestone checklist, progress bar, deadlines
-- [ ] Frontend: Add/edit reminder with date picker on each project
-- [ ] Frontend: Reminder badge/alert when a reminder is due
-- [ ] Nav: Add Projects to sidebar navigation
+- [x] DB: projects table (title, description, clientId, status, startDate, dueDate, createdAt)
+- [x] DB: projectMilestones table (projectId, title, isComplete, dueDate, sortOrder)
+- [x] DB: projectReminders table (projectId, message, remindAt, isDismissed)
+- [x] Backend: CRUD routes for projects, milestones, reminders
+- [x] Backend: milestone toggle (mark complete/incomplete)
+- [x] Frontend: Projects page with client-linked project cards
+- [x] Frontend: Project detail with milestone checklist, progress bar, deadlines
+- [x] Frontend: Add/edit reminder with date picker on each project
+- [x] Frontend: Reminder badge/alert when a reminder is due
+- [x] Nav: Add Projects to sidebar navigation
 
 ## Follow-Up Feature
-- [ ] DB: followUps table (contactName, phone, type: call/text/manual, note, isFollowedUp, contactedAt, createdAt)
-- [ ] Backend: CRUD routes for follow-ups (list by date, create, toggle followedUp)
-- [ ] Backend: OpenPhone webhook endpoint to auto-log incoming calls/texts
-- [ ] Frontend: Follow-Up tab on Dashboard home page
-- [ ] Frontend: Daily follow-up list with check-off toggle
-- [ ] Frontend: Manual add follow-up entry (name, phone, note, type)
-- [ ] Frontend: Filter by date (today / this week / all)
+- [x] DB: followUps table (contactName, phone, type: call/text/manual, note, isFollowedUp, contactedAt, createdAt)
+- [x] Backend: CRUD routes for follow-ups (list by date, create, toggle followedUp)
+- [x] Backend: OpenPhone webhook endpoint to auto-log incoming calls/texts
+- [x] Frontend: Follow-Up tab on Dashboard home page
+- [x] Frontend: Daily follow-up list with check-off toggle
+- [x] Frontend: Manual add follow-up entry (name, phone, note, type)
+- [x] Frontend: Filter by date (today / this week / all)
 
 ## Completed (this session)
 - [x] Remove global auth redirect from main.tsx
@@ -135,28 +135,28 @@
 - [x] Projects panel: active projects with progress bars (bottom or right column)
 
 ## Bug Fixes & New Features
-- [ ] Fix client add form — manually adding a client does not work
-- [ ] Add new user creation to Users page (create user with name, email, phone, role without requiring OAuth)
+- [x] Fix client add form — manually adding a client does not work
+- [x] Add new user creation to Users page (create user with name, email, phone, role without requiring OAuth)
 
 ## Crew View & Fixes
-- [ ] Fix client add form — remove isAdmin gate so Add Client button always shows
-- [ ] Fix ClientDetailPage — remove isAdmin gates on New Job, Add Address, edit/delete address buttons
-- [ ] Add user creation to UsersPage (name, email, role, delete)
-- [ ] Crew-specific navigation: hide Follow-Up, Projects, Crew, Users, Import nav items for crew role
-- [ ] CrewJobsPage: show only assigned jobs, close-out job button, field notes submission
-- [ ] CrewClientsPage: all clients with addresses and all job-related notes per client
-- [ ] In-app SMS from job detail: "On My Way" quick-send and custom message to client
-- [ ] Add sendMessage tRPC procedure using OpenPhone API
+- [x] Fix client add form — remove isAdmin gate so Add Client button always shows
+- [x] Fix ClientDetailPage — remove isAdmin gates on New Job, Add Address, edit/delete address buttons
+- [x] Add user creation to UsersPage (name, email, role, delete)
+- [x] Crew-specific navigation: hide Follow-Up, Projects, Crew, Users, Import nav items for crew role
+- [x] CrewJobsPage: show only assigned jobs, close-out job button, field notes submission
+- [x] CrewClientsPage: all clients with addresses and all job-related notes per client
+- [x] In-app SMS from job detail: "On My Way" quick-send and custom message to client
+- [x] Add sendMessage tRPC procedure using OpenPhone API
 
 ## Photo Upload & Crew View
-- [ ] jobPhotos table in schema (jobId, s3Key, s3Url, uploadedBy, createdAt)
-- [ ] S3 photo upload tRPC route (multipart, max 10 per job, stored in S3)
-- [ ] sendMessage SMS procedure via OpenPhone API
-- [ ] DashboardLayout: crew role sees only "My Jobs" and "Clients" nav items
-- [ ] CrewJobsPage: assigned jobs list, close-out button, field notes + up to 10 photos
-- [ ] Photo grid display in job notes/close-out section
-- [ ] CrewClientsPage: all clients, addresses, job notes per client
-- [ ] In-app SMS panel on JobDetailPage: On My Way, ETA, custom message
+- [x] jobPhotos table in schema (jobId, s3Key, s3Url, uploadedBy, createdAt)
+- [x] S3 photo upload tRPC route (multipart, max 10 per job, stored in S3)
+- [x] sendMessage SMS procedure via OpenPhone API
+- [x] DashboardLayout: crew role sees only "My Jobs" and "Clients" nav items
+- [x] CrewJobsPage: assigned jobs list, close-out button, field notes + up to 10 photos
+- [x] Photo grid display in job notes/close-out section
+- [x] CrewClientsPage: all clients, addresses, job notes per client
+- [x] In-app SMS panel on JobDetailPage: On My Way, ETA, custom message
 
 ## Completed (crew view + photo upload session)
 - [x] Fix client add form — removed isAdmin gate so Add Client button always shows

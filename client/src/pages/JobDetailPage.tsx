@@ -23,10 +23,13 @@ import {
   CheckCircle2,
   Clock,
   Edit2,
+  Image,
   Key,
   Loader2,
   MapPin,
   MessageSquare,
+  Navigation,
+  Phone,
   Plus,
   Send,
   Star,
@@ -52,15 +55,19 @@ export default function JobDetailPage() {
   const [showCredentials, setShowCredentials] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editNoteContent, setEditNoteContent] = useState("");
+  const [smsMessage, setSmsMessage] = useState("");
+  const [sendingSms, setSendingSms] = useState(false);
 
   const { data: job, isLoading } = trpc.jobs.getById.useQuery({ id: jobId });
   const { data: crewNotes } = trpc.crewNotes.getByJob.useQuery({ jobId });
   const { data: smsLog } = trpc.jobs.getSmsLog.useQuery({ jobId }, { enabled: isAdmin });
+  const { data: jobPhotos } = trpc.jobPhotos.getByJob.useQuery({ jobId });
 
   const createNote = trpc.crewNotes.create.useMutation();
   const updateNote = trpc.crewNotes.update.useMutation();
   const deleteNote = trpc.crewNotes.delete.useMutation();
   const sendReminder = trpc.jobs.sendReminderSms.useMutation();
+  const sendToClient = trpc.messaging.sendToClient.useMutation();
 
   if (isLoading) {
     return (
@@ -120,6 +127,20 @@ export default function JobDetailPage() {
       toast.success("Note deleted.");
     } catch {
       toast.error("Failed to delete note.");
+    }
+  };
+
+  const handleSendToClient = async (msg: string) => {
+    if (!job?.client?.phone) { toast.error("No client phone number on file."); return; }
+    setSendingSms(true);
+    try {
+      await sendToClient.mutateAsync({ to: job.client.phone, message: msg, jobId });
+      toast.success("Message sent.");
+      setSmsMessage("");
+    } catch {
+      toast.error("Failed to send message.");
+    } finally {
+      setSendingSms(false);
     }
   };
 
@@ -319,6 +340,91 @@ export default function JobDetailPage() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* In-App Messaging Panel */}
+      {job.client?.phone && (
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Phone className="h-4 w-4 text-primary" /> Message Client
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              {["On my way!", "I've arrived.", "Job complete!"].map((quick) => (
+                <Button
+                  key={quick}
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-8"
+                  disabled={sendingSms}
+                  onClick={() => handleSendToClient(quick)}
+                >
+                  {quick}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Custom message…"
+                value={smsMessage}
+                onChange={(e) => setSmsMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && smsMessage.trim() && handleSendToClient(smsMessage)}
+                className="flex-1 h-9 px-3 text-sm rounded-md border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button
+                size="sm"
+                onClick={() => handleSendToClient(smsMessage)}
+                disabled={sendingSms || !smsMessage.trim()}
+                className="shrink-0"
+              >
+                {sendingSms ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+            {job.address && (
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent(job.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <Navigation className="h-3 w-3" /> Get directions to job site
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Job Photos */}
+      {jobPhotos && jobPhotos.length > 0 && (
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Image className="h-4 w-4 text-primary" /> Job Photos ({jobPhotos.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {jobPhotos.map((photo) => (
+                <a
+                  key={photo.id}
+                  href={photo.s3Url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors block"
+                >
+                  <img
+                    src={photo.s3Url}
+                    alt={photo.filename ?? "Job photo"}
+                    className="w-full h-full object-cover"
+                  />
+                </a>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
