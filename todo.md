@@ -133,3 +133,42 @@
 - [x] Schedule panel: today's jobs + upcoming (left/main column)
 - [x] Follow-Up panel: today's pending follow-ups with check-off (right column)
 - [x] Projects panel: active projects with progress bars (bottom or right column)
+
+## Bug Fixes & New Features
+- [ ] Fix client add form — manually adding a client does not work
+- [ ] Add new user creation to Users page (create user with name, email, phone, role without requiring OAuth)
+
+## Crew View & Fixes
+- [ ] Fix client add form — remove isAdmin gate so Add Client button always shows
+- [ ] Fix ClientDetailPage — remove isAdmin gates on New Job, Add Address, edit/delete address buttons
+- [ ] Add user creation to UsersPage (name, email, role, delete)
+- [ ] Crew-specific navigation: hide Follow-Up, Projects, Crew, Users, Import nav items for crew role
+- [ ] CrewJobsPage: show only assigned jobs, close-out job button, field notes submission
+- [ ] CrewClientsPage: all clients with addresses and all job-related notes per client
+- [ ] In-app SMS from job detail: "On My Way" quick-send and custom message to client
+- [ ] Add sendMessage tRPC procedure using OpenPhone API
+
+## Photo Upload & Crew View
+- [ ] jobPhotos table in schema (jobId, s3Key, s3Url, uploadedBy, createdAt)
+- [ ] S3 photo upload tRPC route (multipart, max 10 per job, stored in S3)
+- [ ] sendMessage SMS procedure via OpenPhone API
+- [ ] DashboardLayout: crew role sees only "My Jobs" and "Clients" nav items
+- [ ] CrewJobsPage: assigned jobs list, close-out button, field notes + up to 10 photos
+- [ ] Photo grid display in job notes/close-out section
+- [ ] CrewClientsPage: all clients, addresses, job notes per client
+- [ ] In-app SMS panel on JobDetailPage: On My Way, ETA, custom message
+
+## Completed (crew view + photo upload session)
+- [x] Fix client add form — removed isAdmin gate so Add Client button always shows
+- [x] Fix ClientDetailPage — removed isAdmin gates on all address/job buttons
+- [x] Add user creation to UsersPage (name, email, role, delete)
+- [x] Crew-specific navigation: crew role sees only My Jobs and Clients
+- [x] CrewJobsPage: assigned jobs list with expand/collapse, directions, call/text client
+- [x] CrewJobsPage: close-out dialog with field notes, credentials, up to 10 photo uploads
+- [x] CrewJobsPage: quick SMS buttons (On My Way x2, Arrived, Done) + custom message
+- [x] CrewClientsPage: all clients with addresses (accordion), job history, directions per address
+- [x] jobPhotos table in schema + migration applied
+- [x] S3 photo upload backend route (base64 → S3 → DB)
+- [x] messaging.sendToClient tRPC procedure (OpenPhone API)
+- [x] listJobs now joins with clients to return clientName and clientPhone
+- [x] 29 tests passing across 5 test files (0 TypeScript errors)

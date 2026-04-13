@@ -26,6 +26,8 @@ import {
   listJobs,
   listJobsByDateRange,
   listJobsForCrew,
+  createManualUser,
+  deleteUser,
   listUsers,
   replaceJobAssignments,
   unassignCrewFromJob,
@@ -50,6 +52,7 @@ import {
 } from "./googleCalendar";
 import { importRouter } from "./routers/import";
 import { projectsRouter, followUpsRouter } from "./routers/projectsFollowups";
+import { jobPhotosRouter, messagingRouter } from "./routers/jobPhotosMessaging";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -541,10 +544,33 @@ const googleCalendarRouter = router({
 // ─── Users/Admin Router ───────────────────────────────────────────────────────
 const usersRouter = router({
   list: p.query(async () => listUsers()),
+
+  create: p
+    .input(z.object({
+      name: z.string().min(1),
+      email: z.string().email().optional().or(z.literal("")),
+      role: z.enum(["user", "admin", "crew"]).default("user"),
+    }))
+    .mutation(async ({ input }) => {
+      const result = await createManualUser({
+        name: input.name,
+        email: input.email || undefined,
+        role: input.role,
+      });
+      return { success: true, openId: result.openId };
+    }),
+
   updateRole: p
     .input(z.object({ userId: z.number(), role: z.enum(["user", "admin", "crew"]) }))
     .mutation(async ({ input }) => {
       await updateUserRole(input.userId, input.role);
+      return { success: true };
+    }),
+
+  delete: p
+    .input(z.object({ userId: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteUser(input.userId);
       return { success: true };
     }),
 });
@@ -571,6 +597,8 @@ export const appRouter = router({
   import: importRouter,
   projects: projectsRouter,
   followUps: followUpsRouter,
+  jobPhotos: jobPhotosRouter,
+  messaging: messagingRouter,
 });
 
 export type AppRouter = typeof appRouter;

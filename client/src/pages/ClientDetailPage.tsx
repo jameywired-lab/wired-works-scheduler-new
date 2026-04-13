@@ -93,8 +93,6 @@ export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const clientId = Number(id);
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const [showJobForm, setShowJobForm] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
@@ -222,11 +220,9 @@ export default function ClientDetailPage() {
             </p>
           </div>
         </div>
-        {isAdmin && (
-          <Button size="sm" onClick={() => setShowJobForm(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Job
-          </Button>
-        )}
+        <Button size="sm" onClick={() => setShowJobForm(true)}>
+          <Plus className="h-4 w-4 mr-1.5" /> New Job
+        </Button>
       </div>
 
       {/* Contact info */}
@@ -285,11 +281,9 @@ export default function ClientDetailPage() {
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Addresses
             </CardTitle>
-            {isAdmin && (
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openNewAddress}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Address
-              </Button>
-            )}
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openNewAddress}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Address
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -303,11 +297,9 @@ export default function ClientDetailPage() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <MapPin className="h-8 w-8 text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">No addresses saved yet.</p>
-              {isAdmin && (
-                <Button variant="outline" size="sm" className="mt-3" onClick={openNewAddress}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add First Address
-                </Button>
-              )}
+              <Button variant="outline" size="sm" className="mt-3" onClick={openNewAddress}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add First Address
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -345,28 +337,24 @@ export default function ClientDetailPage() {
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </Button>
-                      {isAdmin && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            title="Edit address"
-                            onClick={() => openEditAddress(addr)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            title="Delete address"
-                            onClick={() => deleteAddress.mutate({ id: addr.id })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        title="Edit address"
+                        onClick={() => openEditAddress(addr)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        title="Delete address"
+                        onClick={() => deleteAddress.mutate({ id: addr.id })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 );

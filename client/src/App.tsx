@@ -15,6 +15,8 @@ import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
 import ImportPage from "./pages/ImportPage";
 import ProjectsPage from "./pages/ProjectsPage";
+import CrewJobsPage from "./pages/CrewJobsPage";
+import CrewClientsPage from "./pages/CrewClientsPage";
 
 function AppRoutes() {
   return (
@@ -30,6 +32,8 @@ function AppRoutes() {
         <Route path="/users" component={UsersPage} />
         <Route path="/import" component={ImportPage} />
         <Route path="/projects" component={ProjectsPage} />
+        <Route path="/crew-jobs" component={CrewJobsPage} />
+        <Route path="/crew-clients" component={CrewClientsPage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

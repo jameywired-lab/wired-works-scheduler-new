@@ -43,21 +43,32 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { useTheme } from "../contexts/ThemeContext";
 
-const navItems = [
+// Nav shown to admin/user roles
+const adminNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: FolderOpen, label: "Projects", path: "/projects" },
-  { icon: Users2, label: "Crew", path: "/crew", adminOnly: true },
-  { icon: Upload, label: "Import", path: "/import", adminOnly: true },
+  { icon: Users2, label: "Crew", path: "/crew" },
 ];
 
-const bottomNavItems = [
+// Nav shown exclusively to crew role
+const crewNavItems = [
+  { icon: LayoutDashboard, label: "My Jobs", path: "/crew-jobs" },
+  { icon: Users, label: "Clients", path: "/crew-clients" },
+];
+
+const adminBottomNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
   { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: Settings, label: "Settings", path: "/settings" },
+];
+
+const crewBottomNavItems = [
+  { icon: LayoutDashboard, label: "My Jobs", path: "/crew-jobs" },
+  { icon: Users, label: "Clients", path: "/crew-clients" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -104,8 +115,9 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const isAdmin = user?.role === "admin";
-  const visibleNav = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const isCrew = user?.role === "crew";
+  const isAdmin = user?.role === "admin" || user?.role === "user";
+  const visibleNav = isCrew ? crewNavItems : adminNavItems;
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -140,8 +152,13 @@ function DashboardLayoutContent({
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
 
-  const activeLabel = [...navItems, { label: "Settings", path: "/settings" }, { label: "Users", path: "/users" }, { label: "Import", path: "/import" }]
-    .find((i) => i.path === location)?.label ?? "Wired Works";
+  const allNavItems = [
+    ...adminNavItems, ...crewNavItems,
+    { label: "Settings", path: "/settings" },
+    { label: "Users", path: "/users" },
+    { label: "Import", path: "/import" },
+  ];
+  const activeLabel = allNavItems.find((i) => i.path === location)?.label ?? "Wired Works";
 
   return (
     <>
@@ -190,12 +207,12 @@ function DashboardLayoutContent({
               </SidebarMenu>
 
               {/* Admin section */}
-              {isAdmin && !isCollapsed && (
+              {!isCrew && !isCollapsed && (
                 <div className="px-4 pt-4 pb-1">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Admin</p>
                 </div>
               )}
-              {isAdmin && (
+              {!isCrew && (
                 <SidebarMenu className="px-2 gap-0.5">
                   {[
                     { icon: Users2, label: "Users", path: "/users" },
@@ -317,7 +334,7 @@ function DashboardLayoutContent({
         {isMobile && (
           <nav className="fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t border-sidebar-border">
             <div className="flex items-center justify-around h-16 px-2">
-              {bottomNavItems.filter(i => !i.path.startsWith("/crew") || isAdmin || user?.role === "crew").map((item) => {
+              {(isCrew ? crewBottomNavItems : adminBottomNavItems).map((item) => {
                 const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
                 return (
                   <button

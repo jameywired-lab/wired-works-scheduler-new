@@ -232,3 +232,19 @@ export const followUps = mysqlTable("followUps", {
 
 export type FollowUp = typeof followUps.$inferSelect;
 export type InsertFollowUp = typeof followUps.$inferInsert;
+
+// ─── Job Photos ───────────────────────────────────────────────────────────────
+export const jobPhotos = mysqlTable("jobPhotos", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull().references(() => jobs.id),
+  s3Key: varchar("s3Key", { length: 512 }).notNull(),
+  s3Url: text("s3Url").notNull(),
+  filename: varchar("filename", { length: 255 }),
+  mimeType: varchar("mimeType", { length: 64 }),
+  sizeBytes: int("sizeBytes"),
+  uploadedByUserId: int("uploadedByUserId"), // nullable — crew member user id
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type JobPhoto = typeof jobPhotos.$inferSelect;
+export type InsertJobPhoto = typeof jobPhotos.$inferInsert;

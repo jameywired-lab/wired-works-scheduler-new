@@ -16,14 +16,17 @@ import {
   InsertProjectMilestone,
   InsertProjectReminder,
   InsertSmsLog,
+  InsertJobPhoto,
   InsertUser,
   Job,
+  JobPhoto,
   clientAddresses,
   clients,
   crewMembers,
   crewNotes,
   followUps,
   jobAssignments,
+  jobPhotos,
   jobs,
   projectMilestones,
   projectReminders,
@@ -103,6 +106,28 @@ export async function updateUserRole(userId: number, role: "user" | "admin" | "c
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
+export async function createManualUser(data: { name: string; email?: string; role: "user" | "admin" | "crew" }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  // Generate a unique synthetic openId for manually-created users
+  const openId = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  await db.insert(users).values({
+    openId,
+    name: data.name,
+    email: data.email ?? null,
+    loginMethod: "manual",
+    role: data.role,
+    lastSignedIn: new Date(),
+  });
+  return { openId };
+}
+
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(users).where(eq(users.id, userId));
+}
+
 // ─── Clients ─────────────────────────────────────────────────────────────────
 export async function listClients() {
   const db = await getDb();
@@ -176,7 +201,30 @@ export async function deleteCrewMember(id: number) {
 export async function listJobs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(jobs).orderBy(desc(jobs.scheduledStart));
+  const rows = await db
+    .select({
+      id: jobs.id,
+      clientId: jobs.clientId,
+      title: jobs.title,
+      description: jobs.description,
+      status: jobs.status,
+      scheduledStart: jobs.scheduledStart,
+      scheduledEnd: jobs.scheduledEnd,
+      address: jobs.address,
+      ownerInstructions: jobs.ownerInstructions,
+      googleCalendarEventId: jobs.googleCalendarEventId,
+      bookingSmsSent: jobs.bookingSmsSent,
+      reminderSmsSent: jobs.reminderSmsSent,
+      reviewSmsSent: jobs.reviewSmsSent,
+      createdAt: jobs.createdAt,
+      updatedAt: jobs.updatedAt,
+      clientName: clients.name,
+      clientPhone: clients.phone,
+    })
+    .from(jobs)
+    .leftJoin(clients, eq(jobs.clientId, clients.id))
+    .orderBy(desc(jobs.scheduledStart));
+  return rows;
 }
 
 export async function listJobsByDateRange(startMs: number, endMs: number) {
@@ -566,4 +614,24 @@ export async function deleteFollowUp(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(followUps).where(eq(followUps.id, id));
+}
+
+// ─── Job Photos ───────────────────────────────────────────────────────────────
+export async function getJobPhotos(jobId: number): Promise<JobPhoto[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(jobPhotos).where(eq(jobPhotos.jobId, jobId)).orderBy(jobPhotos.createdAt);
+}
+
+export async function createJobPhoto(data: Omit<InsertJobPhoto, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(jobPhotos).values(data);
+  return result[0];
+}
+
+export async function deleteJobPhoto(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(jobPhotos).where(eq(jobPhotos.id, id));
 }
