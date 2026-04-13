@@ -48,6 +48,7 @@ import {
   saveToken,
   updateCalendarEvent,
 } from "./googleCalendar";
+import { importRouter } from "./routers/import";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -642,6 +643,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   googleCalendar: googleCalendarRouter,
   users: usersRouter,
+  import: importRouter,
 });
 
 export type AppRouter = typeof appRouter;

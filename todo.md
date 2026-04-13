@@ -62,3 +62,15 @@
 - [x] Vitest tests for SMS message templates (sms.test.ts) — 6 tests passing
 - [x] Vitest test for auth.logout (auth.logout.test.ts) — 1 test passing
 - [x] All 7 tests passing
+
+## Import Features
+- [x] CSV import backend: parse CSV, validate rows, bulk-insert clients
+- [x] CSV import backend: bulk-insert crew members from CSV
+- [x] CSV import frontend: ImportPage with file upload, column mapping UI, preview table, confirm
+- [x] Support Jobber CSV export format (auto-detect column names)
+- [x] Support QuickBooks CSV export format (auto-detect column names)
+- [x] Download sample CSV template for clients
+- [x] Download sample CSV template for crew
+- [x] Import results summary (success count, skipped rows, errors)
+- [x] Add "Import" nav item in sidebar (admin only)
+- [x] QuickBooks / Jobber integration guidance panel in Import page (Export Guides tab)

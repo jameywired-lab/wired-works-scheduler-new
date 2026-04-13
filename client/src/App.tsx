@@ -13,6 +13,7 @@ import JobDetailPage from "./pages/JobDetailPage";
 import CrewPage from "./pages/CrewPage";
 import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
+import ImportPage from "./pages/ImportPage";
 
 function AppRoutes() {
   return (
@@ -26,6 +27,7 @@ function AppRoutes() {
         <Route path="/crew" component={CrewPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/users" component={UsersPage} />
+        <Route path="/import" component={ImportPage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

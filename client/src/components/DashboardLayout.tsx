@@ -30,6 +30,7 @@ import {
   PanelLeft,
   Settings,
   Shield,
+  Upload,
   Users,
   Users2,
   Zap,
@@ -44,6 +45,7 @@ const navItems = [
   { icon: Calendar, label: "Calendar", path: "/calendar" },
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: Users2, label: "Crew", path: "/crew", adminOnly: true },
+  { icon: Upload, label: "Import", path: "/import", adminOnly: true },
 ];
 
 const bottomNavItems = [
@@ -160,7 +162,7 @@ function DashboardLayoutContent({
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
 
-  const activeLabel = [...navItems, { label: "Settings", path: "/settings" }, { label: "Users", path: "/users" }]
+  const activeLabel = [...navItems, { label: "Settings", path: "/settings" }, { label: "Users", path: "/users" }, { label: "Import", path: "/import" }]
     .find((i) => i.path === location)?.label ?? "Wired Works";
 
   return (
@@ -219,6 +221,7 @@ function DashboardLayoutContent({
                 <SidebarMenu className="px-2 gap-0.5">
                   {[
                     { icon: Users2, label: "Users", path: "/users" },
+                    { icon: Upload, label: "Import", path: "/import" },
                     { icon: Settings, label: "Settings", path: "/settings" },
                   ].map((item) => {
                     const isActive = location === item.path;
