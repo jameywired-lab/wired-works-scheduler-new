@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -31,9 +31,9 @@ import {
   CheckCircle2,
   Clock,
   FolderOpen,
+  MessageSquare,
   Phone,
   Plus,
-  MessageSquare,
   Users,
   Zap,
 } from "lucide-react";
@@ -41,7 +41,6 @@ import { useLocation } from "wouter";
 import JobFormModal from "@/components/JobFormModal";
 import { toast } from "sonner";
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -55,7 +54,7 @@ export default function Dashboard() {
   const scheduledToday = todayJobs.filter((j) => j.status === "scheduled" || j.status === "in_progress").length;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -81,66 +80,61 @@ export default function Dashboard() {
         <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-violet-400" />} loading={isLoading} />
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="schedule" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="followup">Follow-Up</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
-        </TabsList>
+      {/* Main 3-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── Schedule Tab ── */}
-        <TabsContent value="schedule">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-base">Today's Schedule</h2>
-                <Button variant="ghost" size="sm" onClick={() => setLocation("/calendar")} className="text-xs text-muted-foreground h-7 px-2">
-                  View calendar <ArrowRight className="ml-1 h-3 w-3" />
-                </Button>
+        {/* ── Column 1 & 2: Schedule ── */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Today's Schedule */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-base">Today's Schedule</h2>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/calendar")} className="text-xs text-muted-foreground h-7 px-2">
+                View calendar <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+            {isLoading ? (
+              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
+            ) : todayJobs.length === 0 ? (
+              <EmptyState icon={<Calendar className="h-8 w-8 text-muted-foreground/40" />} title="No jobs today" description="Your schedule is clear. Enjoy the day or add a new job." />
+            ) : (
+              <div className="space-y-2">
+                {todayJobs.map((job) => (
+                  <JobCard key={job.id} job={job} onClick={() => setLocation(`/jobs/${job.id}`)} />
+                ))}
               </div>
-              {isLoading ? (
-                <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
-              ) : todayJobs.length === 0 ? (
-                <EmptyState icon={<Calendar className="h-8 w-8 text-muted-foreground/40" />} title="No jobs today" description="Your schedule is clear. Enjoy the day or add a new job." />
-              ) : (
-                <div className="space-y-2">
-                  {todayJobs.map((job) => (
-                    <JobCard key={job.id} job={job} onClick={() => setLocation(`/jobs/${job.id}`)} />
+            )}
+          </section>
+
+          {/* Projects Panel */}
+          <ProjectsPanel />
+        </div>
+
+        {/* ── Column 3: Upcoming + Follow-Up ── */}
+        <div className="space-y-6">
+          {/* Upcoming Jobs */}
+          <section className="space-y-3">
+            <h2 className="font-semibold text-base">Upcoming</h2>
+            {isLoading ? (
+              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+            ) : upcomingJobs.filter((j) => { const e = new Date(); e.setHours(23,59,59,999); return j.scheduledStart > e.getTime(); }).length === 0 ? (
+              <EmptyState icon={<Clock className="h-6 w-6 text-muted-foreground/40" />} title="No upcoming jobs" description="Nothing scheduled beyond today." compact />
+            ) : (
+              <div className="space-y-2">
+                {upcomingJobs
+                  .filter((j) => { const e = new Date(); e.setHours(23,59,59,999); return j.scheduledStart > e.getTime(); })
+                  .slice(0, 5)
+                  .map((job) => (
+                    <UpcomingJobRow key={job.id} job={job} onClick={() => setLocation(`/jobs/${job.id}`)} />
                   ))}
-                </div>
-              )}
-            </div>
-            <div className="space-y-3">
-              <h2 className="font-semibold text-base">Upcoming</h2>
-              {isLoading ? (
-                <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-              ) : upcomingJobs.filter((j) => { const e = new Date(); e.setHours(23,59,59,999); return j.scheduledStart > e.getTime(); }).length === 0 ? (
-                <EmptyState icon={<Clock className="h-6 w-6 text-muted-foreground/40" />} title="No upcoming jobs" description="Nothing scheduled beyond today." compact />
-              ) : (
-                <div className="space-y-2">
-                  {upcomingJobs
-                    .filter((j) => { const e = new Date(); e.setHours(23,59,59,999); return j.scheduledStart > e.getTime(); })
-                    .slice(0, 6)
-                    .map((job) => (
-                      <UpcomingJobRow key={job.id} job={job} onClick={() => setLocation(`/jobs/${job.id}`)} />
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </TabsContent>
+              </div>
+            )}
+          </section>
 
-        {/* ── Follow-Up Tab ── */}
-        <TabsContent value="followup">
-          <FollowUpTab />
-        </TabsContent>
-
-        {/* ── Projects Tab ── */}
-        <TabsContent value="projects">
-          <ProjectsOverviewTab />
-        </TabsContent>
-      </Tabs>
+          {/* Follow-Up Panel */}
+          <FollowUpPanel />
+        </div>
+      </div>
 
       {showJobForm && (
         <JobFormModal
@@ -153,31 +147,24 @@ export default function Dashboard() {
   );
 }
 
-// ─── Follow-Up Tab ────────────────────────────────────────────────────────────
-function FollowUpTab() {
+// ─── Follow-Up Panel ──────────────────────────────────────────────────────────
+function FollowUpPanel() {
   const utils = trpc.useUtils();
-  const [dateFilter, setDateFilter] = useState<"today" | "week" | "all">("today");
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newNote, setNewNote] = useState("");
   const [newType, setNewType] = useState<"call" | "text" | "manual">("manual");
+  const [, setLocation] = useLocation();
 
-  const dateRange = useMemo(() => {
-    const now = Date.now();
-    if (dateFilter === "today") {
-      const start = new Date(); start.setHours(0,0,0,0);
-      const end = new Date(); end.setHours(23,59,59,999);
-      return { startMs: start.getTime(), endMs: end.getTime() };
-    }
-    if (dateFilter === "week") {
-      const start = new Date(); start.setDate(start.getDate() - 7); start.setHours(0,0,0,0);
-      return { startMs: start.getTime(), endMs: now };
-    }
-    return {};
-  }, [dateFilter]);
+  // Today only for the dashboard panel
+  const todayRange = useMemo(() => {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(); end.setHours(23, 59, 59, 999);
+    return { startMs: start.getTime(), endMs: end.getTime() };
+  }, []);
 
-  const { data: followUps = [], isLoading } = trpc.followUps.list.useQuery(dateRange);
+  const { data: followUps = [], isLoading } = trpc.followUps.list.useQuery(todayRange);
 
   const createFollowUp = trpc.followUps.create.useMutation({
     onSuccess: () => {
@@ -192,253 +179,233 @@ function FollowUpTab() {
   const toggleFollowUp = trpc.followUps.toggle.useMutation({
     onMutate: async ({ id, isFollowedUp }) => {
       await utils.followUps.list.cancel();
-      const prev = utils.followUps.list.getData(dateRange);
-      utils.followUps.list.setData(dateRange, (old) =>
+      const prev = utils.followUps.list.getData(todayRange);
+      utils.followUps.list.setData(todayRange, (old) =>
         old?.map((f) => f.id === id ? { ...f, isFollowedUp } : f)
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) utils.followUps.list.setData(dateRange, ctx.prev); },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) utils.followUps.list.setData(todayRange, ctx.prev); },
     onSettled: () => utils.followUps.list.invalidate(),
   });
 
   const deleteFollowUp = trpc.followUps.delete.useMutation({
-    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Removed"); },
+    onSuccess: () => utils.followUps.list.invalidate(),
   });
 
   const pending = followUps.filter((f) => !f.isFollowedUp);
   const done = followUps.filter((f) => f.isFollowedUp);
 
-  const TYPE_ICON = {
-    call: <Phone className="h-3.5 w-3.5 text-blue-400" />,
-    text: <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />,
-    manual: <Zap className="h-3.5 w-3.5 text-amber-400" />,
+  const TYPE_ICON: Record<string, React.ReactNode> = {
+    call: <Phone className="h-3 w-3 text-blue-400" />,
+    text: <MessageSquare className="h-3 w-3 text-emerald-400" />,
+    manual: <Zap className="h-3 w-3 text-amber-400" />,
   };
 
-  const TYPE_LABEL = { call: "Call", text: "Text", manual: "Note" };
-
   return (
-    <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-1">
-          {(["today", "week", "all"] as const).map((f) => (
-            <Button
-              key={f}
-              size="sm"
-              variant={dateFilter === f ? "default" : "outline"}
-              className="h-7 text-xs capitalize"
-              onClick={() => setDateFilter(f)}
-            >
-              {f === "today" ? "Today" : f === "week" ? "This Week" : "All Time"}
+    <Card className="border-border">
+      <CardHeader className="pb-3 pt-4 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Phone className="h-4 w-4 text-primary" />
+            Follow-Up
+            {pending.length > 0 && (
+              <Badge className="bg-amber-500/15 text-amber-500 text-[10px] h-4 px-1.5">{pending.length}</Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
+              <Plus className="h-3 w-3 mr-1" /> Add
             </Button>
-          ))}
+          </div>
         </div>
-        <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Entry
-        </Button>
-      </div>
-
-      {/* Add form */}
-      {showAddForm && (
-        <Card className="border-primary/30">
-          <CardContent className="p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium mb-1 block">Name</label>
-                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Contact name" className="h-8 text-sm" />
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block">Phone</label>
-                <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="(xxx) xxx-xxxx" className="h-8 text-sm" />
-              </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-3">
+        {/* Quick add form */}
+        {showAddForm && (
+          <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
+            <div className="grid grid-cols-2 gap-2">
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" className="h-7 text-xs" />
+              <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="Phone" className="h-7 text-xs" />
             </div>
-            <div>
-              <label className="text-xs font-medium mb-1 block">Type</label>
-              <Select value={newType} onValueChange={(v) => setNewType(v as any)}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="call">Incoming Call</SelectItem>
-                  <SelectItem value="text">Incoming Text</SelectItem>
-                  <SelectItem value="manual">Manual Note</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-medium mb-1 block">Note</label>
-              <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="What did they need? Any context..." rows={2} className="text-sm" />
-            </div>
+            <Select value={newType} onValueChange={(v) => setNewType(v as any)}>
+              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="call">Incoming Call</SelectItem>
+                <SelectItem value="text">Incoming Text</SelectItem>
+                <SelectItem value="manual">Manual Note</SelectItem>
+              </SelectContent>
+            </Select>
+            <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Note..." rows={2} className="text-xs resize-none" />
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>Cancel</Button>
-              <Button size="sm" onClick={() => createFollowUp.mutate({ contactName: newName || undefined, phone: newPhone || undefined, note: newNote || undefined, type: newType, contactedAt: Date.now() })} disabled={createFollowUp.isPending}>
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowAddForm(false)}>Cancel</Button>
+              <Button size="sm" className="h-6 text-xs" onClick={() => createFollowUp.mutate({ contactName: newName || undefined, phone: newPhone || undefined, note: newNote || undefined, type: newType, contactedAt: Date.now() })} disabled={createFollowUp.isPending}>
                 Save
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {isLoading ? (
-        <div className="space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
-      ) : followUps.length === 0 ? (
-        <EmptyState
-          icon={<Phone className="h-8 w-8 text-muted-foreground/40" />}
-          title="No follow-ups"
-          description={dateFilter === "today" ? "No calls or texts logged today." : "Nothing to follow up on."}
-        />
-      ) : (
-        <div className="space-y-6">
-          {/* Pending */}
-          {pending.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                Needs Follow-Up ({pending.length})
-              </h3>
-              <div className="space-y-2">
-                {pending.map((f) => (
-                  <FollowUpRow key={f.id} followUp={f} typeIcon={TYPE_ICON[f.type]} typeLabel={TYPE_LABEL[f.type]} onToggle={(v) => toggleFollowUp.mutate({ id: f.id, isFollowedUp: v })} onDelete={() => deleteFollowUp.mutate({ id: f.id })} />
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Done */}
-          {done.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-muted-foreground">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                Followed Up ({done.length})
-              </h3>
-              <div className="space-y-2 opacity-60">
-                {done.map((f) => (
-                  <FollowUpRow key={f.id} followUp={f} typeIcon={TYPE_ICON[f.type]} typeLabel={TYPE_LABEL[f.type]} onToggle={(v) => toggleFollowUp.mutate({ id: f.id, isFollowedUp: v })} onDelete={() => deleteFollowUp.mutate({ id: f.id })} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FollowUpRow({
-  followUp,
-  typeIcon,
-  typeLabel,
-  onToggle,
-  onDelete,
-}: {
-  followUp: { id: number; contactName?: string | null; phone?: string | null; note?: string | null; type: string; isFollowedUp: boolean; createdAt: Date };
-  typeIcon: React.ReactNode;
-  typeLabel: string;
-  onToggle: (v: boolean) => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${followUp.isFollowedUp ? "border-border bg-card/50" : "border-border bg-card hover:border-primary/30"}`}>
-      <Checkbox
-        checked={followUp.isFollowedUp}
-        onCheckedChange={(v) => onToggle(!!v)}
-        className="mt-0.5"
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`font-medium text-sm ${followUp.isFollowedUp ? "line-through text-muted-foreground" : ""}`}>
-            {followUp.contactName || "Unknown"}
-          </span>
-          {followUp.phone && (
-            <span className="text-xs text-muted-foreground">{followUp.phone}</span>
-          )}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            {typeIcon}
-            <span>{typeLabel}</span>
           </div>
-        </div>
-        {followUp.note && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{followUp.note}</p>
         )}
-        <p className="text-xs text-muted-foreground/60 mt-1">
-          {new Date(followUp.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-        </p>
-      </div>
-      <button onClick={onDelete} className="text-muted-foreground hover:text-destructive transition-colors mt-0.5">
-        <span className="text-xs">✕</span>
-      </button>
-    </div>
+
+        {isLoading ? (
+          <div className="space-y-2">{[1,2].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
+        ) : followUps.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-xs text-muted-foreground">No follow-ups logged today</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {/* Pending first */}
+            {pending.map((f) => (
+              <div key={f.id} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card hover:border-primary/20 transition-colors group">
+                <Checkbox checked={false} onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: true })} className="mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-medium truncate">{f.contactName || "Unknown"}</span>
+                    {TYPE_ICON[f.type]}
+                    {f.phone && <span className="text-[10px] text-muted-foreground">{f.phone}</span>}
+                  </div>
+                  {f.note && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{f.note}</p>}
+                </div>
+                <button onClick={() => deleteFollowUp.mutate({ id: f.id })} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all text-xs">✕</button>
+              </div>
+            ))}
+            {/* Done */}
+            {done.slice(0, 3).map((f) => (
+              <div key={f.id} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card/50 opacity-50 group">
+                <Checkbox checked={true} onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: false })} className="mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs line-through text-muted-foreground truncate block">{f.contactName || "Unknown"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Projects Overview Tab ────────────────────────────────────────────────────
-function ProjectsOverviewTab() {
+// ─── Projects Panel ───────────────────────────────────────────────────────────
+function ProjectsPanel() {
   const [, setLocation] = useLocation();
   const { data: projects = [], isLoading } = trpc.projects.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: dueReminders = [] } = trpc.projects.getDueReminders.useQuery();
+  const utils = trpc.useUtils();
+
+  const dismissReminder = trpc.projects.dismissReminder.useMutation({
+    onSuccess: () => utils.projects.getDueReminders.invalidate(),
+  });
 
   const active = projects.filter((p) => p.status === "active");
   const activeDueReminders = dueReminders.filter((r) => !r.isDismissed);
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-base flex items-center gap-2">
+          <FolderOpen className="h-4 w-4 text-primary" />
+          Projects
+          {activeDueReminders.length > 0 && (
+            <Badge className="bg-amber-500/15 text-amber-500 text-[10px] h-4 px-1.5">
+              <Bell className="h-2.5 w-2.5 mr-0.5" />{activeDueReminders.length}
+            </Badge>
+          )}
+        </h2>
+        <Button variant="ghost" size="sm" onClick={() => setLocation("/projects")} className="text-xs text-muted-foreground h-7 px-2">
+          All projects <ArrowRight className="ml-1 h-3 w-3" />
+        </Button>
+      </div>
+
+      {/* Due reminder banner */}
       {activeDueReminders.length > 0 && (
         <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-start gap-3">
-          <Bell className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              {activeDueReminders.length} project reminder{activeDueReminders.length > 1 ? "s" : ""} due
+          <Bell className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              {activeDueReminders.length} reminder{activeDueReminders.length > 1 ? "s" : ""} due
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{activeDueReminders[0]?.message}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{activeDueReminders[0]?.message}</p>
           </div>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setLocation("/projects")}>
-            View
+          <Button size="sm" variant="ghost" className="h-6 text-xs shrink-0" onClick={() => activeDueReminders[0] && dismissReminder.mutate({ id: activeDueReminders[0].id })}>
+            Dismiss
           </Button>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{active.length} active project{active.length !== 1 ? "s" : ""}</p>
-        <Button size="sm" variant="outline" onClick={() => setLocation("/projects")}>
-          <FolderOpen className="h-3.5 w-3.5 mr-1.5" /> All Projects
-        </Button>
-      </div>
-
       {isLoading ? (
-        <div className="space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[1,2,3,4].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        </div>
       ) : active.length === 0 ? (
         <EmptyState
           icon={<FolderOpen className="h-8 w-8 text-muted-foreground/40" />}
           title="No active projects"
-          description="Head to the Projects page to create one."
+          description="Head to Projects to create one."
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {active.slice(0, 6).map((p) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {active.slice(0, 4).map((p) => {
             const clientName = clients.find((c) => c.id === p.clientId)?.name;
             const isOverdue = p.dueDate && p.dueDate < Date.now();
             return (
-              <button
+              <ProjectMiniCard
                 key={p.id}
+                project={p}
+                clientName={clientName}
+                isOverdue={!!isOverdue}
                 onClick={() => setLocation("/projects")}
-                className="text-left p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-all group"
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="font-medium text-sm group-hover:text-primary transition-colors line-clamp-1">{p.title}</p>
-                  {isOverdue && <Badge className="bg-destructive/15 text-destructive text-[10px] shrink-0">Overdue</Badge>}
-                </div>
-                {clientName && <p className="text-xs text-muted-foreground mb-2">{clientName}</p>}
-                {p.dueDate && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    Due {new Date(p.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </div>
-                )}
-              </button>
+              />
             );
           })}
         </div>
       )}
-    </div>
+    </section>
+  );
+}
+
+function ProjectMiniCard({
+  project,
+  clientName,
+  isOverdue,
+  onClick,
+}: {
+  project: { id: number; title: string; dueDate?: number | null; status: string };
+  clientName?: string;
+  isOverdue: boolean;
+  onClick: () => void;
+}) {
+  const { data: detail } = trpc.projects.getById.useQuery({ id: project.id });
+  const milestones = detail?.milestones ?? [];
+  const completedCount = milestones.filter((m) => m.isComplete).length;
+  const progress = milestones.length > 0 ? Math.round((completedCount / milestones.length) * 100) : 0;
+
+  return (
+    <button
+      onClick={onClick}
+      className="text-left p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-all group"
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <p className="font-medium text-sm group-hover:text-primary transition-colors line-clamp-1 flex-1">{project.title}</p>
+        {isOverdue && <Badge className="bg-destructive/15 text-destructive text-[10px] shrink-0">Overdue</Badge>}
+      </div>
+      {clientName && <p className="text-xs text-muted-foreground mb-2">{clientName}</p>}
+      {milestones.length > 0 && (
+        <div className="mb-2">
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+            <span>{completedCount}/{milestones.length} milestones</span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="h-1" />
+        </div>
+      )}
+      {project.dueDate && (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Calendar className="h-2.5 w-2.5" />
+          Due {new Date(project.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+        </div>
+      )}
+    </button>
   );
 }
 

@@ -127,3 +127,9 @@
 - [x] Frontend: Filter by Today / This Week / All Time
 - [x] Frontend: Dashboard tabs — Schedule, Follow-Up, Projects
 - [x] Tests: 24 tests passing across 4 test files (0 TypeScript errors)
+
+## Dashboard Layout Redesign
+- [x] Remove tabs from Dashboard — show Schedule, Follow-Up, and Projects as always-visible panels
+- [x] Schedule panel: today's jobs + upcoming (left/main column)
+- [x] Follow-Up panel: today's pending follow-ups with check-off (right column)
+- [x] Projects panel: active projects with progress bars (bottom or right column)
