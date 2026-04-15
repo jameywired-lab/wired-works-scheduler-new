@@ -626,3 +626,8 @@
 - [x] Delete the three "unknown" crossed-out follow-up records from the database (contactName IS NULL or empty, isFollowedUp = true)
 - [x] Dashboard FollowUpPanel: ensure delete (trash) button is always visible on every item, not hidden behind hover or conditional logic
 - [x] FollowUpsPage: ensure delete button is always visible on every item
+
+## Dashboard Follow-Up Panel — Hide Completed Items
+
+- [x] Dashboard FollowUpPanel: filter out isFollowedUp=true items so completed/crossed-out follow-ups never show in the dashboard panel
+- [x] Dashboard FollowUpPanel: delete button must work on all remaining items (Jamey Farrell, Van Inventory entries)

@@ -488,13 +488,7 @@ function FollowUpPanel() {
               );
             })}
 
-            {/* Done — compact */}
-            {done.slice(0, 3).map((f) => (
-              <div key={f.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card/50 opacity-50">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                <span className="text-xs line-through text-muted-foreground truncate flex-1">{f.contactName || "Unknown"}</span>
-              </div>
-            ))}
+            {/* Completed follow-ups are intentionally hidden from the dashboard panel — view them on the Follow-Ups page */}
           </div>
         )}
       </CardContent>
