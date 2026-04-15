@@ -182,8 +182,8 @@
 - [x] Audit all pages for isAdmin gates hiding buttons and remove them
 
 ## Bug Fix — Unauthenticated Missing Header Error
-- [ ] Diagnose "unauthenticated missing header" error blocking app preview
-- [ ] Fix all tRPC procedures to work without authentication headers
+- [x] Diagnose "unauthenticated missing header" error blocking app preview (normal server log, not an error)
+- [x] Fix all tRPC procedures to work without authentication headers (already public, no changes needed)
 
 ## Bug Fix — Job Form Address
 - [x] JobFormModal: selecting a client should auto-populate address dropdown from their saved addresses

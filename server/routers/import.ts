@@ -1,4 +1,4 @@
-import { protectedProcedure, router } from "../_core/trpc";
+import { publicProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "../db";
@@ -61,34 +61,28 @@ export const importRouter = router({
    * Preview: given raw CSV rows and a column mapping, return the first 10
    * parsed records so the user can confirm before committing.
    */
-  previewClients: protectedProcedure
+  previewClients: publicProcedure
     .input(
       z.object({
         rows: z.array(CsvRowSchema).max(5000),
         mapping: ClientMappingSchema,
       })
     )
-    .mutation(({ input, ctx }) => {
-      if (ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    .mutation(({ input }) => {
       const preview = input.rows.slice(0, 10).map((row) =>
         mapClientRow(row, input.mapping)
       );
       return { preview, total: input.rows.length };
     }),
 
-  previewCrew: protectedProcedure
+  previewCrew: publicProcedure
     .input(
       z.object({
         rows: z.array(CsvRowSchema).max(1000),
         mapping: CrewMappingSchema,
       })
     )
-    .mutation(({ input, ctx }) => {
-      if (ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    .mutation(({ input }) => {
       const preview = input.rows.slice(0, 10).map((row) =>
         mapCrewRow(row, input.mapping)
       );
@@ -99,17 +93,14 @@ export const importRouter = router({
    * Commit: bulk-insert all mapped clients.
    * Skips rows where name is empty.
    */
-  importClients: protectedProcedure
+  importClients: publicProcedure
     .input(
       z.object({
         rows: z.array(CsvRowSchema).max(5000),
         mapping: ClientMappingSchema,
       })
     )
-    .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
@@ -159,17 +150,14 @@ export const importRouter = router({
   /**
    * Commit: bulk-insert all mapped crew members.
    */
-  importCrew: protectedProcedure
+  importCrew: publicProcedure
     .input(
       z.object({
         rows: z.array(CsvRowSchema).max(1000),
         mapping: CrewMappingSchema,
       })
     )
-    .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
