@@ -100,9 +100,11 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
     { enabled: !!form.clientId && form.clientId !== "" }
   );
 
-  // When client changes, auto-select primary address
+  // When client changes or addresses load, auto-select primary address
   useEffect(() => {
-    if (!clientAddresses || clientAddresses.length === 0) return;
+    if (!form.clientId || !clientAddresses || clientAddresses.length === 0) return;
+    // Only auto-fill if address is currently empty (just selected a new client)
+    if (form.address !== "") return;
     const primary = clientAddresses.find((a) => a.isPrimary) ?? clientAddresses[0];
     if (primary) {
       const addrStr = buildAddressString(primary);
@@ -112,7 +114,7 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         address: addrStr,
       }));
     }
-  }, [clientAddresses]);
+  }, [clientAddresses, form.clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Populate form in edit mode
   useEffect(() => {
@@ -215,7 +217,10 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
             <Label>Client *</Label>
             <Select
               value={form.clientId}
-              onValueChange={(v) => setForm((f) => ({ ...f, clientId: v, selectedAddressId: "custom", address: "" }))}
+              onValueChange={(v) => {
+                // Reset address when switching clients so the useEffect auto-fills
+                setForm((f) => ({ ...f, clientId: v, selectedAddressId: "custom", address: "" }));
+              }}
             >
               <SelectTrigger className="bg-input border-border">
                 <SelectValue placeholder="Select a client…" />

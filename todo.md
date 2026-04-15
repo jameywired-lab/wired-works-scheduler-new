@@ -174,9 +174,17 @@
 - [x] 29 tests passing across 5 test files (0 TypeScript errors)
 
 ## Bug Fix — Add Client Button Missing
-- [ ] ClientsPage: Add Client button not visible — remove all remaining isAdmin/auth gates
+- [x] ClientsPage: Add Client button not visible — remove all remaining isAdmin/auth gates
 
 ## Login & Auth Fix
-- [ ] Add Login button to sidebar footer when user is not signed in
-- [ ] Make all CRUD buttons unconditional (no isAdmin check) across ClientsPage, JobDetailPage, CrewPage, etc.
-- [ ] Audit all pages for isAdmin gates hiding buttons and remove them
+- [x] Add Login button to sidebar footer when user is not signed in
+- [x] Make all CRUD buttons unconditional (no isAdmin check) across ClientsPage, JobDetailPage, CrewPage, etc.
+- [x] Audit all pages for isAdmin gates hiding buttons and remove them
+
+## Bug Fix — Unauthenticated Missing Header Error
+- [ ] Diagnose "unauthenticated missing header" error blocking app preview
+- [ ] Fix all tRPC procedures to work without authentication headers
+
+## Bug Fix — Job Form Address
+- [x] JobFormModal: selecting a client should auto-populate address dropdown from their saved addresses
+- [x] Pre-fill address field with client's primary address when client is selected
