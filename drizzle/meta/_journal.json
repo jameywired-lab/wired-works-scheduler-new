@@ -71,6 +71,20 @@
       "when": 1776265414081,
       "tag": "0009_youthful_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1776271466877,
+      "tag": "0010_amused_nightshade",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1776271785561,
+      "tag": "0011_ordinary_nightmare",
+      "breakpoints": true
     }
   ]
 }

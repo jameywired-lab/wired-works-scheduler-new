@@ -18,6 +18,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import CrewJobsPage from "./pages/CrewJobsPage";
 import CrewClientsPage from "./pages/CrewClientsPage";
 import FollowUpPage from "./pages/FollowUpPage";
+import VanInventoryPage from "./pages/VanInventoryPage";
 
 function AppRoutes() {
   return (
@@ -36,6 +37,7 @@ function AppRoutes() {
         <Route path="/crew-jobs" component={CrewJobsPage} />
         <Route path="/crew-clients" component={CrewClientsPage} />
         <Route path="/follow-ups" component={FollowUpPage} />
+        <Route path="/van-inventory" component={VanInventoryPage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

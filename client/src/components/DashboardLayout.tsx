@@ -34,6 +34,7 @@ import {
   Settings,
   Shield,
   Sun,
+  Truck,
   Upload,
   Users,
   Users2,
@@ -52,6 +53,7 @@ const adminNavItems = [
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Bell, label: "Follow-Ups", path: "/follow-ups" },
+  { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
   { icon: Users2, label: "Crew", path: "/crew" },
 ];
 

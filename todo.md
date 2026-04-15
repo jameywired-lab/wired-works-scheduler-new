@@ -362,3 +362,24 @@
 - [x] Diagnose ThemeProvider defaultTheme and CSS variable definitions in index.css
 - [x] Fix light mode CSS variables so background is white/light and text is dark when light mode is selected
 - [x] Ensure theme toggle in DashboardLayout correctly persists and applies the selected theme
+
+## Van Inventory
+
+- [x] Add vanInventoryItems table (id, name, targetQty, currentQty, needsRestock bool, updatedAt)
+- [x] Seed 30 inventory items with target quantities
+- [x] inventory.list procedure: return all items
+- [x] inventory.updateCurrent procedure: update currentQty for an item
+- [x] inventory.sendReport procedure: compute shortages, compose SMS, send via OpenPhone from 9046851240 to 9043336466
+- [x] VanInventoryPage: grid of 30 items with checkbox (needs restock), target qty badge, current qty number input
+- [x] Shortage column: shows how many needed (target - current, min 0)
+- [x] "Complete Inventory" button: triggers sendReport procedure, shows success toast
+- [x] Add "Van Inventory" nav item to sidebar (admin + crew)
+- [x] SMS report format: item name + qty needed, one per line, only items with shortage > 0
+
+## Parts Requested (Crew Free-Text)
+
+- [x] Add partsRequests table (id, requestedBy, partDescription, sentAt, createdAt)
+- [x] inventory.requestPart procedure: save request, send SMS to owner immediately
+- [x] inventory.listRequests procedure: list recent requests (last 50)
+- [x] Parts Requested tab on VanInventoryPage: text input + Send button, history list
+- [x] SMS format: "Parts Request from [name]: [description]" sent from 9046851240 to 9043336466

@@ -726,6 +726,66 @@ const projectCredentialsRouter = router({
     }),
 });
 
+// ─── Inventory Router ───────────────────────────────────────────────────────
+import { getDb } from "./db";
+import { vanInventoryItems, partsRequests } from "../drizzle/schema";
+import { asc, desc as descOp, eq as eqOp } from "drizzle-orm";
+
+const inventoryRouter = router({
+  listItems: p.query(async () => {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(vanInventoryItems).orderBy(asc(vanInventoryItems.sortOrder));
+  }),
+
+  updateCurrentQty: p
+    .input(z.object({ id: z.number(), currentQty: z.number().min(0) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(vanInventoryItems).set({ currentQty: input.currentQty }).where(eqOp(vanInventoryItems.id, input.id));
+      return { success: true };
+    }),
+
+  sendReport: p.mutation(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    const items = await db.select().from(vanInventoryItems).orderBy(asc(vanInventoryItems.sortOrder));
+    const shortages = items.filter((i: typeof items[number]) => i.currentQty < i.targetQty);
+    if (shortages.length === 0) {
+      const result = await sendSms("9043336466", "✅ Van Inventory Report: All items are fully stocked! No shortages.");
+      return { success: result.success, shortages: 0 };
+    }
+    const lines = shortages.map((i: typeof items[number]) => `• ${i.name}: need ${i.targetQty - i.currentQty} (have ${i.currentQty}, target ${i.targetQty})`);
+    const body = `🚐 Van Inventory Report\n\nItems needed:\n${lines.join("\n")}\n\nTotal items short: ${shortages.length}`;
+    const result = await sendSms("9043336466", body);
+    return { success: result.success, shortages: shortages.length };
+  }),
+
+  listRequests: p.query(async () => {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(partsRequests).orderBy(descOp(partsRequests.createdAt)).limit(50);
+  }),
+
+  requestPart: p
+    .input(z.object({ requestedBy: z.string().default("Crew"), partDescription: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.insert(partsRequests).values({ requestedBy: input.requestedBy, partDescription: input.partDescription, smsSent: false });
+      const body = `🔧 Parts Request from ${input.requestedBy}:\n${input.partDescription}`;
+      const result = await sendSms("9043336466", body);
+      if (result.success) {
+        const rows = await db.select().from(partsRequests).orderBy(descOp(partsRequests.createdAt)).limit(1);
+        if (rows[0]) {
+          await db.update(partsRequests).set({ smsSent: true }).where(eqOp(partsRequests.id, rows[0].id));
+        }
+      }
+      return { success: true, smsSent: result.success };
+    }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -753,5 +813,6 @@ export const appRouter = router({
   tags: tagsRouter,
    jobDocuments: jobDocumentsRouter,
   projectCredentials: projectCredentialsRouter,
+  inventory: inventoryRouter,
 });
 export type AppRouter = typeof appRouter;

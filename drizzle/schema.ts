@@ -318,3 +318,26 @@ export const projectCredentials = mysqlTable("projectCredentials", {
 });
 export type ProjectCredential = typeof projectCredentials.$inferSelect;
 export type InsertProjectCredential = typeof projectCredentials.$inferInsert;
+
+// ─── Van Inventory ────────────────────────────────────────────────────────────
+export const vanInventoryItems = mysqlTable("vanInventoryItems", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  targetQty: int("targetQty").default(1).notNull(),
+  currentQty: int("currentQty").default(0).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VanInventoryItem = typeof vanInventoryItems.$inferSelect;
+export type InsertVanInventoryItem = typeof vanInventoryItems.$inferInsert;
+
+// ─── Parts Requests ───────────────────────────────────────────────────────────
+export const partsRequests = mysqlTable("partsRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  requestedBy: varchar("requestedBy", { length: 255 }).notNull().default("Crew"),
+  partDescription: text("partDescription").notNull(),
+  smsSent: boolean("smsSent").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PartsRequest = typeof partsRequests.$inferSelect;
+export type InsertPartsRequest = typeof partsRequests.$inferInsert;
