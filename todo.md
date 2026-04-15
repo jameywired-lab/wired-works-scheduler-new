@@ -288,3 +288,33 @@
 ### Frontend
 - [x] Follow-Up page: show source badge (SMS / Call / Manual / Close-Out / Proposal) on each card
 - [x] Follow-Up page: show phone number and matched client name if available
+
+## Job Documents, Photo Gallery & Annotation
+
+### Database
+- [x] Add jobDocuments table (id, jobId, s3Key, s3Url, filename, mimeType, fileSize, uploadedBy, createdAt)
+- [x] Add annotatedS3Key/annotatedS3Url columns to jobPhotos table (stores S3 URL of annotated version)
+- [x] Apply migrations
+
+### Backend
+- [x] jobDocuments.upload procedure: accept base64 file, store in S3, save record
+- [x] jobDocuments.list procedure: list all documents for a job
+- [x] jobDocuments.delete procedure: delete DB record (S3 object retained)
+- [x] jobDocuments.saveAnnotation procedure: accept base64 annotated image, upload to S3, update annotatedS3Url
+
+### Frontend — Job Detail Page
+- [x] Documents section on JobDetailPage: upload button accepts PDF, Word, images (max 20MB)
+- [x] Documents list: show filename, file type icon, size, download link, delete button
+- [x] Photo gallery section: grid of uploaded photos with upload button
+- [x] Photo upload button in gallery section
+- [x] Click photo to open full-screen viewer (via anchor link)
+
+### Frontend — Photo Annotation Editor
+- [x] Canvas-based annotation editor modal (opens when clicking Annotate pencil on a photo)
+- [x] Tools: Pen/marker (freehand draw, 8-color picker, stroke width +/-)
+- [x] Tools: Text tool (click canvas to place text label with color)
+- [x] Tools: Arrow tool (draw directional arrows)
+- [x] Tools: Undo last stroke
+- [x] Tools: Clear all annotations
+- [x] Save annotated version: uploads to S3, shows annotated thumbnail in gallery with badge
+- [x] Annotated badge shown on photo cards that have been annotated

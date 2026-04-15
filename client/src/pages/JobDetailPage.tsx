@@ -23,24 +23,28 @@ import {
   CheckCircle2,
   Clock,
   Edit2,
+  FileText,
   Image,
   Key,
   Loader2,
   MapPin,
   MessageSquare,
   Navigation,
+  Pencil,
   Phone,
   Plus,
   Send,
   Star,
   Trash2,
+  Upload,
   Users2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
 import JobFormModal from "@/components/JobFormModal";
 import CloseOutModal from "@/components/CloseOutModal";
+import PhotoAnnotationEditor from "@/components/PhotoAnnotationEditor";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -58,11 +62,21 @@ export default function JobDetailPage() {
   const [smsMessage, setSmsMessage] = useState("");
   const [sendingSms, setSendingSms] = useState(false);
   const [showCloseOut, setShowCloseOut] = useState(false);
+  const [annotatingPhoto, setAnnotatingPhoto] = useState<{ id: number; s3Url: string; annotatedS3Url?: string | null; filename?: string | null } | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: job, isLoading } = trpc.jobs.getById.useQuery({ id: jobId });
   const { data: crewNotes } = trpc.crewNotes.getByJob.useQuery({ jobId });
   const { data: smsLog } = trpc.jobs.getSmsLog.useQuery({ jobId });
-  const { data: jobPhotos } = trpc.jobPhotos.getByJob.useQuery({ jobId });
+  const { data: jobPhotos, refetch: refetchPhotos } = trpc.jobPhotos.getByJob.useQuery({ jobId });
+  const { data: jobDocuments, refetch: refetchDocs } = trpc.jobDocuments.list.useQuery({ jobId });
+
+  const uploadDocMut = trpc.jobDocuments.upload.useMutation();
+  const deleteDocMut = trpc.jobDocuments.delete.useMutation();
+  const uploadPhotoMut = trpc.jobPhotos.upload.useMutation();
 
   const createNote = trpc.crewNotes.create.useMutation();
   const updateNote = trpc.crewNotes.update.useMutation();
@@ -142,6 +156,69 @@ export default function JobDetailPage() {
       toast.error("Failed to send message.");
     } finally {
       setSendingSms(false);
+    }
+  };
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { toast.error("File must be under 20 MB."); return; }
+    setUploadingDoc(true);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            await uploadDocMut.mutateAsync({ jobId, filename: file.name, mimeType: file.type, sizeBytes: file.size, base64: reader.result as string });
+            refetchDocs();
+            toast.success("Document uploaded.");
+            resolve();
+          } catch { toast.error("Upload failed."); reject(); }
+        };
+        reader.readAsDataURL(file);
+      });
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = "";
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploadingPhoto(true);
+    try {
+      for (const file of files) {
+        if (file.size > 20 * 1024 * 1024) { toast.error(`${file.name} too large (max 20 MB).`); continue; }
+        await new Promise<void>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            try {
+              const base64 = (reader.result as string).split(",")[1];
+              await uploadPhotoMut.mutateAsync({ jobId, base64Data: base64, filename: file.name, mimeType: file.type, sizeBytes: file.size });
+              resolve();
+            } catch { reject(); }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+      refetchPhotos();
+      toast.success("Photo(s) uploaded.");
+    } catch {
+      toast.error("Photo upload failed.");
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDeleteDoc = async (id: number) => {
+    try {
+      await deleteDocMut.mutateAsync({ id });
+      refetchDocs();
+      toast.success("Document removed.");
+    } catch {
+      toast.error("Failed to remove document.");
     }
   };
 
@@ -414,35 +491,119 @@ export default function JobDetailPage() {
         </Card>
       )}
 
-      {/* Job Photos */}
-      {jobPhotos && jobPhotos.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
+      {/* Documents Section */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Image className="h-4 w-4 text-primary" /> Job Photos ({jobPhotos.length})
+              <FileText className="h-4 w-4 text-primary" /> Documents & Proposals
+              {jobDocuments && jobDocuments.length > 0 && <span className="text-xs text-muted-foreground font-normal">({jobDocuments.length})</span>}
             </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <Button size="sm" variant="outline" onClick={() => docInputRef.current?.click()} disabled={uploadingDoc} className="h-7 text-xs">
+              {uploadingDoc ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+              Upload
+            </Button>
+            <input ref={docInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*" className="hidden" onChange={handleDocUpload} />
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          {(!jobDocuments || jobDocuments.length === 0) ? (
+            <div
+              className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => docInputRef.current?.click()}
+            >
+              <FileText className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">No documents yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Upload proposals, work orders, or PDFs</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {jobDocuments.map((doc) => {
+                const sizeKb = doc.sizeBytes ? Math.round(doc.sizeBytes / 1024) : null;
+                const isPdf = doc.mimeType?.includes("pdf");
+                const isImg = doc.mimeType?.startsWith("image/");
+                return (
+                  <div key={doc.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border group">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a href={doc.s3Url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary transition-colors truncate block">
+                        {doc.filename}
+                      </a>
+                      <p className="text-xs text-muted-foreground">
+                        {isPdf ? "PDF" : isImg ? "Image" : "Document"}{sizeKb ? ` · ${sizeKb} KB` : ""}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeleteDoc(doc.id)} className="p-1.5 rounded hover:bg-destructive/15 opacity-0 group-hover:opacity-100 transition-all">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Job Photos */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Image className="h-4 w-4 text-primary" /> Job Photos
+              {jobPhotos && jobPhotos.length > 0 && <span className="text-xs text-muted-foreground font-normal">({jobPhotos.length})</span>}
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="h-7 text-xs">
+              {uploadingPhoto ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+              Add Photos
+            </Button>
+            <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          {(!jobPhotos || jobPhotos.length === 0) ? (
+            <div
+              className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => photoInputRef.current?.click()}
+            >
+              <Image className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">No photos yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Tap to add job site photos</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {jobPhotos.map((photo) => (
-                <a
-                  key={photo.id}
-                  href={photo.s3Url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors block"
-                >
+                <div key={photo.id} className="group relative aspect-square rounded-lg overflow-hidden border border-border">
                   <img
-                    src={photo.s3Url}
+                    src={(photo as any).annotatedS3Url ?? photo.s3Url}
                     alt={photo.filename ?? "Job photo"}
                     className="w-full h-full object-cover"
                   />
-                </a>
+                  {(photo as any).annotatedS3Url && (
+                    <div className="absolute top-1.5 left-1.5">
+                      <span className="text-[9px] bg-primary/80 text-white px-1.5 py-0.5 rounded-full font-medium">Annotated</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <a href={(photo as any).annotatedS3Url ?? photo.s3Url} target="_blank" rel="noopener noreferrer"
+                      className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors" title="View full size"
+                    >
+                      <Image className="h-4 w-4 text-white" />
+                    </a>
+                    <button
+                      onClick={() => setAnnotatingPhoto(photo as any)}
+                      className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors" title="Annotate photo"
+                    >
+                      <Pencil className="h-4 w-4 text-white" />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Crew Notes */}
       <Card className="bg-card border-border">
@@ -590,6 +751,19 @@ export default function JobDetailPage() {
           clientName={job.client?.name ?? undefined}
           clientPhone={job.client?.phone ?? undefined}
           clientId={job.client?.id ?? undefined}
+        />
+      )}
+
+      {annotatingPhoto && (
+        <PhotoAnnotationEditor
+          photo={annotatingPhoto}
+          jobId={jobId}
+          onClose={() => setAnnotatingPhoto(null)}
+          onSaved={(annotatedUrl) => {
+            setAnnotatingPhoto(null);
+            refetchPhotos();
+            toast.success("Annotation saved.");
+          }}
         />
       )}
     </div>

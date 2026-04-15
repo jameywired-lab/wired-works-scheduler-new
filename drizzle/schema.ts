@@ -262,11 +262,30 @@ export const jobPhotos = mysqlTable("jobPhotos", {
   mimeType: varchar("mimeType", { length: 64 }),
   sizeBytes: int("sizeBytes"),
   uploadedByUserId: int("uploadedByUserId"), // nullable — crew member user id
+  // Annotation: stores S3 URL of the annotated version (null = no annotation yet)
+  annotatedS3Key: varchar("annotatedS3Key", { length: 512 }),
+  annotatedS3Url: text("annotatedS3Url"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type JobPhoto = typeof jobPhotos.$inferSelect;
 export type InsertJobPhoto = typeof jobPhotos.$inferInsert;
+
+// ─── Job Documents ────────────────────────────────────────────────────────────
+export const jobDocuments = mysqlTable("jobDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull().references(() => jobs.id),
+  s3Key: varchar("s3Key", { length: 512 }).notNull(),
+  s3Url: text("s3Url").notNull(),
+  filename: varchar("filename", { length: 255 }).notNull(),
+  mimeType: varchar("mimeType", { length: 128 }).default("application/octet-stream").notNull(),
+  sizeBytes: int("sizeBytes"),
+  uploadedByUserId: int("uploadedByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type JobDocument = typeof jobDocuments.$inferSelect;
+export type InsertJobDocument = typeof jobDocuments.$inferInsert;
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
 export const tags = mysqlTable("tags", {

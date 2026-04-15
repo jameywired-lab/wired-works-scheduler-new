@@ -38,6 +38,9 @@ import {
   InsertTag,
   InsertClientTag,
   Tag,
+  jobDocuments,
+  JobDocument,
+  InsertJobDocument,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -739,4 +742,34 @@ export async function getClientByPhone(phone: string): Promise<Client | undefine
   const digits = phone.replace(/\D/g, "");
   const all = await db.select().from(clients).orderBy(clients.name);
   return all.find((c) => c.phone && c.phone.replace(/\D/g, "").endsWith(digits.slice(-10)));
+}
+
+// ─── Job Documents ────────────────────────────────────────────────────────────
+export async function getJobDocuments(jobId: number): Promise<JobDocument[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(jobDocuments).where(eq(jobDocuments.jobId, jobId)).orderBy(jobDocuments.createdAt);
+}
+
+export async function createJobDocument(data: Omit<InsertJobDocument, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(jobDocuments).values(data);
+  return result[0];
+}
+
+export async function deleteJobDocument(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const rows = await db.select().from(jobDocuments).where(eq(jobDocuments.id, id)).limit(1);
+  const doc = rows[0];
+  await db.delete(jobDocuments).where(eq(jobDocuments.id, id));
+  return doc; // caller can use s3Key to delete from S3
+}
+
+// ─── Job Photo Annotation ─────────────────────────────────────────────────────
+export async function savePhotoAnnotation(id: number, annotatedS3Key: string, annotatedS3Url: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(jobPhotos).set({ annotatedS3Key, annotatedS3Url }).where(eq(jobPhotos.id, id));
 }

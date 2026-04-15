@@ -61,7 +61,12 @@ import {
   getTagsForClient,
   listTags,
   removeTagFromClient,
+  getJobDocuments,
+  createJobDocument,
+  deleteJobDocument,
+  savePhotoAnnotation,
 } from "./db";
+import { storagePut } from "./storage";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -627,6 +632,69 @@ const tagsRouter = router({
     .query(async ({ input }) => getClientsByTag(input.tagId)),
 });
 
+// ─── Job Documents Router ─────────────────────────────────────────────────────────
+const jobDocumentsRouter = router({
+  list: p
+    .input(z.object({ jobId: z.number() }))
+    .query(async ({ input }) => getJobDocuments(input.jobId)),
+
+  upload: p
+    .input(
+      z.object({
+        jobId: z.number(),
+        filename: z.string(),
+        mimeType: z.string(),
+        sizeBytes: z.number().optional(),
+        base64: z.string(), // data:mime;base64,... or raw base64
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Strip data URL prefix if present
+      const base64Data = input.base64.includes(",") ? input.base64.split(",")[1] : input.base64;
+      const buffer = Buffer.from(base64Data, "base64");
+      const suffix = Math.random().toString(36).slice(2, 8);
+      const ext = input.filename.split(".").pop() ?? "bin";
+      const key = `job-${input.jobId}/docs/${suffix}-${input.filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { url } = await storagePut(key, buffer, input.mimeType);
+      await createJobDocument({
+        jobId: input.jobId,
+        s3Key: key,
+        s3Url: url,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes ?? buffer.byteLength,
+        uploadedByUserId: ctx.user?.id ?? null,
+      });
+      return { success: true, url };
+    }),
+
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteJobDocument(input.id);
+      // S3 object is left in place (no delete API available); DB record is removed
+      return { success: true };
+    }),
+
+  saveAnnotation: p
+    .input(
+      z.object({
+        photoId: z.number(),
+        jobId: z.number(),
+        base64: z.string(), // annotated image as base64 PNG
+      })
+    )
+    .mutation(async ({ input }) => {
+      const base64Data = input.base64.includes(",") ? input.base64.split(",")[1] : input.base64;
+      const buffer = Buffer.from(base64Data, "base64");
+      const suffix = Math.random().toString(36).slice(2, 8);
+      const key = `job-${input.jobId}/photos/annotated-${input.photoId}-${suffix}.png`;
+      const { url } = await storagePut(key, buffer, "image/png");
+      await savePhotoAnnotation(input.photoId, key, url);
+      return { success: true, url };
+    }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -652,6 +720,7 @@ export const appRouter = router({
   jobPhotos: jobPhotosRouter,
   messaging: messagingRouter,
   tags: tagsRouter,
+  jobDocuments: jobDocumentsRouter,
 });
 
 export type AppRouter = typeof appRouter;
