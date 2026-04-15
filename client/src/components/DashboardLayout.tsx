@@ -180,10 +180,11 @@ function DashboardLayoutContent({
                 </button>
                 {!isCollapsed && (
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-                      <Zap className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <span className="font-bold tracking-tight text-sm truncate">Wired Works</span>
+                    <img
+                      src="https://d2xsxph8kpxj0f.cloudfront.net/310519663534371359/gYJ9uUE9i5ygur2GefRATd/wired-works-logo_d2ca4ec2.png"
+                      alt="Wired Works"
+                      className="h-8 w-auto object-contain dark:invert"
+                    />
                   </div>
                 )}
               </div>
@@ -302,9 +303,11 @@ function DashboardLayoutContent({
         {isMobile && (
           <div className="flex border-b border-border h-14 items-center justify-between bg-background/95 px-4 backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Zap className="w-3.5 h-3.5 text-primary" />
-              </div>
+              <img
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663534371359/gYJ9uUE9i5ygur2GefRATd/wired-works-logo_d2ca4ec2.png"
+                alt="Wired Works"
+                className="h-7 w-auto object-contain dark:invert"
+              />
               <span className="font-bold tracking-tight text-sm">{activeLabel}</span>
             </div>
             <DropdownMenu>
