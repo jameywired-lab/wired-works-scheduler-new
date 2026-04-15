@@ -40,6 +40,7 @@ import {
   getProjectCredentials,
   upsertProjectCredential,
   seedProjectCredentials,
+  createFollowUp,
 } from "./db";
 import { sendSms } from "./sms";
 import {
@@ -754,11 +755,34 @@ const inventoryRouter = router({
     const shortages = items.filter((i: typeof items[number]) => i.currentQty < i.targetQty);
     if (shortages.length === 0) {
       const result = await sendSms("9043336466", "✅ Van Inventory Report: All items are fully stocked! No shortages.");
+      // Create a single follow-up confirming the van is fully stocked
+      await createFollowUp({
+        contactName: "Van Inventory",
+        type: "inventory",
+        note: "✅ Inventory completed — van is fully stocked. No shortages.",
+        isFollowedUp: false,
+        proposalStatus: "none",
+        isUrgent: false,
+        clientContacted: false,
+      });
       return { success: result.success, shortages: 0 };
     }
     const lines = shortages.map((i: typeof items[number]) => `• ${i.name}: need ${i.targetQty - i.currentQty} (have ${i.currentQty}, target ${i.targetQty})`);
     const body = `🚐 Van Inventory Report\n\nItems needed:\n${lines.join("\n")}\n\nTotal items short: ${shortages.length}`;
     const result = await sendSms("9043336466", body);
+    // Create one follow-up per shortage item so each can be checked off individually
+    for (const item of shortages) {
+      const needed = item.targetQty - item.currentQty;
+      await createFollowUp({
+        contactName: "Van Inventory",
+        type: "inventory",
+        note: `Restock: ${item.name} — need ${needed} (have ${item.currentQty}, target ${item.targetQty})`,
+        isFollowedUp: false,
+        proposalStatus: "none",
+        isUrgent: false,
+        clientContacted: false,
+      });
+    }
     return { success: result.success, shortages: shortages.length };
   }),
 
@@ -782,6 +806,16 @@ const inventoryRouter = router({
           await db.update(partsRequests).set({ smsSent: true }).where(eqOp(partsRequests.id, rows[0].id));
         }
       }
+      // Auto-create a follow-up so the request can be tracked and checked off
+      await createFollowUp({
+        contactName: input.requestedBy || "Crew",
+        type: "inventory",
+        note: `🔧 Parts Request: ${input.partDescription}`,
+        isFollowedUp: false,
+        proposalStatus: "none",
+        isUrgent: false,
+        clientContacted: false,
+      });
       return { success: true, smsSent: result.success };
     }),
 });

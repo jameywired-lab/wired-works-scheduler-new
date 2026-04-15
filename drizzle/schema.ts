@@ -232,7 +232,7 @@ export const followUps = mysqlTable("followUps", {
   id: int("id").autoincrement().primaryKey(),
   contactName: varchar("contactName", { length: 255 }),
   phone: varchar("phone", { length: 32 }),
-  type: mysqlEnum("type", ["call", "text", "manual", "closeout", "proposal"]).default("manual").notNull(),
+  type: mysqlEnum("type", ["call", "text", "manual", "closeout", "proposal", "inventory"]).default("manual").notNull(),
   note: text("note"),
   isFollowedUp: boolean("isFollowedUp").default(false).notNull(),
   contactedAt: bigint("contactedAt", { mode: "number" }), // UTC ms — when the call/text came in

@@ -1,0 +1,1 @@
+ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal','inventory') NOT NULL DEFAULT 'manual';

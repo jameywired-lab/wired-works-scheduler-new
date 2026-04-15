@@ -383,3 +383,11 @@
 - [x] inventory.listRequests procedure: list recent requests (last 50)
 - [x] Parts Requested tab on VanInventoryPage: text input + Send button, history list
 - [x] SMS format: "Parts Request from [name]: [description]" sent from 9046851240 to 9043336466
+
+## Inventory → Follow-Up Integration
+
+- [x] inventory.sendReport: after sending SMS, auto-create a follow-up for each shortage item (type=inventory, note="Restock [item name] — need [qty]", contactName="Van Inventory")
+- [x] inventory.requestPart: after saving request, auto-create a follow-up (type=inventory, note="Parts Request: [description]", contactName=requestedBy)
+- [x] Add "inventory" to followUp source enum in schema (alongside sms/call/closeout/proposal/manual)
+- [x] Follow-Up page: show "Inventory" source badge (orange/amber color) on inventory-sourced cards
+- [x] Follow-Up page: inventory follow-ups show the item/part name prominently

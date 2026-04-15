@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Phone,
   Plus,
+  Truck,
   UserCheck,
   Wrench,
   Clock,
@@ -62,6 +63,7 @@ function sourceLabel(type: string) {
     case "call": return "Call";
     case "closeout": return "Close-Out";
     case "proposal": return "Proposal";
+    case "inventory": return "Inventory";
     default: return "Manual";
   }
 }
@@ -73,6 +75,7 @@ function sourceBadge(type: string) {
     case "call": return <span className={`${base} bg-violet-500/20 text-violet-300`}><Phone className="inline h-2.5 w-2.5 mr-0.5" />Call</span>;
     case "closeout": return <span className={`${base} bg-amber-500/20 text-amber-300`}><Wrench className="inline h-2.5 w-2.5 mr-0.5" />Close-Out</span>;
     case "proposal": return <span className={`${base} bg-emerald-500/20 text-emerald-300`}><CheckCircle2 className="inline h-2.5 w-2.5 mr-0.5" />Proposal</span>;
+    case "inventory": return <span className={`${base} bg-orange-500/20 text-orange-400`}><Truck className="inline h-2.5 w-2.5 mr-0.5" />Inventory</span>;
     default: return <span className={`${base} bg-zinc-500/20 text-zinc-400`}>Manual</span>;
   }
 }
