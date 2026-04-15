@@ -27,6 +27,7 @@ import { getDb, seedProjectCredentials } from "./db";
 import { clients, projects, followUps } from "../drizzle/schema";
 import { eq, or } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
+import { ENV } from "./_core/env";
 
 // ── In-memory log of last 10 webhook calls (for the info page) ────────────────
 interface WebhookLogEntry {
@@ -79,7 +80,7 @@ export async function handleProposalAcceptedWebhook(req: Request, res: Response)
 
   try {
     // ── Secret validation ──────────────────────────────────────────────────────
-    const webhookSecret = process.env.WEBHOOK_SECRET;
+    const webhookSecret = ENV.webhookSecret || undefined;
     if (webhookSecret) {
       const incoming =
         (req.headers["x-webhook-secret"] as string | undefined) ??
