@@ -4,6 +4,7 @@ import {
   createJobPhoto,
   deleteJobPhoto,
   getJobPhotos,
+  getJobPhotosByClient,
   createSmsLog,
 } from "../db";
 import { storagePut } from "../storage";
@@ -53,6 +54,10 @@ export const jobPhotosRouter = router({
       await deleteJobPhoto(input.id);
       return { success: true };
     }),
+
+  listByClient: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => getJobPhotosByClient(input.clientId)),
 });
 
 // ─── SMS Messaging Router ─────────────────────────────────────────────────────

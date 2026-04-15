@@ -539,10 +539,10 @@
 
 ## SMS Reply from App
 
-- [ ] communications.sendSms procedure: send SMS via OpenPhone API from 9046851240 to a given phone number, log as outbound communication if clientId known
-- [ ] Follow-Ups page: add Reply button on text/call follow-up cards that have a phone number — opens inline text box, sends via sendSms, shows success toast
-- [ ] Client Communications section: add Reply button on inbound SMS rows — opens inline reply box pre-filled with recipient phone
-- [ ] Outbound SMS logged in clientCommunications (direction=outbound, channel=sms) if client is matched
+- [x] communications.sendSms procedure: send SMS via OpenPhone API from 9046851240 to a given phone number, log as outbound communication if clientId known
+- [x] Follow-Ups page: add Reply button on text/call follow-up cards that have a phone number — opens inline text box, sends via sendSms, shows success toast
+- [x] Client Communications section: add Reply button on inbound SMS rows — opens inline reply box pre-filled with recipient phone
+- [x] Outbound SMS logged in clientCommunications (direction=outbound, channel=sms) if client is matched
 
 ## SMS Reply Button & Calendar Color-Coding (this session)
 
@@ -551,3 +551,11 @@
 - [x] Calendar color-coding by job type: blue=Service Call, green=Sales Call, violet=Project Job, grey=Cancelled
 - [x] Calendar legend showing color key for each job type
 - [x] Crew home "Today's Jobs" summary card: job count, completed/remaining progress bar, job list with times
+
+## Client Notes & Photos Aggregation
+
+- [x] Backend: crewNotes.listByClient procedure — fetch all crew notes across all jobs for a client (join jobs on clientId), include jobTitle and jobDate
+- [x] Backend: jobPhotos.listByClient procedure — fetch all job photos across all jobs for a client (join jobs on clientId), include jobTitle and jobDate
+- [x] Frontend: Add "Notes & Photos" tab/section to ClientDetailPage showing all notes and photos grouped by job
+- [x] Notes: show job title, date, author, note content — newest job first
+- [x] Photos: show photo grid with job label, click to open full-screen lightbox

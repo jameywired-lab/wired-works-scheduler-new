@@ -44,6 +44,8 @@ import {
   upsertClientCredential,
   seedClientCredentials,
   createFollowUp,
+  getCrewNotesByClient,
+  getJobPhotosByClient,
 } from "./db";
 import { sendSms } from "./sms";
 import {
@@ -512,6 +514,10 @@ const crewNotesRouter = router({
       await deleteCrewNote(input.id);
       return { success: true };
     }),
+
+  getByClient: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => getCrewNotesByClient(input.clientId)),
 });
 
 // ─── Dashboard Router ─────────────────────────────────────────────────────────

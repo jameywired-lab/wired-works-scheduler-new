@@ -941,3 +941,45 @@ export async function seedProjectCredentials(projectId: number): Promise<void> {
     }
   }
 }
+
+// ─── Client-level aggregations ────────────────────────────────────────────────
+export async function getCrewNotesByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: crewNotes.id,
+      jobId: crewNotes.jobId,
+      jobTitle: jobs.title,
+      jobScheduledStart: jobs.scheduledStart,
+      authorName: crewNotes.authorName,
+      content: crewNotes.content,
+      credentials: crewNotes.credentials,
+      createdAt: crewNotes.createdAt,
+    })
+    .from(crewNotes)
+    .innerJoin(jobs, eq(crewNotes.jobId, jobs.id))
+    .where(eq(jobs.clientId, clientId))
+    .orderBy(desc(crewNotes.createdAt));
+}
+
+export async function getJobPhotosByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: jobPhotos.id,
+      jobId: jobPhotos.jobId,
+      jobTitle: jobs.title,
+      jobScheduledStart: jobs.scheduledStart,
+      s3Url: jobPhotos.s3Url,
+      annotatedS3Url: jobPhotos.annotatedS3Url,
+      filename: jobPhotos.filename,
+      mimeType: jobPhotos.mimeType,
+      createdAt: jobPhotos.createdAt,
+    })
+    .from(jobPhotos)
+    .innerJoin(jobs, eq(jobPhotos.jobId, jobs.id))
+    .where(eq(jobs.clientId, clientId))
+    .orderBy(desc(jobPhotos.createdAt));
+}

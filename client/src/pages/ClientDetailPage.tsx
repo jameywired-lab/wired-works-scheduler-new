@@ -42,6 +42,10 @@ import {
   Plus,
   Star,
   Trash2,
+  FileText,
+  ImageIcon,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import React, { useState } from "react";
 import { useLocation, useParams } from "wouter";
@@ -424,6 +428,9 @@ export default function ClientDetailPage() {
 
       {/* Communications section */}
       <ClientCommunicationsSection clientId={clientId} clientName={client.name} clientPhone={client.phone ?? undefined} />
+
+      {/* Notes & Photos section */}
+      <ClientNotesAndPhotos clientId={clientId} />
 
       {/* Address modal */}
       <Dialog open={showAddressModal} onOpenChange={(v) => !v && setShowAddressModal(false)}>
@@ -894,6 +901,212 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
           </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+// ─── Client Notes & Photos Section ───────────────────────────────────────────
+function ClientNotesAndPhotos({ clientId }: { clientId: number }) {
+  const [activeTab, setActiveTab] = useState<"notes" | "photos">("notes");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
+
+  const { data: notes, isLoading: notesLoading } = trpc.crewNotes.getByClient.useQuery({ clientId });
+  const { data: photos, isLoading: photosLoading } = trpc.jobPhotos.listByClient.useQuery({ clientId });
+
+  // Group notes by jobId
+  const notesByJob = React.useMemo(() => {
+    const map = new Map<number, { jobTitle: string; jobDate: number | null; notes: typeof notes }>();
+    (notes ?? []).forEach((n) => {
+      if (!map.has(n.jobId)) {
+        map.set(n.jobId, { jobTitle: n.jobTitle ?? "Untitled Job", jobDate: n.jobScheduledStart ?? null, notes: [] });
+      }
+      map.get(n.jobId)!.notes!.push(n);
+    });
+    // Sort jobs newest first
+    return Array.from(map.entries()).sort((a, b) => (b[1].jobDate ?? 0) - (a[1].jobDate ?? 0));
+  }, [notes]);
+
+  // Group photos by jobId
+  const photosByJob = React.useMemo(() => {
+    const map = new Map<number, { jobTitle: string; jobDate: number | null; photos: typeof photos }>();
+    (photos ?? []).forEach((p) => {
+      if (!map.has(p.jobId)) {
+        map.set(p.jobId, { jobTitle: p.jobTitle ?? "Untitled Job", jobDate: p.jobScheduledStart ?? null, photos: [] });
+      }
+      map.get(p.jobId)!.photos!.push(p);
+    });
+    return Array.from(map.entries()).sort((a, b) => (b[1].jobDate ?? 0) - (a[1].jobDate ?? 0));
+  }, [photos]);
+
+  const toggleJob = (jobId: number) => {
+    setExpandedJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  };
+
+  const totalNotes = notes?.length ?? 0;
+  const totalPhotos = photos?.length ?? 0;
+
+  return (
+    <Card className="border-border bg-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold">Notes &amp; Photos</CardTitle>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setActiveTab("notes")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "notes"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <FileText className="h-3 w-3" />
+              Notes {totalNotes > 0 && <span className="ml-0.5 opacity-70">({totalNotes})</span>}
+            </button>
+            <button
+              onClick={() => setActiveTab("photos")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "photos"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <ImageIcon className="h-3 w-3" />
+              Photos {totalPhotos > 0 && <span className="ml-0.5 opacity-70">({totalPhotos})</span>}
+            </button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {/* ── Notes Tab ── */}
+        {activeTab === "notes" && (
+          <>
+            {notesLoading ? (
+              <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
+            ) : notesByJob.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No crew notes yet for this client.</p>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                {notesByJob.map(([jobId, { jobTitle, jobDate, notes: jobNotes }]) => {
+                  const isOpen = expandedJobs.has(jobId) || notesByJob.length === 1;
+                  return (
+                    <div key={jobId} className="border border-border rounded-lg overflow-hidden">
+                      <button
+                        className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                        onClick={() => toggleJob(jobId)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs font-medium truncate">{jobTitle}</span>
+                          {jobDate && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              · {new Date(jobDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-muted-foreground">{jobNotes!.length} note{jobNotes!.length !== 1 ? "s" : ""}</span>
+                          {isOpen ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="divide-y divide-border">
+                          {jobNotes!.map((note) => (
+                            <div key={note.id} className="px-3 py-2.5 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-foreground/80">{note.authorName ?? "Crew Member"}</span>
+                                <span className="text-xs text-muted-foreground ml-auto">
+                                  {new Date(note.createdAt).toLocaleDateString()} {new Date(note.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{note.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Photos Tab ── */}
+        {activeTab === "photos" && (
+          <>
+            {photosLoading ? (
+              <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}</div>
+            ) : photosByJob.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No photos uploaded yet for this client.</p>
+            ) : (
+              <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+                {photosByJob.map(([jobId, { jobTitle, jobDate, photos: jobPhotos }]) => (
+                  <div key={jobId}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">{jobTitle}</span>
+                      {jobDate && (
+                        <span className="text-xs text-muted-foreground">· {new Date(jobDate).toLocaleDateString()}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground ml-auto">{jobPhotos!.length} photo{jobPhotos!.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {jobPhotos!.map((photo) => {
+                        const displayUrl = photo.annotatedS3Url ?? photo.s3Url;
+                        return (
+                          <button
+                            key={photo.id}
+                            onClick={() => setLightboxUrl(displayUrl)}
+                            className="relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors group"
+                          >
+                            <img
+                              src={displayUrl}
+                              alt={photo.filename ?? "Job photo"}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            {photo.annotatedS3Url && (
+                              <span className="absolute top-1 right-1 bg-primary/80 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-medium">
+                                Annotated
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Full size"
+            className="max-w-full max-h-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </Card>
   );
 }
