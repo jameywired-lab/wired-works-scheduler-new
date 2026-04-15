@@ -303,10 +303,44 @@ export default function ClientDetailPage() {
           ) : !addresses || addresses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <MapPin className="h-8 w-8 text-muted-foreground/30 mb-2" />
-              <p className="text-sm text-muted-foreground">No addresses saved yet.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={openNewAddress}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add First Address
-              </Button>
+              {client?.addressLine1 ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-1">Address on file:</p>
+                  <p className="text-sm font-medium mb-3">
+                    {[client.addressLine1, client.addressLine2, client.city, client.state, client.zip].filter(Boolean).join(", ")}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openDirections([client.addressLine1, client.city, client.state, client.zip].filter(Boolean).join(", "))}>
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> Directions
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setAddressForm({
+                          ...emptyAddressForm(),
+                          addressLine1: client.addressLine1 ?? "",
+                          addressLine2: client.addressLine2 ?? "",
+                          city: client.city ?? "",
+                          state: client.state ?? "",
+                          zip: client.zip ?? "",
+                          isPrimary: true,
+                        });
+                        setEditingAddressId(null);
+                        setShowAddressModal(true);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Save as Address
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">No addresses saved yet.</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={openNewAddress}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add First Address
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

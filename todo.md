@@ -605,3 +605,14 @@
 ## Color-Coded Dashboard Stat Cards
 
 - [x] Each stat card gets a distinct accent color (border-left, icon color, background tint): Today's Jobs=teal, Remaining=amber, Completed=emerald, Active Clients=blue, Service Calls=violet, Active Projects=orange, Sales Calls=green
+
+## Client Delete Fix
+
+- [x] Backend: clients.delete procedure — cascade delete all related records (jobs, jobAssignments, crewNotes, jobPhotos, smsLog, clientAddresses, clientCommunications, followUps, projects, projectMilestones, projectReminders) before deleting the client row
+- [x] Frontend: update delete confirmation dialog to warn "This will permanently delete the client and all related jobs, notes, photos, and communications."
+
+## Bug Fixes (Apr 15)
+
+- [x] Client delete: cascade-delete all related records (jobs+children, projects+children, addresses, tags, communications, follow-ups, credentials) before deleting client row
+- [x] Client detail page: address not showing — show client.addressLine1/city/state/zip as fallback when no clientAddresses records exist, with Directions + "Save as Address" button
+- [x] Add-address form: restore Google Places autocomplete — fixed script loading to poll for google.maps.places after onload, handle already-loaded case, add try/catch around autocomplete init

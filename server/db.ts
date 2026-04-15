@@ -170,6 +170,41 @@ export async function updateClient(id: number, data: Partial<InsertClient>) {
 export async function deleteClient(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
+
+  // 1. Cascade through jobs
+  const clientJobs = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.clientId, id));
+  const jobIds = clientJobs.map((j) => j.id);
+  if (jobIds.length > 0) {
+    await db.delete(jobAssignments).where(inArray(jobAssignments.jobId, jobIds));
+    await db.delete(crewNotes).where(inArray(crewNotes.jobId, jobIds));
+    await db.delete(jobPhotos).where(inArray(jobPhotos.jobId, jobIds));
+    await db.delete(smsLog).where(inArray(smsLog.jobId, jobIds));
+    await db.delete(jobDocuments).where(inArray(jobDocuments.jobId, jobIds));
+    await db.delete(jobs).where(inArray(jobs.id, jobIds));
+  }
+
+  // 2. Cascade through projects
+  const clientProjects = await db.select({ id: projects.id }).from(projects).where(eq(projects.clientId, id));
+  const projectIds = clientProjects.map((p) => p.id);
+  if (projectIds.length > 0) {
+    await db.delete(projectMilestones).where(inArray(projectMilestones.projectId, projectIds));
+    await db.delete(projectReminders).where(inArray(projectReminders.projectId, projectIds));
+    await db.delete(projectCredentials).where(inArray(projectCredentials.projectId, projectIds));
+    await db.delete(projects).where(inArray(projects.id, projectIds));
+  }
+
+  // 3. Delete other client-level records
+  await db.delete(clientAddresses).where(eq(clientAddresses.clientId, id));
+  await db.delete(clientTags).where(eq(clientTags.clientId, id));
+  await db.delete(smsLog).where(eq(smsLog.clientId, id));
+  await db.delete(followUps).where(eq(followUps.clientId, id));
+  await db.delete(projectCredentials).where(eq(projectCredentials.clientId, id));
+
+  // 4. Delete client communications (imported inline to avoid circular dep)
+  const { clientCommunications } = await import("../drizzle/schema");
+  await db.delete(clientCommunications).where(eq(clientCommunications.clientId, id));
+
+  // 5. Finally delete the client
   await db.delete(clients).where(eq(clients.id, id));
 }
 
@@ -394,14 +429,12 @@ export async function updateCrewNote(id: number, data: Partial<InsertCrewNote>) 
   if (!db) throw new Error("DB unavailable");
   await db.update(crewNotes).set(data).where(eq(crewNotes.id, id));
 }
-
 export async function deleteCrewNote(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   await db.delete(crewNotes).where(eq(crewNotes.id, id));
 }
-
-// ─── SMS Log ──────────────────────────────────────────────────────────────────
+// ─── SMS Logg ──────────────────────────────────────────────────────────────────
 export async function createSmsLog(data: Omit<InsertSmsLog, "id" | "sentAt">) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");

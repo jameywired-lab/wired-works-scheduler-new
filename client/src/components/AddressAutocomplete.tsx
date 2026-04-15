@@ -31,18 +31,33 @@ const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
 let scriptLoadPromise: Promise<void> | null = null;
 
 function loadMapsScript(): Promise<void> {
+  // Already fully loaded
   if (window.google?.maps?.places) return Promise.resolve();
+  // Already in progress
   if (scriptLoadPromise) return scriptLoadPromise;
+
   scriptLoadPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-maps-autocomplete]');
-    if (existing) { resolve(); return; }
     const script = document.createElement("script");
     script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=places,geocoding`;
     script.async = true;
     script.crossOrigin = "anonymous";
-    script.dataset.mapsAutocomplete = "1";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
+    script.onload = () => {
+      // Poll until google.maps.places is actually ready (async loading quirk)
+      const poll = (attempts = 0) => {
+        if (window.google?.maps?.places) {
+          resolve();
+        } else if (attempts < 20) {
+          setTimeout(() => poll(attempts + 1), 150);
+        } else {
+          reject(new Error("Google Maps places library not available after load"));
+        }
+      };
+      poll();
+    };
+    script.onerror = () => {
+      scriptLoadPromise = null; // Allow retry
+      reject(new Error("Failed to load Google Maps"));
+    };
     document.head.appendChild(script);
   });
   return scriptLoadPromise;
@@ -80,9 +95,10 @@ export function AddressAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => !!window.google?.maps?.places);
 
   useEffect(() => {
+    if (ready) return;
     setLoading(true);
     loadMapsScript()
       .then(() => {
@@ -93,11 +109,12 @@ export function AddressAutocomplete({
         setLoading(false);
         // Falls back to plain text input silently
       });
-  }, []);
+  }, [ready]);
 
   useEffect(() => {
     if (!ready || !inputRef.current || autocompleteRef.current) return;
 
+    try {
     const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
       types: ["address"],
       componentRestrictions: { country: "us" },
@@ -128,6 +145,9 @@ export function AddressAutocomplete({
     });
 
     autocompleteRef.current = ac;
+    } catch (err) {
+      console.warn("[AddressAutocomplete] Failed to attach autocomplete:", err);
+    }
   }, [ready, onChange, onPlaceSelect]);
 
   return (
@@ -146,7 +166,7 @@ export function AddressAutocomplete({
         {loading ? (
           <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
         ) : ready ? (
-          <MapPin className="h-3.5 w-3.5 text-muted-foreground/50" />
+          <MapPin className="h-3.5 w-3.5 text-teal-500/70" />
         ) : null}
       </div>
     </div>

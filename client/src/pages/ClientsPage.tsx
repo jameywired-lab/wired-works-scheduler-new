@@ -511,7 +511,9 @@ export default function ClientsPage() {
           <DialogHeader>
             <DialogTitle>Delete Client?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">This will permanently remove the client and cannot be undone.</p>
+          <p className="text-sm text-muted-foreground">
+            This will permanently remove <strong>the client and all related data</strong> — including jobs, addresses, communications, follow-ups, projects, and credentials. This cannot be undone.
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} disabled={deleteClient.isPending}>
