@@ -45,6 +45,7 @@ import {
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { KeyRound, Eye, EyeOff, X } from "lucide-react";
 import JobFormModal from "@/components/JobFormModal";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -365,6 +366,9 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Credentials section */}
+      <ClientCredentialsSection clientId={clientId} />
+
       {/* Job history */}
       <div className="space-y-3">
         <h2 className="font-semibold">Job History</h2>
@@ -416,6 +420,9 @@ export default function ClientDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Communications section */}
+      <ClientCommunicationsSection clientId={clientId} clientName={client.name} />
 
       {/* Address modal */}
       <Dialog open={showAddressModal} onOpenChange={(v) => !v && setShowAddressModal(false)}>
@@ -538,5 +545,302 @@ export default function ClientDetailPage() {
         />
       )}
     </div>
+  );
+}
+
+// ─── Client Credentials Section ──────────────────────────────────────────────
+function ClientCredentialsSection({ clientId }: { clientId: number }) {
+  const utils = trpc.useUtils();
+  const { data: creds, isLoading } = trpc.clientCredentials.list.useQuery({ clientId });
+  const upsert = trpc.clientCredentials.upsert.useMutation({
+    onSuccess: () => utils.clientCredentials.list.invalidate({ clientId }),
+  });
+  const add = trpc.clientCredentials.add.useMutation({
+    onSuccess: () => {
+      utils.clientCredentials.list.invalidate({ clientId });
+      setNewLabel("");
+      setNewValue("");
+    },
+  });
+  const del = trpc.clientCredentials.delete.useMutation({
+    onSuccess: () => utils.clientCredentials.list.invalidate({ clientId }),
+  });
+  const seed = trpc.clientCredentials.seed.useMutation({
+    onSuccess: () => utils.clientCredentials.list.invalidate({ clientId }),
+  });
+
+  const [shown, setShown] = useState<Record<number, boolean>>({});
+  const [editing, setEditing] = useState<Record<number, string>>({});
+  const [newLabel, setNewLabel] = useState("");
+  const [newValue, setNewValue] = useState("");
+
+  const toggleShow = (id: number) => setShown((s) => ({ ...s, [id]: !s[id] }));
+
+  const handleBlur = (id: number, key: string, label: string, val: string) => {
+    upsert.mutate({ clientId, key, label, value: val });
+  };
+
+  const handleAdd = () => {
+    if (!newLabel.trim()) return;
+    add.mutate({ clientId, label: newLabel.trim(), value: newValue });
+  };
+
+  const isSensitive = (label: string) =>
+    /password|pin|code|pass|secret|key|token/i.test(label);
+
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <KeyRound className="h-4 w-4" /> Credentials
+          </CardTitle>
+          {(!creds || creds.length === 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => seed.mutate({ clientId })}
+              disabled={seed.isPending}
+            >
+              Seed Defaults
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-9 rounded-lg" />)}
+          </div>
+        ) : (
+          <>
+            {(creds ?? []).map((c) => {
+              const sensitive = isSensitive(c.label);
+              const isVisible = shown[c.id] || !sensitive;
+              const editVal = editing[c.id] ?? c.value ?? "";
+              return (
+                <div key={c.id} className="flex items-center gap-2 group">
+                  <div className="w-32 shrink-0">
+                    <p className="text-xs font-medium text-muted-foreground truncate">{c.label}</p>
+                  </div>
+                  <div className="flex-1 relative">
+                    <Input
+                      type={sensitive && !isVisible ? "password" : "text"}
+                      value={editVal}
+                      onChange={(e) =>
+                        setEditing((prev) => ({ ...prev, [c.id]: e.target.value }))
+                      }
+                      onBlur={() => handleBlur(c.id, c.key, c.label, editVal)}
+                      className="h-8 text-sm bg-input border-border pr-8"
+                      placeholder="—"
+                    />
+                    {sensitive && (
+                      <button
+                        type="button"
+                        onClick={() => toggleShow(c.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {isVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => del.mutate({ id: c.id })}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Add new credential row */}
+            <div className="flex items-center gap-2 pt-2 border-t border-border">
+              <Input
+                placeholder="Label (e.g. Wi-Fi Password)"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                className="h-8 text-sm bg-input border-border w-40 shrink-0"
+              />
+              <Input
+                placeholder="Value"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                className="h-8 text-sm bg-input border-border flex-1"
+              />
+              <Button
+                size="sm"
+                className="h-8 text-xs shrink-0"
+                onClick={handleAdd}
+                disabled={!newLabel.trim() || add.isPending}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Client Communications Section ───────────────────────────────────────────
+function ClientCommunicationsSection({ clientId, clientName }: { clientId: number; clientName: string }) {
+  const utils = trpc.useUtils();
+  const { data: comms, isLoading } = trpc.communications.list.useQuery({ clientId });
+
+  const [channel, setChannel] = useState<"sms" | "email" | "call" | "note">("note");
+  const [direction, setDirection] = useState<"inbound" | "outbound">("outbound");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [showForm, setShowForm] = useState(false);
+
+  const addNote = trpc.communications.addNote.useMutation({
+    onSuccess: () => {
+      utils.communications.list.invalidate({ clientId });
+      setBody("");
+      setSubject("");
+      setShowForm(false);
+      toast.success("Communication logged");
+    },
+    onError: () => toast.error("Failed to log communication"),
+  });
+
+  const deleteComm = trpc.communications.delete.useMutation({
+    onSuccess: () => utils.communications.list.invalidate({ clientId }),
+  });
+
+  const channelIcon = (ch: string) => {
+    if (ch === "sms") return "💬";
+    if (ch === "email") return "📧";
+    if (ch === "call") return "📞";
+    return "📝";
+  };
+
+  const channelColor = (ch: string, dir: string) => {
+    if (dir === "inbound") return "border-l-blue-500";
+    if (ch === "sms") return "border-l-green-500";
+    if (ch === "email") return "border-l-purple-500";
+    if (ch === "call") return "border-l-amber-500";
+    return "border-l-muted-foreground";
+  };
+
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Communications
+          </CardTitle>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowForm(!showForm)}>
+            <Plus className="h-3 w-3" /> Log
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {showForm && (
+          <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/20">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Channel</Label>
+                <Select value={channel} onValueChange={(v) => setChannel(v as typeof channel)}>
+                  <SelectTrigger className="h-8 text-xs bg-input border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="note">📝 Note</SelectItem>
+                    <SelectItem value="sms">💬 SMS</SelectItem>
+                    <SelectItem value="email">📧 Email</SelectItem>
+                    <SelectItem value="call">📞 Call</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Direction</Label>
+                <Select value={direction} onValueChange={(v) => setDirection(v as typeof direction)}>
+                  <SelectTrigger className="h-8 text-xs bg-input border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="outbound">↗ Outbound</SelectItem>
+                    <SelectItem value="inbound">↙ Inbound</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {channel === "email" && (
+              <Input
+                placeholder="Subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="h-8 text-xs bg-input border-border"
+              />
+            )}
+            <textarea
+              placeholder={`Log ${channel === "note" ? "a note" : `this ${channel}`}…`}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              className="w-full min-h-[80px] text-sm bg-input border border-border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowForm(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                disabled={!body.trim() || addNote.isPending}
+                onClick={() => addNote.mutate({ clientId, channel, direction, subject: subject || undefined, body })}
+              >
+                {addNote.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+          </div>
+        ) : !comms || comms.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No communications logged yet. Click "Log" to add one.
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {comms.map((c) => (
+              <div
+                key={c.id}
+                className={`flex gap-3 p-2.5 rounded-lg border border-border border-l-4 ${channelColor(c.channel, c.direction)} bg-muted/10`}
+              >
+                <span className="text-base shrink-0 mt-0.5">{channelIcon(c.channel)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-medium capitalize">
+                      {c.direction === "inbound" ? "↙ Inbound" : "↗ Outbound"} {c.channel}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {new Date(c.createdAt).toLocaleDateString()} {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  {c.subject && <p className="text-xs font-medium text-foreground/80 mb-0.5">{c.subject}</p>}
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{c.body}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteComm.mutate({ id: c.id })}
+                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors mt-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

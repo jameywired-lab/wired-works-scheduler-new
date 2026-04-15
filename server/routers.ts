@@ -78,6 +78,8 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { emailCampaigns, emailCampaignRecipients, clientCommunications } from "../drizzle/schema";
+import { eq as eqC, desc as descC, and as andC, isNull } from "drizzle-orm";
 
 // All procedures use publicProcedure — the app is accessible without login.
 // Role-based checks are soft: they only apply when a user IS logged in.
@@ -731,6 +733,8 @@ const projectCredentialsRouter = router({
 });
 
 // ─── Client Credentials Router ───────────────────────────────────────────────────────
+import { projectCredentials } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 const clientCredentialsRouter = router({
   list: p
     .input(z.object({ clientId: z.number() }))
@@ -754,6 +758,31 @@ const clientCredentialsRouter = router({
     )
     .mutation(async ({ input }) => {
       await upsertClientCredential(input.clientId, input.key, input.label, input.value);
+      return { success: true };
+    }),
+
+  // Add a brand-new custom credential row (generates a unique key)
+  add: p
+    .input(
+      z.object({
+        clientId: z.number(),
+        label: z.string().min(1),
+        value: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const key = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      await upsertClientCredential(input.clientId, key, input.label, input.value);
+      return { success: true };
+    }),
+
+  // Delete a credential by id
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(projectCredentials).where(eq(projectCredentials.id, input.id));
       return { success: true };
     }),
 });
@@ -898,6 +927,166 @@ const inventoryRouter = router({
   }),
 });
 
+// ─── Marketing Router ────────────────────────────────────────────────────────
+const marketingRouter = router({
+  // List all campaigns (newest first)
+  listCampaigns: p.query(async () => {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(emailCampaigns).orderBy(descC(emailCampaigns.createdAt)).limit(50);
+  }),
+
+  // Get recipients for a campaign
+  getCampaignRecipients: p
+    .input(z.object({ campaignId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(emailCampaignRecipients)
+        .where(eqC(emailCampaignRecipients.campaignId, input.campaignId))
+        .orderBy(descC(emailCampaignRecipients.sentAt));
+    }),
+
+  // Preview recipients before sending (returns matching clients)
+  previewAudience: p
+    .input(z.object({ tagId: z.number().nullable() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const { clients, clientTags } = await import("../drizzle/schema");
+      if (input.tagId === null) {
+        // All clients
+        return db.select({ id: clients.id, name: clients.name, email: clients.email })
+          .from(clients);
+      }
+      // Clients with the specific tag
+      return db.select({ id: clients.id, name: clients.name, email: clients.email })
+        .from(clients)
+        .innerJoin(clientTags, eqC(clientTags.clientId, clients.id))
+        .where(eqC(clientTags.tagId, input.tagId));
+    }),
+
+  // Send a campaign (email provider not yet connected — saves draft and marks as pending)
+  sendCampaign: p
+    .input(z.object({
+      subject: z.string().min(1),
+      body: z.string().min(1),
+      tagId: z.number().nullable(),
+      tagName: z.string().nullable(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { clients, clientTags } = await import("../drizzle/schema");
+
+      // Get audience
+      let audience: { id: number; name: string; email: string | null }[] = [];
+      if (input.tagId === null) {
+        audience = await db.select({ id: clients.id, name: clients.name, email: clients.email })
+          .from(clients);
+      } else {
+        audience = await db.select({ id: clients.id, name: clients.name, email: clients.email })
+          .from(clients)
+          .innerJoin(clientTags, eqC(clientTags.clientId, clients.id))
+          .where(eqC(clientTags.tagId, input.tagId));
+      }
+      const withEmail = audience.filter(c => c.email && c.email.trim() !== "");
+
+      // Create campaign record
+      const [result] = await db.insert(emailCampaigns).values({
+        subject: input.subject,
+        body: input.body,
+        tagFilter: input.tagName ?? null,
+        recipientCount: withEmail.length,
+        sentAt: new Date(),
+      });
+      const campaignId = (result as any).insertId as number;
+
+      // Create recipient rows
+      if (withEmail.length > 0) {
+        await db.insert(emailCampaignRecipients).values(
+          withEmail.map(c => ({
+            campaignId,
+            clientId: c.id,
+            email: c.email!,
+            clientName: c.name,
+            status: "pending" as const,
+          }))
+        );
+      }
+
+      // TODO: When email provider is connected, iterate recipients and send here.
+      // Example with Resend:
+      // import { Resend } from 'resend';
+      // const resend = new Resend(process.env.RESEND_API_KEY);
+      // for (const r of withEmail) {
+      //   await resend.emails.send({ from: 'you@yourdomain.com', to: r.email!, subject: input.subject, html: input.body });
+      //   await db.update(emailCampaignRecipients).set({ status: 'sent', sentAt: new Date() }).where(...);
+      // }
+
+      return { success: true, campaignId, recipientCount: withEmail.length, pendingEmail: true };
+    }),
+});
+
+// ─── Communications Router ────────────────────────────────────────────────────
+const communicationsRouter = router({
+  list: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(clientCommunications)
+        .where(eqC(clientCommunications.clientId, input.clientId))
+        .orderBy(descC(clientCommunications.createdAt))
+        .limit(100);
+    }),
+
+  addNote: p
+    .input(z.object({
+      clientId: z.number(),
+      channel: z.enum(["sms", "email", "call", "note"]),
+      direction: z.enum(["inbound", "outbound"]).default("outbound"),
+      subject: z.string().optional(),
+      body: z.string().min(1),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.insert(clientCommunications).values({
+        clientId: input.clientId,
+        channel: input.channel,
+        direction: input.direction,
+        subject: input.subject ?? null,
+        body: input.body,
+      });
+      // Auto-create a follow-up for inbound communications
+      if (input.direction === "inbound") {
+        const { clients } = await import("../drizzle/schema");
+        const [client] = await db.select({ name: clients.name })
+          .from(clients).where(eqC(clients.id, input.clientId)).limit(1);
+        await createFollowUp({
+          contactName: client?.name ?? "Client",
+          type: "manual",
+          note: `📨 Inbound ${input.channel} from ${client?.name ?? "client"}: ${input.body.slice(0, 100)}`,
+          isFollowedUp: false,
+          proposalStatus: "none",
+          isUrgent: false,
+          clientContacted: false,
+        });
+      }
+      return { success: true };
+    }),
+
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(clientCommunications).where(eqC(clientCommunications.id, input.id));
+      return { success: true };
+    }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -927,5 +1116,7 @@ export const appRouter = router({
   projectCredentials: projectCredentialsRouter,
   clientCredentials: clientCredentialsRouter,
   inventory: inventoryRouter,
+  marketing: marketingRouter,
+  communications: communicationsRouter,
 });
 export type AppRouter = typeof appRouter;

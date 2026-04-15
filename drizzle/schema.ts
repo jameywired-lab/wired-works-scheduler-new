@@ -344,3 +344,42 @@ export const partsRequests = mysqlTable("partsRequests", {
 });
 export type PartsRequest = typeof partsRequests.$inferSelect;
 export type InsertPartsRequest = typeof partsRequests.$inferInsert;
+
+// ─── Email Campaigns ─────────────────────────────────────────────────────────────────────────────────────
+export const emailCampaigns = mysqlTable("emailCampaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  tagFilter: varchar("tagFilter", { length: 50 }), // null = all clients
+  recipientCount: int("recipientCount").default(0).notNull(),
+  sentAt: timestamp("sentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type InsertEmailCampaign = typeof emailCampaigns.$inferInsert;
+
+export const emailCampaignRecipients = mysqlTable("emailCampaignRecipients", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull().references(() => emailCampaigns.id),
+  clientId: int("clientId").references(() => clients.id),
+  email: varchar("email", { length: 255 }).notNull(),
+  clientName: varchar("clientName", { length: 255 }),
+  status: mysqlEnum("status", ["sent", "failed", "pending"]).default("pending").notNull(),
+  sentAt: timestamp("sentAt"),
+});
+export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
+
+// ─── Client Communications ────────────────────────────────────────────────────
+export const clientCommunications = mysqlTable("clientCommunications", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").references(() => clients.id),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull().default("inbound"),
+  channel: mysqlEnum("channel", ["sms", "email", "call", "note"]).notNull().default("note"),
+  subject: varchar("subject", { length: 255 }),
+  body: text("body"),
+  fromAddress: varchar("fromAddress", { length: 255 }), // phone or email
+  toAddress: varchar("toAddress", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ClientCommunication = typeof clientCommunications.$inferSelect;
+export type InsertClientCommunication = typeof clientCommunications.$inferInsert;

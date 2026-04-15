@@ -39,6 +39,7 @@ import {
   Users,
   Users2,
   Zap,
+  Mail,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -54,6 +55,7 @@ const adminNavItems = [
   { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Bell, label: "Follow-Ups", path: "/follow-ups" },
   { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
+  { icon: Mail, label: "Marketing", path: "/marketing" },
   { icon: Users2, label: "Crew", path: "/crew" },
 ];
 

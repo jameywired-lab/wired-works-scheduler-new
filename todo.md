@@ -466,8 +466,8 @@
 
 ## Inventory Reset
 
-- [ ] inventory.resetAll procedure: set currentQty = targetQty for all items (fully stocked / 100%)
-- [ ] VanInventoryPage: "Reset Inventory" button (with confirmation dialog) that calls resetAll and refreshes the list
+- [x] inventory.resetAll procedure: set currentQty = targetQty for all items (fully stocked / 100%)
+- [x] VanInventoryPage: "Reset to Full" button with amber styling and confirmation dialog
 
 ## Inventory Reset
 
@@ -489,3 +489,41 @@
 - [x] Wire autocomplete into job form (JobFormModal address field)
 - [x] On place selection: auto-fill street, city, state, zip as separate fields
 - [x] Fallback to plain text input if Maps API not available
+
+## Universal Client Credentials (Credentials Tab on Client Detail)
+
+- [x] Client detail page: add Credentials section (card) with show/hide toggle for sensitive fields
+- [x] Credentials section: inline add/edit/delete credential rows
+- [x] "Seed Defaults" button to pre-populate standard credential labels
+- [x] Work order (JobDetailPage): credentials card reads from clientCredentials and is editable
+- [x] Credentials seeded on project creation appear on client detail (same projectCredentials table with clientId)
+
+## Client Tags
+
+- [x] clientTags table exists (join table with tags table)
+- [x] tags.list, tags.create, tags.delete, tags.getForClient, tags.addToClient, tags.removeFromClient, tags.getClientsByTag procedures all implemented
+- [x] Client detail page: tag chips with add/remove UI
+- [x] Clients list page: tag filter bar with active tag filtering
+- [x] Clients list page: tag chips on each client card
+
+## Marketing Email System
+
+- [x] emailCampaigns and emailCampaignRecipients tables added to schema and migrated
+- [x] marketing.listCampaigns, previewAudience, sendCampaign, getCampaignRecipients procedures implemented
+- [x] Add "Marketing" nav item to admin sidebar (Mail icon)
+- [x] MarketingPage (/marketing): compose form with audience selector (All / by Tag), subject, body
+- [x] Audience preview shows count of reachable clients (with email)
+- [x] Campaign history list with date, subject, recipient count, status
+- [x] Campaign detail: expandable recipient list with sent/failed/pending status badges
+- [x] Email provider placeholder: amber banner — connect provider later to enable sending
+
+## Client Communication Log
+
+- [x] clientCommunications table added to schema and migrated
+- [x] communications.list procedure: list communications for a client (newest first)
+- [x] communications.addNote procedure: manually log a note/call/sms/email for a client
+- [x] communications.delete procedure: delete a communication by id
+- [x] Client detail page: Communications section with channel/direction selector, subject (email), body, history list
+- [x] History list: color-coded left border by channel/direction, timestamp, delete button
+- [ ] Inbound SMS webhook: POST /api/webhooks/sms-inbound — parse OpenPhone webhook, match client by phone, insert communication, create follow-up (requires OpenPhone webhook config)
+- [ ] Inbound email webhook: POST /api/webhooks/email-inbound — parse email provider webhook, match client by email, insert communication, create follow-up (requires email provider webhook config)
