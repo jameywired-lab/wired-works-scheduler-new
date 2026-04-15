@@ -402,3 +402,36 @@
 - [x] Edit mode: "Add Item" row at the bottom with name + target qty inputs and an Add button
 - [x] Edit mode: changes save on blur/Enter, delete prompts confirmation dialog
 - [x] Exit edit mode: "Done Editing" button returns to normal checklist view
+
+## Project Type & Milestone Stages
+
+### Stage definitions
+- New Construction / Commercial: Prewire (15%), Client Walk-Through (10%), Trim Parts Ordered (10%), Client Credentials Collected (10%), Trim Complete (35%), Final (20%)
+- Retrofit: Parts Ordered (5%), Client Credentials Collected (5%), Gear Programmed (20%), Install (60%), Final Walk-Through (10%)
+
+### Schema changes
+- [x] Add projectType enum to projects table: new_construction | commercial | retrofit (nullable, default null)
+- [x] Add weight (int, percentage points) column to projectMilestones table
+- [x] Generate and apply migration SQL
+
+### Backend
+- [x] projects.create procedure: accept projectType, auto-seed milestone rows for the chosen type
+- [x] projects.update procedure: accept projectType
+- [x] Weighted progress calculation: sum of weights of completed milestones
+- [x] STAGE_TEMPLATES defined for new_construction, commercial, retrofit
+
+### Frontend — Project Detail Page
+- [x] Project detail: show job type badge (New Construction / Commercial / Retrofit)
+- [x] Project detail: milestone stage list — each stage shows name, weight %, checkbox to mark complete
+- [x] Completed stages show green weight badge; incomplete show grey badge
+- [x] Overall progress pie + bar in detail panel showing weighted % complete
+
+### Frontend — Project Card / List
+- [x] Project card: show small donut/pie chart beside client name showing % complete
+- [x] Pie chart: color changes grey→amber→blue→green based on progress level
+- [x] Project card: show numeric % and job type badge
+
+### Frontend — Create Project Dialog
+- [x] Add "Job Type" select field (New Construction / Commercial / Retrofit) to create project form
+- [x] Job type is required for new projects; shows stage preview hint
+- [x] Edit project form also supports changing job type

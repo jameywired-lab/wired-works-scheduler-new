@@ -190,6 +190,7 @@ export const projects = mysqlTable("projects", {
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   status: mysqlEnum("status", ["active", "on_hold", "completed", "cancelled"]).default("active").notNull(),
+  projectType: mysqlEnum("projectType", ["new_construction", "commercial", "retrofit"]),
   startDate: bigint("startDate", { mode: "number" }), // UTC ms
   dueDate: bigint("dueDate", { mode: "number" }),     // UTC ms
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -205,6 +206,7 @@ export const projectMilestones = mysqlTable("projectMilestones", {
   projectId: int("projectId").notNull().references(() => projects.id),
   title: varchar("title", { length: 255 }).notNull(),
   isComplete: boolean("isComplete").default(false).notNull(),
+  weight: int("weight").default(0).notNull(), // percentage points this stage contributes
   dueDate: bigint("dueDate", { mode: "number" }),
   sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -37,25 +37,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PieChart, Pie, Cell } from "recharts";
 import { toast } from "sonner";
 import {
   Bell,
   Calendar,
-  ChevronDown,
   ChevronRight,
   CheckCircle2,
-  Clock,
+  Circle,
   Eye,
   EyeOff,
   FolderOpen,
+  Home,
   KeyRound,
   MoreVertical,
   Plus,
   Trash2,
   User,
+  Wrench,
+  Building2,
 } from "lucide-react";
 
+// ─── Types & Constants ────────────────────────────────────────────────────────
 type ProjectStatus = "active" | "on_hold" | "completed" | "cancelled";
+type ProjectType = "new_construction" | "commercial" | "retrofit";
 
 const STATUS_COLORS: Record<ProjectStatus, string> = {
   active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
@@ -71,6 +76,24 @@ const STATUS_LABELS: Record<ProjectStatus, string> = {
   cancelled: "Cancelled",
 };
 
+const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
+  new_construction: "New Construction",
+  commercial: "Commercial",
+  retrofit: "Retrofit",
+};
+
+const PROJECT_TYPE_COLORS: Record<ProjectType, string> = {
+  new_construction: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  commercial: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  retrofit: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+};
+
+const PROJECT_TYPE_ICONS: Record<ProjectType, React.ReactNode> = {
+  new_construction: <Home className="h-3 w-3" />,
+  commercial: <Building2 className="h-3 w-3" />,
+  retrofit: <Wrench className="h-3 w-3" />,
+};
+
 function formatDate(ms: number | null | undefined) {
   if (!ms) return "—";
   return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -79,6 +102,46 @@ function formatDate(ms: number | null | undefined) {
 function isOverdue(ms: number | null | undefined) {
   if (!ms) return false;
   return ms < Date.now();
+}
+
+/** Compute weighted progress: sum of weights of completed milestones */
+function calcWeightedProgress(milestones: { isComplete: boolean; weight: number }[]) {
+  if (milestones.length === 0) return 0;
+  const totalWeight = milestones.reduce((s, m) => s + (m.weight ?? 0), 0);
+  if (totalWeight === 0) {
+    // Fall back to count-based if no weights set
+    const done = milestones.filter((m) => m.isComplete).length;
+    return Math.round((done / milestones.length) * 100);
+  }
+  const doneWeight = milestones.filter((m) => m.isComplete).reduce((s, m) => s + (m.weight ?? 0), 0);
+  return Math.round((doneWeight / totalWeight) * 100);
+}
+
+// ─── Progress Pie Chart ───────────────────────────────────────────────────────
+function ProgressPie({ progress, size = 48 }: { progress: number; size?: number }) {
+  const data = [
+    { value: progress },
+    { value: 100 - progress },
+  ];
+  const color = progress === 100 ? "#22c55e" : progress >= 60 ? "#3b82f6" : progress >= 30 ? "#f59e0b" : "#6b7280";
+  return (
+    <PieChart width={size} height={size}>
+      <Pie
+        data={data}
+        cx={size / 2 - 1}
+        cy={size / 2 - 1}
+        innerRadius={size * 0.3}
+        outerRadius={size * 0.48}
+        startAngle={90}
+        endAngle={-270}
+        dataKey="value"
+        strokeWidth={0}
+      >
+        <Cell fill={color} />
+        <Cell fill="rgba(100,100,100,0.15)" />
+      </Pie>
+    </PieChart>
+  );
 }
 
 // ─── Credentials Section ─────────────────────────────────────────────────────
@@ -96,7 +159,6 @@ function CredentialsSection({ projectId }: { projectId: number }) {
     onError: (e) => toast.error(e.message),
   });
 
-  // Seed defaults on first load if empty
   useEffect(() => {
     if (!isLoading && creds.length === 0) {
       seedMutation.mutate({ projectId });
@@ -208,7 +270,16 @@ function ProjectFormModal({
 }: {
   open: boolean;
   onClose: () => void;
-  editProject?: { id: number; title: string; description?: string | null; clientId?: number | null; status: ProjectStatus; startDate?: number | null; dueDate?: number | null };
+  editProject?: {
+    id: number;
+    title: string;
+    description?: string | null;
+    clientId?: number | null;
+    status: ProjectStatus;
+    projectType?: ProjectType | null;
+    startDate?: number | null;
+    dueDate?: number | null;
+  };
 }) {
   const utils = trpc.useUtils();
   const { data: clients } = trpc.clients.list.useQuery();
@@ -217,6 +288,7 @@ function ProjectFormModal({
   const [description, setDescription] = useState(editProject?.description ?? "");
   const [clientId, setClientId] = useState<string>(editProject?.clientId ? String(editProject.clientId) : "none");
   const [status, setStatus] = useState<ProjectStatus>(editProject?.status ?? "active");
+  const [projectType, setProjectType] = useState<string>(editProject?.projectType ?? "none");
   const [startDate, setStartDate] = useState(
     editProject?.startDate ? new Date(editProject.startDate).toISOString().split("T")[0] : ""
   );
@@ -235,11 +307,13 @@ function ProjectFormModal({
 
   const handleSubmit = () => {
     if (!title.trim()) { toast.error("Title is required"); return; }
+    if (!editProject && projectType === "none") { toast.error("Please select a job type"); return; }
     const payload = {
       title: title.trim(),
       description: description.trim() || undefined,
       clientId: clientId && clientId !== "none" ? Number(clientId) : undefined,
       status,
+      projectType: projectType !== "none" ? (projectType as ProjectType) : undefined,
       startDate: startDate ? new Date(startDate).getTime() : undefined,
       dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
     };
@@ -257,6 +331,30 @@ function ProjectFormModal({
           <DialogTitle>{editProject ? "Edit Project" : "New Project"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          {/* Job Type — required for new projects */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">
+              Job Type {!editProject && <span className="text-destructive">*</span>}
+            </label>
+            <Select value={projectType} onValueChange={setProjectType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select job type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {!editProject && <SelectItem value="none">Select job type...</SelectItem>}
+                <SelectItem value="new_construction">🏠 New Construction</SelectItem>
+                <SelectItem value="commercial">🏢 Commercial</SelectItem>
+                <SelectItem value="retrofit">🔧 Retrofit</SelectItem>
+              </SelectContent>
+            </Select>
+            {!editProject && projectType !== "none" && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {projectType === "retrofit"
+                  ? "5 stages: Parts Ordered → Client Credentials → Gear Programmed → Install → Final Walk-Through"
+                  : "6 stages: Prewire → Walk-Through → Trim Parts → Credentials → Trim Complete → Final"}
+              </p>
+            )}
+          </div>
           <div>
             <label className="text-sm font-medium mb-1.5 block">Project Title *</label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Kitchen Renovation" />
@@ -310,12 +408,12 @@ function ProjectFormModal({
   );
 }
 
-// ─── Milestone Row ────────────────────────────────────────────────────────────
+// ─── Milestone Stage Row ──────────────────────────────────────────────────────
 function MilestoneRow({
   milestone,
   projectId,
 }: {
-  milestone: { id: number; title: string; isComplete: boolean; dueDate?: number | null };
+  milestone: { id: number; title: string; isComplete: boolean; weight: number; dueDate?: number | null };
   projectId: number;
 }) {
   const utils = trpc.useUtils();
@@ -327,22 +425,34 @@ function MilestoneRow({
   });
 
   return (
-    <div className="flex items-center gap-3 py-2 group">
+    <div className="flex items-center gap-3 py-2.5 group">
       <Checkbox
         checked={milestone.isComplete}
         onCheckedChange={(v) => toggle.mutate({ id: milestone.id, isComplete: !!v })}
+        className="shrink-0"
       />
-      <span className={`flex-1 text-sm ${milestone.isComplete ? "line-through text-muted-foreground" : ""}`}>
-        {milestone.title}
-      </span>
+      <div className="flex-1 min-w-0">
+        <span className={`text-sm ${milestone.isComplete ? "line-through text-muted-foreground" : ""}`}>
+          {milestone.title}
+        </span>
+      </div>
+      {milestone.weight > 0 && (
+        <span className={`text-xs font-medium shrink-0 px-1.5 py-0.5 rounded ${
+          milestone.isComplete
+            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+            : "bg-muted text-muted-foreground"
+        }`}>
+          {milestone.weight}%
+        </span>
+      )}
       {milestone.dueDate && (
-        <span className={`text-xs ${isOverdue(milestone.dueDate) && !milestone.isComplete ? "text-destructive" : "text-muted-foreground"}`}>
+        <span className={`text-xs shrink-0 ${isOverdue(milestone.dueDate) && !milestone.isComplete ? "text-destructive" : "text-muted-foreground"}`}>
           {formatDate(milestone.dueDate)}
         </span>
       )}
       <button
         onClick={() => deleteMilestone.mutate({ id: milestone.id })}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
@@ -402,9 +512,9 @@ function ProjectDetailPanel({
 
   const milestones = project.milestones ?? [];
   const reminders = project.reminders ?? [];
-  const completedCount = milestones.filter((m) => m.isComplete).length;
-  const progress = milestones.length > 0 ? Math.round((completedCount / milestones.length) * 100) : 0;
+  const progress = calcWeightedProgress(milestones);
   const clientName = clients?.find((c) => c.id === project.clientId)?.name;
+  const pType = project.projectType as ProjectType | null | undefined;
 
   const handleAddMilestone = () => {
     if (!newMilestone.trim()) return;
@@ -430,10 +540,18 @@ function ProjectDetailPanel({
       {/* Header */}
       <div className="flex items-start justify-between p-6 border-b border-border">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge className={STATUS_COLORS[project.status as ProjectStatus]}>
               {STATUS_LABELS[project.status as ProjectStatus]}
             </Badge>
+            {pType && (
+              <Badge className={PROJECT_TYPE_COLORS[pType]}>
+                <span className="flex items-center gap-1">
+                  {PROJECT_TYPE_ICONS[pType]}
+                  {PROJECT_TYPE_LABELS[pType]}
+                </span>
+              </Badge>
+            )}
             {isOverdue(project.dueDate) && project.status === "active" && (
               <Badge className="bg-destructive/15 text-destructive">Overdue</Badge>
             )}
@@ -476,38 +594,40 @@ function ProjectDetailPanel({
           )}
         </div>
 
-        {/* Progress */}
+        {/* Progress summary */}
         {milestones.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Progress</span>
-              <span className="text-sm text-muted-foreground">{completedCount}/{milestones.length} milestones</span>
+          <div className="flex items-center gap-4 p-4 rounded-lg border border-border bg-muted/20">
+            <ProgressPie progress={progress} size={64} />
+            <div className="flex-1">
+              <div className="text-2xl font-bold">{progress}%</div>
+              <div className="text-sm text-muted-foreground">
+                {milestones.filter(m => m.isComplete).length} of {milestones.length} stages complete
+              </div>
+              <Progress value={progress} className="h-1.5 mt-2" />
             </div>
-            <Progress value={progress} className="h-2" />
-            <div className="text-xs text-muted-foreground mt-1">{progress}% complete</div>
           </div>
         )}
 
-        {/* Milestones */}
+        {/* Milestone Stages */}
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            Milestones
+            {pType ? `${PROJECT_TYPE_LABELS[pType]} Stages` : "Milestones"}
           </h3>
           <div className="divide-y divide-border rounded-lg border border-border px-3">
             {milestones.length === 0 && (
               <p className="py-3 text-sm text-muted-foreground text-center">No milestones yet</p>
             )}
             {milestones.map((m) => (
-              <MilestoneRow key={m.id} milestone={m} projectId={projectId} />
+              <MilestoneRow key={m.id} milestone={m as any} projectId={projectId} />
             ))}
           </div>
-          {/* Add milestone */}
+          {/* Add custom milestone */}
           <div className="flex gap-2 mt-3">
             <Input
               value={newMilestone}
               onChange={(e) => setNewMilestone(e.target.value)}
-              placeholder="Add a milestone..."
+              placeholder="Add a custom milestone..."
               className="flex-1 h-8 text-sm"
               onKeyDown={(e) => e.key === "Enter" && handleAddMilestone()}
             />
@@ -523,7 +643,7 @@ function ProjectDetailPanel({
           </div>
         </div>
 
-        {/* Credentials Checklist */}
+        {/* Credentials */}
         <div>
           <CredentialsSection projectId={projectId} />
         </div>
@@ -613,19 +733,27 @@ function ProjectCard({
   onEdit,
   onDelete,
 }: {
-  project: { id: number; title: string; description?: string | null; clientId?: number | null; status: string; dueDate?: number | null; startDate?: number | null };
+  project: {
+    id: number;
+    title: string;
+    description?: string | null;
+    clientId?: number | null;
+    status: string;
+    projectType?: string | null;
+    dueDate?: number | null;
+    startDate?: number | null;
+  };
   clients: { id: number; name: string }[];
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const utils = trpc.useUtils();
   const { data: detail } = trpc.projects.getById.useQuery({ id: project.id });
   const milestones = detail?.milestones ?? [];
-  const completedCount = milestones.filter((m) => m.isComplete).length;
-  const progress = milestones.length > 0 ? Math.round((completedCount / milestones.length) * 100) : 0;
+  const progress = calcWeightedProgress(milestones as any);
   const clientName = clients.find((c) => c.id === project.clientId)?.name;
   const status = project.status as ProjectStatus;
+  const pType = project.projectType as ProjectType | null | undefined;
 
   return (
     <Card
@@ -633,10 +761,16 @@ function ProjectCard({
       onClick={onSelect}
     >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <Badge className={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Badge>
+              {pType && (
+                <Badge className={`${PROJECT_TYPE_COLORS[pType]} flex items-center gap-1`}>
+                  {PROJECT_TYPE_ICONS[pType]}
+                  {PROJECT_TYPE_LABELS[pType]}
+                </Badge>
+              )}
               {isOverdue(project.dueDate) && status === "active" && (
                 <Badge className="bg-destructive/15 text-destructive text-xs">Overdue</Badge>
               )}
@@ -648,9 +782,14 @@ function ProjectCard({
               </div>
             )}
           </div>
+          {/* Pie chart + percentage */}
+          <div className="flex flex-col items-center shrink-0 gap-0.5">
+            <ProgressPie progress={progress} size={44} />
+            <span className="text-xs font-semibold text-muted-foreground">{progress}%</span>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
+              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -673,8 +812,8 @@ function ProjectCard({
         {milestones.length > 0 && (
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>{completedCount}/{milestones.length} milestones</span>
-              <span>{progress}%</span>
+              <span>{milestones.filter(m => m.isComplete).length}/{milestones.length} stages</span>
+              <span>{progress}% complete</span>
             </div>
             <Progress value={progress} className="h-1.5" />
           </div>
@@ -802,7 +941,7 @@ export default function ProjectsPage() {
               {filtered.map((project) => (
                 <ProjectCard
                   key={project.id}
-                  project={project}
+                  project={project as any}
                   clients={clients}
                   onSelect={() => setSelectedProjectId(project.id)}
                   onEdit={() => setEditProject(project)}

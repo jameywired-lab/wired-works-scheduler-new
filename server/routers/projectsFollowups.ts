@@ -29,6 +29,35 @@ import { publicProcedure, router } from "../_core/trpc";
 
 const p = publicProcedure;
 
+// ─── Milestone Stage Templates ────────────────────────────────────────────────
+type ProjectType = "new_construction" | "commercial" | "retrofit";
+
+const STAGE_TEMPLATES: Record<ProjectType, { title: string; weight: number }[]> = {
+  new_construction: [
+    { title: "Prewire", weight: 15 },
+    { title: "Client Walk-Through to Verify Locations", weight: 10 },
+    { title: "Trim Parts Ordered", weight: 10 },
+    { title: "Client Credentials Collected", weight: 10 },
+    { title: "Trim Complete", weight: 35 },
+    { title: "Final", weight: 20 },
+  ],
+  commercial: [
+    { title: "Prewire", weight: 15 },
+    { title: "Client Walk-Through to Verify Locations", weight: 10 },
+    { title: "Trim Parts Ordered", weight: 10 },
+    { title: "Client Credentials Collected", weight: 10 },
+    { title: "Trim Complete", weight: 35 },
+    { title: "Final", weight: 20 },
+  ],
+  retrofit: [
+    { title: "Parts Ordered", weight: 5 },
+    { title: "Client Credentials Collected", weight: 5 },
+    { title: "Gear Programmed", weight: 20 },
+    { title: "Install", weight: 60 },
+    { title: "Final Walk-Through", weight: 10 },
+  ],
+};
+
 // ─── Projects Router ──────────────────────────────────────────────────────────
 export const projectsRouter = router({
   list: p.query(async () => {
@@ -53,6 +82,7 @@ export const projectsRouter = router({
         description: z.string().optional(),
         clientId: z.number().optional(),
         status: z.enum(["active", "on_hold", "completed", "cancelled"]).optional().default("active"),
+        projectType: z.enum(["new_construction", "commercial", "retrofit"]).optional(),
         startDate: z.number().optional(),
         dueDate: z.number().optional(),
       })
@@ -60,7 +90,21 @@ export const projectsRouter = router({
     .mutation(async ({ input }) => {
       await createProject(input);
       const all = await listProjects();
-      return { success: true, projectId: all[0]?.id };
+      const newId = all[0]?.id;
+      // Auto-seed milestone stages for the chosen project type
+      if (newId && input.projectType && STAGE_TEMPLATES[input.projectType]) {
+        const stages = STAGE_TEMPLATES[input.projectType];
+        for (let i = 0; i < stages.length; i++) {
+          await createMilestone({
+            projectId: newId,
+            title: stages[i].title,
+            weight: stages[i].weight,
+            isComplete: false,
+            sortOrder: i,
+          });
+        }
+      }
+      return { success: true, projectId: newId };
     }),
 
   update: p
@@ -71,6 +115,7 @@ export const projectsRouter = router({
         description: z.string().optional(),
         clientId: z.number().nullable().optional(),
         status: z.enum(["active", "on_hold", "completed", "cancelled"]).optional(),
+        projectType: z.enum(["new_construction", "commercial", "retrofit"]).nullable().optional(),
         startDate: z.number().nullable().optional(),
         dueDate: z.number().nullable().optional(),
       })
