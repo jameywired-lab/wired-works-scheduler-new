@@ -53,6 +53,15 @@ import {
 import { importRouter } from "./routers/import";
 import { projectsRouter, followUpsRouter } from "./routers/projectsFollowups";
 import { jobPhotosRouter, messagingRouter } from "./routers/jobPhotosMessaging";
+import {
+  addTagToClient,
+  createTag,
+  deleteTag,
+  getClientsByTag,
+  getTagsForClient,
+  listTags,
+  removeTagFromClient,
+} from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -256,6 +265,7 @@ const jobsRouter = router({
         scheduledEnd: z.number(),
         address: z.string().optional(),
         ownerInstructions: z.string().optional(),
+        jobType: z.enum(["service_call", "project_job", "sales_call"]).optional().default("service_call"),
         crewMemberIds: z.array(z.number()).optional(),
         sendBookingSms: z.boolean().optional().default(true),
         syncToGoogleCalendar: z.boolean().optional().default(false),
@@ -332,6 +342,7 @@ const jobsRouter = router({
         scheduledEnd: z.number().optional(),
         address: z.string().optional(),
         ownerInstructions: z.string().optional(),
+        jobType: z.enum(["service_call", "project_job", "sales_call"]).optional(),
         crewMemberIds: z.array(z.number()).optional(),
         sendReviewSms: z.boolean().optional(),
         syncToGoogleCalendar: z.boolean().optional().default(false),
@@ -575,6 +586,47 @@ const usersRouter = router({
     }),
 });
 
+// ─── Tags Router ────────────────────────────────────────────────────────────
+const tagsRouter = router({
+  list: p.query(async () => listTags()),
+
+  create: p
+    .input(z.object({ name: z.string().min(1).max(64), color: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      await createTag({ name: input.name.trim(), color: input.color ?? "#6366f1" });
+      return { success: true };
+    }),
+
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteTag(input.id);
+      return { success: true };
+    }),
+
+  getForClient: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => getTagsForClient(input.clientId)),
+
+  addToClient: p
+    .input(z.object({ clientId: z.number(), tagId: z.number() }))
+    .mutation(async ({ input }) => {
+      await addTagToClient(input);
+      return { success: true };
+    }),
+
+  removeFromClient: p
+    .input(z.object({ clientId: z.number(), tagId: z.number() }))
+    .mutation(async ({ input }) => {
+      await removeTagFromClient(input.clientId, input.tagId);
+      return { success: true };
+    }),
+
+  getClientsByTag: p
+    .input(z.object({ tagId: z.number() }))
+    .query(async ({ input }) => getClientsByTag(input.tagId)),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -599,6 +651,7 @@ export const appRouter = router({
   followUps: followUpsRouter,
   jobPhotos: jobPhotosRouter,
   messaging: messagingRouter,
+  tags: tagsRouter,
 });
 
 export type AppRouter = typeof appRouter;

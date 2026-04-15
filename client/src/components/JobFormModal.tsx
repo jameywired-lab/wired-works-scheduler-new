@@ -18,7 +18,18 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ExternalLink, Loader2, MapPin, Plus } from "lucide-react";
+import {
+  Briefcase,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Loader2,
+  MapPin,
+  Phone,
+  Plus,
+  UserPlus,
+  Wrench,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,8 +38,16 @@ interface JobFormModalProps {
   onClose: () => void;
   onSuccess: () => void;
   initialDate?: Date;
-  jobId?: number; // if provided, edit mode
+  jobId?: number;
 }
+
+const JOB_TYPES = [
+  { value: "service_call", label: "Service Call", icon: Wrench, color: "text-blue-400" },
+  { value: "project_job", label: "Project Job", icon: Briefcase, color: "text-violet-400" },
+  { value: "sales_call", label: "Sales Call", icon: Phone, color: "text-emerald-400" },
+] as const;
+
+type JobType = (typeof JOB_TYPES)[number]["value"];
 
 function toLocalDateTimeValue(ms: number): string {
   const d = new Date(ms);
@@ -47,23 +66,27 @@ function buildAddressString(addr: {
   state?: string | null;
   zip?: string | null;
 }): string {
-  const parts = [
-    addr.addressLine1,
-    addr.addressLine2,
-    addr.city,
-    addr.state,
-    addr.zip,
-  ].filter(Boolean);
-  return parts.join(", ");
+  return [addr.addressLine1, addr.addressLine2, addr.city, addr.state, addr.zip]
+    .filter(Boolean)
+    .join(", ");
 }
 
 function openDirections(address: string) {
-  const encoded = encodeURIComponent(address);
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, "_blank");
+  window.open(
+    `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`,
+    "_blank"
+  );
 }
 
-export default function JobFormModal({ open, onClose, onSuccess, initialDate, jobId }: JobFormModalProps) {
+export default function JobFormModal({
+  open,
+  onClose,
+  onSuccess,
+  initialDate,
+  jobId,
+}: JobFormModalProps) {
   const isEdit = !!jobId;
+  const utils = trpc.useUtils();
 
   const { data: clients } = trpc.clients.list.useQuery();
   const { data: crewList } = trpc.crew.list.useQuery({ activeOnly: true });
@@ -74,6 +97,7 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
 
   const createJob = trpc.jobs.create.useMutation();
   const updateJob = trpc.jobs.update.useMutation();
+  const createClient = trpc.clients.create.useMutation();
 
   const defaultStart = initialDate ?? new Date();
   defaultStart.setMinutes(0, 0, 0);
@@ -81,10 +105,11 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
 
   const [form, setForm] = useState({
     clientId: "",
+    jobType: "service_call" as JobType,
     title: "",
     description: "",
     address: "",
-    selectedAddressId: "custom" as string, // "custom" or address id
+    selectedAddressId: "custom" as string,
     ownerInstructions: "",
     scheduledStart: toLocalDateTimeValue(defaultStart.getTime()),
     scheduledEnd: toLocalDateTimeValue(defaultEnd.getTime()),
@@ -94,25 +119,29 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
     syncToGoogleCalendar: true,
   });
 
-  // Fetch addresses for selected client
+  // Inline new-client form state
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClient, setNewClient] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+  });
+  const [creatingClient, setCreatingClient] = useState(false);
+
   const { data: clientAddresses } = trpc.clientAddresses.getByClient.useQuery(
     { clientId: Number(form.clientId) },
     { enabled: !!form.clientId && form.clientId !== "" }
   );
 
-  // When client changes or addresses load, auto-select primary address
+  // Auto-fill primary address when client is selected
   useEffect(() => {
     if (!form.clientId || !clientAddresses || clientAddresses.length === 0) return;
-    // Only auto-fill if address is currently empty (just selected a new client)
     if (form.address !== "") return;
     const primary = clientAddresses.find((a) => a.isPrimary) ?? clientAddresses[0];
     if (primary) {
       const addrStr = buildAddressString(primary);
-      setForm((f) => ({
-        ...f,
-        selectedAddressId: String(primary.id),
-        address: addrStr,
-      }));
+      setForm((f) => ({ ...f, selectedAddressId: String(primary.id), address: addrStr }));
     }
   }, [clientAddresses, form.clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -121,6 +150,7 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
     if (existingJob && isEdit) {
       setForm({
         clientId: String(existingJob.clientId),
+        jobType: (existingJob.jobType as JobType) ?? "service_call",
         title: existingJob.title,
         description: existingJob.description ?? "",
         address: existingJob.address ?? "",
@@ -134,7 +164,7 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         syncToGoogleCalendar: true,
       });
     }
-  }, [existingJob, isEdit]);
+  }, [existingJob, isEdit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddressSelect = (value: string) => {
     if (value === "custom") {
@@ -148,6 +178,40 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         selectedAddressId: value,
         address: buildAddressString(addr),
       }));
+    }
+  };
+
+  const handleCreateNewClient = async () => {
+    if (!newClient.name.trim()) {
+      toast.error("Client name is required.");
+      return;
+    }
+    setCreatingClient(true);
+    try {
+      await createClient.mutateAsync({
+        name: newClient.name.trim(),
+        phone: newClient.phone || undefined,
+        email: newClient.email || undefined,
+        addressLine1: newClient.address || undefined,
+      });
+      await utils.clients.list.invalidate();
+      // Refetch client list and auto-select the new client
+      const updatedClients = await utils.clients.list.fetch();
+      const created = updatedClients?.find((c) => c.name === newClient.name.trim());
+      if (created) {
+        setForm((f) => ({
+          ...f,
+          clientId: String(created.id),
+          address: newClient.address || f.address,
+        }));
+      }
+      setNewClient({ name: "", phone: "", email: "", address: "" });
+      setShowNewClient(false);
+      toast.success(`Client "${newClient.name}" created and selected.`);
+    } catch {
+      toast.error("Failed to create client.");
+    } finally {
+      setCreatingClient(false);
     }
   };
 
@@ -168,6 +232,7 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         await updateJob.mutateAsync({
           id: jobId!,
           clientId: Number(form.clientId),
+          jobType: form.jobType,
           title: form.title,
           description: form.description || undefined,
           address: form.address || undefined,
@@ -183,6 +248,7 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
       } else {
         await createJob.mutateAsync({
           clientId: Number(form.clientId),
+          jobType: form.jobType,
           title: form.title,
           description: form.description || undefined,
           address: form.address || undefined,
@@ -196,13 +262,14 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         toast.success("Job created successfully.");
       }
       onSuccess();
-    } catch (err) {
+    } catch {
       toast.error("Failed to save job. Please try again.");
     }
   };
 
   const isPending = createJob.isPending || updateJob.isPending;
   const hasAddress = form.address.trim().length > 0;
+  const selectedJobType = JOB_TYPES.find((t) => t.value === form.jobType)!;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -212,32 +279,152 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Job Type */}
+          <div className="space-y-1.5">
+            <Label>Job Type</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {JOB_TYPES.map((type) => {
+                const Icon = type.icon;
+                const isSelected = form.jobType === type.value;
+                return (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, jobType: type.value }))}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
+                      isSelected
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "bg-muted border-border text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isSelected ? "text-primary" : type.color}`} />
+                    {type.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Client */}
           <div className="space-y-1.5">
             <Label>Client *</Label>
-            <Select
-              value={form.clientId}
-              onValueChange={(v) => {
-                // Reset address when switching clients so the useEffect auto-fills
-                setForm((f) => ({ ...f, clientId: v, selectedAddressId: "custom", address: "" }));
-              }}
-            >
-              <SelectTrigger className="bg-input border-border">
-                <SelectValue placeholder="Select a client…" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients?.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select
+                value={form.clientId}
+                onValueChange={(v) => {
+                  setForm((f) => ({ ...f, clientId: v, selectedAddressId: "custom", address: "" }));
+                  setShowNewClient(false);
+                }}
+              >
+                <SelectTrigger className="bg-input border-border flex-1">
+                  <SelectValue placeholder="Select a client…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0 border-border"
+                title="Add new client"
+                onClick={() => setShowNewClient((v) => !v)}
+              >
+                {showNewClient ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <UserPlus className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            {/* Inline new-client form */}
+            {showNewClient && (
+              <div className="mt-2 p-4 bg-muted/50 border border-border rounded-lg space-y-3">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  Create New Client
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Name *</Label>
+                    <Input
+                      placeholder="Full name"
+                      value={newClient.name}
+                      onChange={(e) => setNewClient((n) => ({ ...n, name: e.target.value }))}
+                      className="bg-input border-border h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Phone</Label>
+                    <Input
+                      placeholder="(555) 000-0000"
+                      value={newClient.phone}
+                      onChange={(e) => setNewClient((n) => ({ ...n, phone: e.target.value }))}
+                      className="bg-input border-border h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Email</Label>
+                  <Input
+                    placeholder="email@example.com"
+                    value={newClient.email}
+                    onChange={(e) => setNewClient((n) => ({ ...n, email: e.target.value }))}
+                    className="bg-input border-border h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Address</Label>
+                  <Input
+                    placeholder="123 Main St, City, State"
+                    value={newClient.address}
+                    onChange={(e) => setNewClient((n) => ({ ...n, address: e.target.value }))}
+                    className="bg-input border-border h-8 text-sm"
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateNewClient}
+                    disabled={creatingClient || !newClient.name.trim()}
+                    className="flex-1"
+                  >
+                    {creatingClient && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Create & Select
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewClient(false)}
+                    className="border-border"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Title */}
           <div className="space-y-1.5">
             <Label>Job Title *</Label>
             <Input
-              placeholder="e.g. Electrical panel upgrade"
+              placeholder={
+                form.jobType === "service_call"
+                  ? "e.g. Electrical panel upgrade"
+                  : form.jobType === "project_job"
+                  ? "e.g. Kitchen renovation — Phase 2"
+                  : "e.g. Initial consultation — Smith property"
+              }
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               className="bg-input border-border"
@@ -266,14 +453,13 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
             </div>
           </div>
 
-          {/* Address — saved addresses dropdown + custom */}
+          {/* Address */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
               Job Address
             </Label>
 
-            {/* Address selector when client has saved addresses */}
             {clientAddresses && clientAddresses.length > 0 && (
               <Select value={form.selectedAddressId} onValueChange={handleAddressSelect}>
                 <SelectTrigger className="bg-input border-border">
@@ -301,12 +487,13 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
               </Select>
             )}
 
-            {/* Address text input — always shown, auto-filled from selection */}
             <div className="flex gap-2">
               <Input
                 placeholder="123 Main St, City, State"
                 value={form.address}
-                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value, selectedAddressId: "custom" }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, address: e.target.value, selectedAddressId: "custom" }))
+                }
                 className="bg-input border-border flex-1"
               />
               {hasAddress && (
@@ -322,12 +509,6 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
                 </Button>
               )}
             </div>
-            {hasAddress && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                Click the arrow icon to open directions in Google Maps
-              </p>
-            )}
           </div>
 
           {/* Description */}
@@ -436,10 +617,12 @@ export default function JobFormModal({ open, onClose, onSuccess, initialDate, jo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create Job"}
+            {isEdit ? "Save Changes" : `Create ${selectedJobType.label}`}
           </Button>
         </DialogFooter>
       </DialogContent>

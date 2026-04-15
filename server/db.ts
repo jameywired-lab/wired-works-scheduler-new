@@ -21,6 +21,7 @@ import {
   Job,
   JobPhoto,
   clientAddresses,
+  clientTags,
   clients,
   crewMembers,
   crewNotes,
@@ -32,7 +33,11 @@ import {
   projectReminders,
   projects,
   smsLog,
+  tags,
   users,
+  InsertTag,
+  InsertClientTag,
+  Tag,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -213,6 +218,7 @@ export async function listJobs() {
       address: jobs.address,
       ownerInstructions: jobs.ownerInstructions,
       googleCalendarEventId: jobs.googleCalendarEventId,
+      jobType: jobs.jobType,
       bookingSmsSent: jobs.bookingSmsSent,
       reminderSmsSent: jobs.reminderSmsSent,
       reviewSmsSent: jobs.reviewSmsSent,
@@ -634,4 +640,70 @@ export async function deleteJobPhoto(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(jobPhotos).where(eq(jobPhotos.id, id));
+}
+
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+export async function listTags(): Promise<Tag[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(tags).orderBy(tags.name);
+}
+
+export async function createTag(data: Omit<InsertTag, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(tags).values(data);
+  return result[0];
+}
+
+export async function deleteTag(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Remove all clientTag associations first
+  await db.delete(clientTags).where(eq(clientTags.tagId, id));
+  await db.delete(tags).where(eq(tags.id, id));
+}
+
+// ─── Client Tags ──────────────────────────────────────────────────────────────
+export async function getTagsForClient(clientId: number): Promise<Tag[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({ tag: tags })
+    .from(clientTags)
+    .innerJoin(tags, eq(clientTags.tagId, tags.id))
+    .where(eq(clientTags.clientId, clientId));
+  return rows.map((r) => r.tag);
+}
+
+export async function addTagToClient(data: Omit<InsertClientTag, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  // Avoid duplicates
+  const existing = await db
+    .select()
+    .from(clientTags)
+    .where(and(eq(clientTags.clientId, data.clientId), eq(clientTags.tagId, data.tagId)))
+    .limit(1);
+  if (existing.length > 0) return;
+  await db.insert(clientTags).values(data);
+}
+
+export async function removeTagFromClient(clientId: number, tagId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(clientTags)
+    .where(and(eq(clientTags.clientId, clientId), eq(clientTags.tagId, tagId)));
+}
+
+export async function getClientsByTag(tagId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({ client: clients })
+    .from(clientTags)
+    .innerJoin(clients, eq(clientTags.clientId, clients.id))
+    .where(eq(clientTags.tagId, tagId));
+  return rows.map((r) => r.client);
 }

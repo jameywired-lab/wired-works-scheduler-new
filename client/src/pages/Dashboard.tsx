@@ -27,6 +27,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import {
   ArrowRight,
   Bell,
+  Briefcase,
   Calendar,
   CheckCircle2,
   Clock,
@@ -35,6 +36,7 @@ import {
   Phone,
   Plus,
   Users,
+  Wrench,
   Zap,
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -52,6 +54,12 @@ export default function Dashboard() {
   const upcomingJobs = data?.upcomingJobs ?? [];
   const completedToday = todayJobs.filter((j) => j.status === "completed").length;
   const scheduledToday = todayJobs.filter((j) => j.status === "scheduled" || j.status === "in_progress").length;
+
+  // Job-type breakdown (all upcoming + today)
+  const allJobs = [...todayJobs, ...upcomingJobs];
+  const serviceCallsToday = todayJobs.filter((j) => j.jobType === "service_call" || !j.jobType).length;
+  const projectJobsActive = allJobs.filter((j) => j.jobType === "project_job").length;
+  const salesCallsToday = todayJobs.filter((j) => j.jobType === "sales_call").length;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -72,12 +80,34 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Stats row */}
+      {/* Stats row — primary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Today's Jobs" value={isLoading ? null : todayJobs.length} icon={<Calendar className="h-4 w-4 text-primary" />} loading={isLoading} />
         <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} loading={isLoading} />
         <StatCard label="Completed" value={isLoading ? null : completedToday} icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} loading={isLoading} />
         <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-violet-400" />} loading={isLoading} />
+      </div>
+
+      {/* Job-type breakdown row */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard
+          label="Service Calls Today"
+          value={isLoading ? null : serviceCallsToday}
+          icon={<Wrench className="h-4 w-4 text-blue-400" />}
+          loading={isLoading}
+        />
+        <StatCard
+          label="Active Projects"
+          value={isLoading ? null : projectJobsActive}
+          icon={<Briefcase className="h-4 w-4 text-violet-400" />}
+          loading={isLoading}
+        />
+        <StatCard
+          label="Sales Calls Today"
+          value={isLoading ? null : salesCallsToday}
+          icon={<Phone className="h-4 w-4 text-emerald-400" />}
+          loading={isLoading}
+        />
       </div>
 
       {/* Main 3-column layout */}
@@ -410,7 +440,7 @@ function ProjectMiniCard({
 }
 
 // ─── Shared Components ────────────────────────────────────────────────────────
-function StatCard({ label, value, icon, loading }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean }) {
+function StatCard({ label, value, icon, loading, accent }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string }) {
   return (
     <Card className="bg-card border-border">
       <CardContent className="p-4">

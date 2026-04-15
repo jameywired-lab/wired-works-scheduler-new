@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,21 +13,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { getInitials } from "@/lib/utils";
-import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Plus,
   Search,
+  Tag,
   Trash2,
   UserCircle2,
-  Pencil,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+
+// ─── Preset tag colors ────────────────────────────────────────────────────────
+const PRESET_COLORS = [
+  "#6366f1", // indigo
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#ef4444", // red
+  "#f97316", // orange
+  "#eab308", // yellow
+  "#22c55e", // green
+  "#14b8a6", // teal
+  "#3b82f6", // blue
+  "#64748b", // slate
+];
 
 type ClientForm = {
   name: string;
@@ -47,29 +61,148 @@ const emptyForm: ClientForm = {
   city: "", state: "", zip: "", notes: "",
 };
 
+// ─── Small inline tag chip component ─────────────────────────────────────────
+function TagChip({
+  name,
+  color,
+  onRemove,
+}: {
+  name: string;
+  color: string;
+  onRemove?: () => void;
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{
+        backgroundColor: `${color}22`,
+        color,
+        border: `1px solid ${color}55`,
+      }}
+    >
+      {name}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="ml-0.5 hover:opacity-70"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+// ─── Tag manager sub-component inside the dialog ─────────────────────────────
+function ClientTagManager({ clientId }: { clientId: number | null }) {
+  const utils = trpc.useUtils();
+  const { data: allTags } = trpc.tags.list.useQuery();
+  const { data: clientTags } = trpc.tags.getForClient.useQuery(
+    { clientId: clientId! },
+    { enabled: !!clientId }
+  );
+  const addTag = trpc.tags.addToClient.useMutation({
+    onSuccess: () => utils.tags.getForClient.invalidate({ clientId: clientId! }),
+  });
+  const removeTag = trpc.tags.removeFromClient.useMutation({
+    onSuccess: () => utils.tags.getForClient.invalidate({ clientId: clientId! }),
+  });
+
+  const clientTagIds = new Set(clientTags?.map((t) => t.id) ?? []);
+  const unassigned = (allTags ?? []).filter((t) => !clientTagIds.has(t.id));
+
+  if (!clientId) return null;
+
+  return (
+    <div className="space-y-2">
+      {/* Current tags */}
+      {clientTags && clientTags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {clientTags.map((tag) => (
+            <TagChip
+              key={tag.id}
+              name={tag.name}
+              color={tag.color}
+              onRemove={() => removeTag.mutate({ clientId: clientId!, tagId: tag.id })}
+            />
+          ))}
+        </div>
+      )}
+      {/* Add tag dropdown */}
+      {unassigned.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {unassigned.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              onClick={() => addTag.mutate({ clientId: clientId!, tagId: tag.id })}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-dashed border-border text-muted-foreground hover:border-primary/50 transition-colors"
+            >
+              <Plus className="h-2.5 w-2.5" />
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {(allTags ?? []).length === 0 && (
+        <p className="text-xs text-muted-foreground">No tags created yet. Create tags in the tag manager above.</p>
+      )}
+    </div>
+  );
+}
+
 export default function ClientsPage() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+  const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<ClientForm>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
-  // Show all management controls — app is accessible without login
+  // Tag manager state
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState(PRESET_COLORS[0]);
+
   const utils = trpc.useUtils();
 
   const { data: clients, isLoading } = trpc.clients.list.useQuery();
+  const { data: allTags } = trpc.tags.list.useQuery();
+  const { data: tagFilteredClients } = trpc.tags.getClientsByTag.useQuery(
+    { tagId: activeTagFilter! },
+    { enabled: activeTagFilter !== null }
+  );
+
   const createClient = trpc.clients.create.useMutation();
   const updateClient = trpc.clients.update.useMutation();
   const deleteClient = trpc.clients.delete.useMutation();
+  const createTag = trpc.tags.create.useMutation({
+    onSuccess: () => {
+      utils.tags.list.invalidate();
+      setNewTagName("");
+    },
+  });
+  const deleteTag = trpc.tags.delete.useMutation({
+    onSuccess: () => utils.tags.list.invalidate(),
+  });
 
-  const filtered = (clients ?? []).filter(
-    (c) =>
+  // Fetch tags for all visible clients (for display on cards)
+  // We'll use a per-client query approach via a helper component
+
+  const tagFilteredIds = activeTagFilter !== null
+    ? new Set(tagFilteredClients?.map((c) => c.id) ?? [])
+    : null;
+
+  const filtered = (clients ?? []).filter((c) => {
+    const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone?.includes(search)
-  );
+      c.phone?.includes(search);
+    const matchesTag = tagFilteredIds === null || tagFilteredIds.has(c.id);
+    return matchesSearch && matchesTag;
+  });
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -77,20 +210,21 @@ export default function ClientsPage() {
     setShowForm(true);
   };
 
-  const openEdit = (c: typeof clients extends (infer T)[] | undefined ? T : never) => {
+  type ClientItem = NonNullable<typeof clients>[number];
+  const openEdit = (c: ClientItem) => {
     if (!c) return;
     setForm({
-      name: (c as any).name ?? "",
-      phone: (c as any).phone ?? "",
-      email: (c as any).email ?? "",
-      addressLine1: (c as any).addressLine1 ?? "",
-      addressLine2: (c as any).addressLine2 ?? "",
-      city: (c as any).city ?? "",
-      state: (c as any).state ?? "",
-      zip: (c as any).zip ?? "",
-      notes: (c as any).notes ?? "",
+      name: c.name ?? "",
+      phone: c.phone ?? "",
+      email: c.email ?? "",
+      addressLine1: c.addressLine1 ?? "",
+      addressLine2: c.addressLine2 ?? "",
+      city: c.city ?? "",
+      state: c.state ?? "",
+      zip: c.zip ?? "",
+      notes: c.notes ?? "",
     });
-    setEditingId((c as any).id);
+    setEditingId(c.id);
     setShowForm(true);
   };
 
@@ -122,10 +256,16 @@ export default function ClientsPage() {
     }
   };
 
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    await createTag.mutateAsync({ name: newTagName.trim(), color: newTagColor });
+  };
+
   const isPending = createClient.isPending || updateClient.isPending;
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
@@ -133,11 +273,127 @@ export default function ClientsPage() {
             {isLoading ? "Loading…" : `${clients?.length ?? 0} total clients`}
           </p>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Add Client
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTagManager((v) => !v)}
+            className="border-border"
+          >
+            <Tag className="h-4 w-4 mr-1.5" />
+            Tags
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Client
+          </Button>
+        </div>
       </div>
+
+      {/* Tag Manager Panel */}
+      {showTagManager && (
+        <div className="bg-muted/40 border border-border rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold">Manage Tags</p>
+
+          {/* Existing tags */}
+          <div className="flex flex-wrap gap-2">
+            {(allTags ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground">No tags yet. Create your first tag below.</p>
+            )}
+            {(allTags ?? []).map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: `${tag.color}22`,
+                  color: tag.color,
+                  border: `1px solid ${tag.color}55`,
+                }}
+              >
+                {tag.name}
+                <button
+                  type="button"
+                  onClick={() => deleteTag.mutate({ id: tag.id })}
+                  className="hover:opacity-60 transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {/* Create new tag */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Tag name…"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
+              className="bg-input border-border h-8 text-sm flex-1 max-w-[200px]"
+            />
+            {/* Color swatches */}
+            <div className="flex gap-1">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setNewTagColor(c)}
+                  className="h-5 w-5 rounded-full border-2 transition-all"
+                  style={{
+                    backgroundColor: c,
+                    borderColor: newTagColor === c ? "white" : "transparent",
+                    outline: newTagColor === c ? `2px solid ${c}` : "none",
+                  }}
+                />
+              ))}
+            </div>
+            <Button
+              size="sm"
+              onClick={handleCreateTag}
+              disabled={!newTagName.trim() || createTag.isPending}
+              className="h-8"
+            >
+              {createTag.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Tag filter bar */}
+      {(allTags ?? []).length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium">Filter:</span>
+          <button
+            onClick={() => setActiveTagFilter(null)}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+              activeTagFilter === null
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted text-muted-foreground border-border hover:border-primary/40"
+            }`}
+          >
+            All
+          </button>
+          {(allTags ?? []).map((tag) => (
+            <button
+              key={tag.id}
+              onClick={() => setActiveTagFilter(activeTagFilter === tag.id ? null : tag.id)}
+              className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
+              style={
+                activeTagFilter === tag.id
+                  ? {
+                      backgroundColor: `${tag.color}33`,
+                      color: tag.color,
+                      borderColor: tag.color,
+                    }
+                  : {}
+              }
+              data-inactive={activeTagFilter !== tag.id || undefined}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -159,7 +415,7 @@ export default function ClientsPage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <UserCircle2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
           <p className="font-medium text-muted-foreground">
-            {search ? "No clients match your search" : "No clients yet"}
+            {search || activeTagFilter ? "No clients match your filters" : "No clients yet"}
           </p>
           <Button variant="outline" size="sm" className="mt-4" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-1.5" />
@@ -169,62 +425,13 @@ export default function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map((client) => (
-            <div
+            <ClientCard
               key={client.id}
-              className="bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all group cursor-pointer"
+              client={client}
+              onEdit={() => openEdit(client)}
+              onDelete={() => setDeleteConfirm(client.id)}
               onClick={() => setLocation(`/clients/${client.id}`)}
-            >
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 border border-border shrink-0">
-                  <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
-                    {getInitials(client.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-                      {client.name}
-                    </p>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => openEdit(client)}
-                        className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(client.id)}
-                        className="p-1.5 rounded-lg hover:bg-destructive/15 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {client.phone && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Phone className="h-3 w-3 shrink-0" />
-                        <span>{client.phone}</span>
-                      </div>
-                    )}
-                    {client.email && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{client.email}</span>
-                      </div>
-                    )}
-                    {(client.city || client.addressLine1) && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">
-                          {[client.addressLine1, client.city, client.state].filter(Boolean).join(", ")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+            />
           ))}
         </div>
       )}
@@ -276,6 +483,17 @@ export default function ClientsPage() {
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className="bg-input border-border resize-none" rows={3} placeholder="Internal notes about this client…" />
             </div>
+
+            {/* Tags — only shown when editing an existing client */}
+            {editingId && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                  Tags
+                </Label>
+                <ClientTagManager clientId={editingId} />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)} disabled={isPending}>Cancel</Button>
@@ -303,6 +521,87 @@ export default function ClientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── Client Card with lazy-loaded tags ───────────────────────────────────────
+function ClientCard({
+  client,
+  onEdit,
+  onDelete,
+  onClick,
+}: {
+  client: { id: number; name: string; phone?: string | null; email?: string | null; addressLine1?: string | null; city?: string | null; state?: string | null };
+  onEdit: () => void;
+  onDelete: () => void;
+  onClick: () => void;
+}) {
+  const { data: tags } = trpc.tags.getForClient.useQuery({ clientId: client.id });
+
+  return (
+    <div
+      className="bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all group cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex items-start gap-3">
+        <Avatar className="h-10 w-10 border border-border shrink-0">
+          <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
+            {getInitials(client.name)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+              {client.name}
+            </p>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={onEdit}
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={onDelete}
+                className="p-1.5 rounded-lg hover:bg-destructive/15 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-0.5 mt-1">
+            {client.phone && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Phone className="h-3 w-3 shrink-0" />
+                <span>{client.phone}</span>
+              </div>
+            )}
+            {client.email && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate">{client.email}</span>
+              </div>
+            )}
+            {(client.city || client.addressLine1) && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {[client.addressLine1, client.city, client.state].filter(Boolean).join(", ")}
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Tag chips */}
+          {tags && tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tags.map((tag) => (
+                <TagChip key={tag.id} name={tag.name} color={tag.color} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

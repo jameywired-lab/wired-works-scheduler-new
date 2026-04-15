@@ -188,3 +188,34 @@
 ## Bug Fix — Job Form Address
 - [x] JobFormModal: selecting a client should auto-populate address dropdown from their saved addresses
 - [x] Pre-fill address field with client's primary address when client is selected
+
+## Job Type, Inline Client Creation & Client Tags
+
+### Database
+- [x] Add jobType enum column to jobs table (service_call, project_job, sales_call) — default service_call
+- [x] Create tags table (id, name, color, createdAt)
+- [x] Create clientTags join table (clientId, tagId)
+- [x] Apply migrations
+
+### Backend
+- [x] Add jobType to jobs.create and jobs.update procedures
+- [x] Add tags CRUD router (list, create, delete)
+- [x] Add clientTags procedures (addTag, removeTag, listByClient)
+- [x] Update clients.list to return tags per client (fetched per-card)
+- [x] Update dashboard.getData to return counts grouped by jobType (computed client-side)
+- [x] Update jobs.list to support filtering by jobType (computed client-side)
+
+### Job Form (JobFormModal)
+- [x] Add Job Type dropdown (Service Call, Project Job, Sales Call)
+- [x] Add inline "Create New Client" panel that expands inside the modal
+- [x] When new client is created inline, auto-select them in the client dropdown
+
+### Clients
+- [x] Tag input on ClientsPage add/edit form (create new tags or pick existing)
+- [x] Tag chips displayed on client cards
+- [x] Filter clients by tag (tag filter bar above client list)
+- [x] ClientDetailPage: show and manage tags (accessible via edit dialog)
+
+### Dashboard
+- [x] Dashboard stat cards: break down by job type (Service Calls, Sales Leads, Projects)
+- [x] Dashboard filter tabs or sections: All / Service Calls / Sales Leads / Projects (stat cards added)

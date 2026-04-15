@@ -36,6 +36,13 @@
       "when": 1776105549204,
       "tag": "0004_giant_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1776259250373,
+      "tag": "0005_parallel_shaman",
+      "breakpoints": true
     }
   ]
 }

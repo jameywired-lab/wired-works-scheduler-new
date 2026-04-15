@@ -81,6 +81,7 @@ export const jobs = mysqlTable("jobs", {
   address: varchar("address", { length: 512 }),
   ownerInstructions: text("ownerInstructions"),
   googleCalendarEventId: varchar("googleCalendarEventId", { length: 255 }),
+  jobType: mysqlEnum("jobType", ["service_call", "project_job", "sales_call"]).default("service_call").notNull(),
   // SMS tracking
   bookingSmsSent: boolean("bookingSmsSent").default(false).notNull(),
   reminderSmsSent: boolean("reminderSmsSent").default(false).notNull(),
@@ -248,3 +249,23 @@ export const jobPhotos = mysqlTable("jobPhotos", {
 
 export type JobPhoto = typeof jobPhotos.$inferSelect;
 export type InsertJobPhoto = typeof jobPhotos.$inferInsert;
+
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+export const tags = mysqlTable("tags", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 64 }).notNull().unique(),
+  color: varchar("color", { length: 32 }).default("#6366f1").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = typeof tags.$inferInsert;
+
+// ─── Client Tags (join) ───────────────────────────────────────────────────────
+export const clientTags = mysqlTable("clientTags", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").notNull().references(() => clients.id),
+  tagId: int("tagId").notNull().references(() => tags.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ClientTag = typeof clientTags.$inferSelect;
+export type InsertClientTag = typeof clientTags.$inferInsert;
