@@ -312,7 +312,8 @@ export type InsertClientTag = typeof clientTags.$inferInsert;
 // ─── Project Credentials ─────────────────────────────────────────────────────
 export const projectCredentials = mysqlTable("projectCredentials", {
   id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull().references(() => projects.id),
+  projectId: int("projectId").references(() => projects.id),  // nullable — credentials now live on client
+  clientId: int("clientId").references(() => clients.id),     // primary owner of this credential
   key: varchar("key", { length: 128 }).notNull(),   // e.g. "wifi_ssid", "sonos_login"
   label: varchar("label", { length: 255 }).notNull(), // e.g. "Wi-Fi SSID"
   value: text("value"),

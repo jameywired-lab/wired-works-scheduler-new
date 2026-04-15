@@ -441,3 +441,25 @@
 - [x] When a client is selected in the new job form, auto-fill the address field with the client's primary address (street + city + state + zip)
 - [x] If the client has no address on file, leave the field blank (no error)
 - [x] User can still manually edit the address after it auto-fills
+
+## Milestone Stage Reorder & Even Weights
+
+- [x] projects.reorderMilestone procedure: swap sortOrder of two adjacent milestones (move up / move down)
+- [x] projects.recalcWeights procedure: redistribute weights evenly across all milestones in a project (100 / count, remainder on last)
+- [x] Auto-recalc weights whenever a milestone is added or deleted from a project
+- [x] Milestone row: show Up ▲ / Down ▼ arrow buttons (first row hides Up, last row hides Down)
+- [x] Milestone row: weight badge always shows evenly-distributed % (recalculated live)
+- [x] "Add Stage" input at bottom of milestone list: on submit, adds stage and redistributes all weights evenly
+- [x] Deleting a stage also redistributes remaining weights evenly
+
+## Client-Level Credentials (Permanent, Accessible from Any Job)
+
+- [x] Add clientId column to projectCredentials table (nullable FK to clients)
+- [x] Migration: copy existing project credentials to client-level (set clientId = project's clientId)
+- [x] clientCredentials.list procedure: fetch credentials by clientId
+- [x] clientCredentials.upsert procedure: save/update a credential for a client
+- [x] clientCredentials.seed procedure: seed default credential keys for a new client
+- [x] Project detail: Credentials section reads/writes from client-level credentials (not project-level)
+- [x] Job detail page (admin): show client credentials panel if the job has a client
+- [x] Crew job view: show client credentials panel so crew can access wifi/alarm/etc. on site
+- [x] Credentials are hidden behind show/hide toggle for sensitive fields (passwords, PINs, codes)

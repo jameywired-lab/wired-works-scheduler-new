@@ -20,6 +20,8 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Eye,
+  EyeOff,
   MapPin,
   MessageSquare,
   Navigation,
@@ -308,6 +310,11 @@ export default function CrewJobsPage() {
                     </Button>
                   )}
                 </div>
+
+                {/* Client Credentials */}
+                {job.clientId && (
+                  <CrewClientCredentials clientId={job.clientId} />
+                )}
               </CardContent>
             )}
           </Card>
@@ -484,6 +491,80 @@ export default function CrewJobsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── Crew Client Credentials ──────────────────────────────────────────────────
+function CrewClientCredentials({ clientId }: { clientId: number }) {
+  const utils = trpc.useUtils();
+  const { data: creds = [], isLoading } = trpc.clientCredentials.list.useQuery({ clientId });
+  const [collapsed, setCollapsed] = useState(true);
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+
+  const isSensitive = (key: string) =>
+    ["wifi_password", "sonos_password", "ring_password", "smart_hub_pin", "gate_code", "alarm_code"].includes(key);
+
+  const toggleVisible = (key: string) => {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const filledCreds = creds.filter((c) => (c.value ?? "").trim().length > 0);
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
+        onClick={() => setCollapsed((v) => !v)}
+      >
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <span className="text-base">🔑</span>
+          Client Credentials
+          {filledCreds.length > 0 && (
+            <span className="text-xs text-muted-foreground font-normal">
+              ({filledCreds.length} saved)
+            </span>
+          )}
+        </span>
+        <span className="text-xs text-muted-foreground">{collapsed ? "Show" : "Hide"}</span>
+      </button>
+      {!collapsed && (
+        <div className="px-3 pb-3 space-y-2">
+          {isLoading ? (
+            <p className="text-xs text-muted-foreground py-2">Loading...</p>
+          ) : filledCreds.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No credentials saved for this client yet.</p>
+          ) : (
+            filledCreds.map((cred) => {
+              const sensitive = isSensitive(cred.key);
+              const visible = visibleKeys.has(cred.key);
+              return (
+                <div key={cred.key} className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground shrink-0 w-36">{cred.label}</span>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <span className="text-xs font-mono bg-background border border-border rounded px-2 py-1 flex-1 truncate">
+                      {sensitive && !visible ? "••••••••" : (cred.value ?? "")}
+                    </span>
+                    {sensitive && (
+                      <button
+                        type="button"
+                        onClick={() => toggleVisible(cred.key)}
+                        className="text-muted-foreground hover:text-foreground shrink-0"
+                      >
+                        {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

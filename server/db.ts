@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   Client,
@@ -553,6 +553,41 @@ export async function deleteMilestone(id: number) {
   await db.delete(projectMilestones).where(eq(projectMilestones.id, id));
 }
 
+/** Redistribute weights evenly across all milestones in a project. */
+export async function recalcMilestoneWeights(projectId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const all = await db
+    .select()
+    .from(projectMilestones)
+    .where(eq(projectMilestones.projectId, projectId))
+    .orderBy(projectMilestones.sortOrder, projectMilestones.createdAt);
+  if (all.length === 0) return;
+  const base = Math.floor(100 / all.length);
+  const remainder = 100 - base * all.length;
+  for (let i = 0; i < all.length; i++) {
+    const w = i === all.length - 1 ? base + remainder : base;
+    await db
+      .update(projectMilestones)
+      .set({ weight: w })
+      .where(eq(projectMilestones.id, all[i].id));
+  }
+}
+
+/** Swap sortOrder of two milestones to move one up or down. */
+export async function swapMilestoneSortOrder(idA: number, idB: number) {
+  const db = await getDb();
+  if (!db) return;
+  const rows = await db
+    .select()
+    .from(projectMilestones)
+    .where(inArray(projectMilestones.id, [idA, idB]));
+  if (rows.length !== 2) return;
+  const [a, b] = rows;
+  await db.update(projectMilestones).set({ sortOrder: b.sortOrder }).where(eq(projectMilestones.id, a.id));
+  await db.update(projectMilestones).set({ sortOrder: a.sortOrder }).where(eq(projectMilestones.id, b.id));
+}
+
 // ─── Project Reminders ────────────────────────────────────────────────────────
 export async function getRemindersByProject(projectId: number) {
   const db = await getDb();
@@ -783,6 +818,62 @@ export async function getProjectCredentials(projectId: number): Promise<ProjectC
   const db = await getDb();
   if (!db) return [];
   return db.select().from(projectCredentials).where(eq(projectCredentials.projectId, projectId));
+}
+
+/** Get all credentials for a client (the permanent, client-level store). */
+export async function getClientCredentials(clientId: number): Promise<ProjectCredential[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projectCredentials).where(eq(projectCredentials.clientId, clientId));
+}
+
+/** Upsert a credential keyed by (clientId, key). */
+export async function upsertClientCredential(
+  clientId: number,
+  key: string,
+  label: string,
+  value: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const existing = await db
+    .select()
+    .from(projectCredentials)
+    .where(eq(projectCredentials.clientId, clientId))
+    .then((rows) => rows.find((r) => r.key === key));
+  if (existing) {
+    await db.update(projectCredentials).set({ value }).where(eq(projectCredentials.id, existing.id));
+  } else {
+    await db.insert(projectCredentials).values({ clientId, key, label, value });
+  }
+}
+
+/** Seed default credential keys for a client if they don't already exist. */
+export async function seedClientCredentials(clientId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const defaults: { key: string; label: string }[] = [
+    { key: "wifi_ssid", label: "Wi-Fi Network Name (SSID)" },
+    { key: "wifi_password", label: "Wi-Fi Password" },
+    { key: "sonos_email", label: "Sonos Account Email" },
+    { key: "sonos_password", label: "Sonos Account Password" },
+    { key: "ring_email", label: "Ring Account Email" },
+    { key: "ring_password", label: "Ring Account Password" },
+    { key: "smart_hub_pin", label: "Smart Hub / Controller PIN" },
+    { key: "gate_code", label: "Gate Code" },
+    { key: "alarm_code", label: "Alarm Code" },
+    { key: "other_notes", label: "Other Access Notes" },
+  ];
+  const existing = await db
+    .select()
+    .from(projectCredentials)
+    .where(eq(projectCredentials.clientId, clientId));
+  const existingKeys = new Set(existing.map((r) => r.key));
+  for (const d of defaults) {
+    if (!existingKeys.has(d.key)) {
+      await db.insert(projectCredentials).values({ clientId, key: d.key, label: d.label, value: "" });
+    }
+  }
 }
 
 export async function upsertProjectCredential(

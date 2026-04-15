@@ -40,6 +40,9 @@ import {
   getProjectCredentials,
   upsertProjectCredential,
   seedProjectCredentials,
+  getClientCredentials,
+  upsertClientCredential,
+  seedClientCredentials,
   createFollowUp,
 } from "./db";
 import { sendSms } from "./sms";
@@ -727,6 +730,34 @@ const projectCredentialsRouter = router({
     }),
 });
 
+// ─── Client Credentials Router ───────────────────────────────────────────────────────
+const clientCredentialsRouter = router({
+  list: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => getClientCredentials(input.clientId)),
+
+  seed: p
+    .input(z.object({ clientId: z.number() }))
+    .mutation(async ({ input }) => {
+      await seedClientCredentials(input.clientId);
+      return { success: true };
+    }),
+
+  upsert: p
+    .input(
+      z.object({
+        clientId: z.number(),
+        key: z.string(),
+        label: z.string(),
+        value: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await upsertClientCredential(input.clientId, input.key, input.label, input.value);
+      return { success: true };
+    }),
+});
+
 // ─── Inventory Router ───────────────────────────────────────────────────────
 import { getDb } from "./db";
 import { vanInventoryItems, partsRequests } from "../drizzle/schema";
@@ -886,6 +917,7 @@ export const appRouter = router({
   tags: tagsRouter,
    jobDocuments: jobDocumentsRouter,
   projectCredentials: projectCredentialsRouter,
+  clientCredentials: clientCredentialsRouter,
   inventory: inventoryRouter,
 });
 export type AppRouter = typeof appRouter;

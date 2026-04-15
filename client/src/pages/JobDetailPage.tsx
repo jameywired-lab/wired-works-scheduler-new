@@ -45,6 +45,10 @@ import { toast } from "sonner";
 import JobFormModal from "@/components/JobFormModal";
 import CloseOutModal from "@/components/CloseOutModal";
 import PhotoAnnotationEditor from "@/components/PhotoAnnotationEditor";
+import { KeyRound, Eye, EyeOff } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useEffect } from "react";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -374,6 +378,11 @@ export default function JobDetailPage() {
             <p className="text-sm text-foreground/80 whitespace-pre-wrap">{job.ownerInstructions}</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Client Credentials */}
+      {job.client?.id && (
+        <ClientCredentialsCard clientId={job.client.id} />
       )}
 
       {/* SMS Panel */}
@@ -781,5 +790,135 @@ function SmsStatusBadge({ label, sent, icon }: { label: string; sent: boolean; i
         <span className="text-[10px] text-muted-foreground">Pending</span>
       )}
     </div>
+  );
+}
+
+// ─── Client Credentials Card ──────────────────────────────────────────────────
+function ClientCredentialsCard({ clientId }: { clientId: number }) {
+  const utils = trpc.useUtils();
+  const { data: creds = [], isLoading } = trpc.clientCredentials.list.useQuery({ clientId });
+  const seedMutation = trpc.clientCredentials.seed.useMutation({
+    onSuccess: () => utils.clientCredentials.list.invalidate({ clientId }),
+  });
+  const upsertMutation = trpc.clientCredentials.upsert.useMutation({
+    onSuccess: () => {
+      utils.clientCredentials.list.invalidate({ clientId });
+      toast.success("Credential saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  useEffect(() => {
+    if (!isLoading && creds.length === 0) {
+      seedMutation.mutate({ clientId });
+    }
+  }, [isLoading, creds.length, clientId]);
+
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(true);
+
+  const getValue = (key: string, val: string | null) =>
+    editValues[key] !== undefined ? editValues[key] : (val ?? "");
+
+  const handleSave = async (key: string, label: string) => {
+    const val = editValues[key] ?? "";
+    setSavingKey(key);
+    await upsertMutation.mutateAsync({ clientId, key, label, value: val });
+    setSavingKey(null);
+  };
+
+  const toggleVisible = (key: string) => {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const isSensitive = (key: string) =>
+    ["wifi_password", "sonos_password", "ring_password", "smart_hub_pin", "gate_code", "alarm_code"].includes(key);
+
+  const filledCount = creds.filter((c) => (c.value ?? "").trim().length > 0).length;
+
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-2 pt-4 px-5">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-primary" />
+            Client Credentials
+            {filledCount > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                ({filledCount}/{creds.length} saved)
+              </span>
+            )}
+          </CardTitle>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs"
+            onClick={() => setCollapsed((v) => !v)}
+          >
+            {collapsed ? "Show" : "Hide"}
+          </Button>
+        </div>
+      </CardHeader>
+      {!collapsed && (
+        <CardContent className="px-5 pb-5 space-y-3">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : (
+            creds.map((cred) => {
+              const val = getValue(cred.key, cred.value);
+              const sensitive = isSensitive(cred.key);
+              const visible = visibleKeys.has(cred.key);
+              const hasValue = (cred.value ?? "").trim().length > 0;
+              return (
+                <div key={cred.key} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">{cred.label}</Label>
+                    {hasValue && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ Saved</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={sensitive && !visible ? "password" : "text"}
+                        value={val}
+                        onChange={(e) => setEditValues((p) => ({ ...p, [cred.key]: e.target.value }))}
+                        placeholder={`Enter ${cred.label.toLowerCase()}...`}
+                        className="h-8 text-sm pr-8"
+                        onKeyDown={(e) => e.key === "Enter" && handleSave(cred.key, cred.label)}
+                      />
+                      {sensitive && (
+                        <button
+                          type="button"
+                          onClick={() => toggleVisible(cred.key)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-3 text-xs"
+                      onClick={() => handleSave(cred.key, cred.label)}
+                      disabled={savingKey === cred.key || val === (cred.value ?? "")}
+                    >
+                      {savingKey === cred.key ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      )}
+    </Card>
   );
 }

@@ -19,6 +19,8 @@ import {
   getRemindersByProject,
   listFollowUps,
   listProjects,
+  recalcMilestoneWeights,
+  swapMilestoneSortOrder,
   updateFollowUp,
   updateJob,
   updateMilestone,
@@ -148,7 +150,11 @@ export const projectsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      await createMilestone({ ...input, isComplete: false });
+      // Append at end: sortOrder = current count
+      const existing = await getMilestonesByProject(input.projectId);
+      await createMilestone({ ...input, isComplete: false, sortOrder: existing.length, weight: 0 });
+      // Redistribute weights evenly
+      await recalcMilestoneWeights(input.projectId);
       return { success: true };
     }),
 
@@ -175,9 +181,36 @@ export const projectsRouter = router({
     }),
 
   deleteMilestone: p
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.number(), projectId: z.number() }))
     .mutation(async ({ input }) => {
       await deleteMilestone(input.id);
+      // Redistribute weights evenly after deletion
+      await recalcMilestoneWeights(input.projectId);
+      return { success: true };
+    }),
+
+  reorderMilestone: p
+    .input(
+      z.object({
+        projectId: z.number(),
+        id: z.number(),
+        direction: z.enum(["up", "down"]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const all = await getMilestonesByProject(input.projectId);
+      const idx = all.findIndex((m) => m.id === input.id);
+      if (idx === -1) throw new TRPCError({ code: "NOT_FOUND" });
+      const swapIdx = input.direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= all.length) return { success: true };
+      await swapMilestoneSortOrder(all[idx].id, all[swapIdx].id);
+      return { success: true };
+    }),
+
+  recalcWeights: p
+    .input(z.object({ projectId: z.number() }))
+    .mutation(async ({ input }) => {
+      await recalcMilestoneWeights(input.projectId);
       return { success: true };
     }),
 

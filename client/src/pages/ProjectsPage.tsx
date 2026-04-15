@@ -144,26 +144,27 @@ function ProgressPie({ progress, size = 48 }: { progress: number; size?: number 
   );
 }
 
-// ─── Credentials Section ─────────────────────────────────────────────────────
-function CredentialsSection({ projectId }: { projectId: number }) {
+// ─── Credentials Section ───────────────────────────────────────────────────────
+/** Reusable credentials panel — reads/writes from the client-level credential store. */
+function CredentialsSection({ clientId, readOnly = false }: { clientId: number; readOnly?: boolean }) {
   const utils = trpc.useUtils();
-  const { data: creds = [], isLoading } = trpc.projectCredentials.list.useQuery({ projectId });
-  const seedMutation = trpc.projectCredentials.seed.useMutation({
-    onSuccess: () => utils.projectCredentials.list.invalidate({ projectId }),
+  const { data: creds = [], isLoading } = trpc.clientCredentials.list.useQuery({ clientId });
+  const seedMutation = trpc.clientCredentials.seed.useMutation({
+    onSuccess: () => utils.clientCredentials.list.invalidate({ clientId }),
   });
-  const upsertMutation = trpc.projectCredentials.upsert.useMutation({
+  const upsertMutation = trpc.clientCredentials.upsert.useMutation({
     onSuccess: () => {
-      utils.projectCredentials.list.invalidate({ projectId });
+      utils.clientCredentials.list.invalidate({ clientId });
       toast.success("Credential saved");
     },
     onError: (e) => toast.error(e.message),
   });
 
   useEffect(() => {
-    if (!isLoading && creds.length === 0) {
-      seedMutation.mutate({ projectId });
+    if (!isLoading && creds.length === 0 && !readOnly) {
+      seedMutation.mutate({ clientId });
     }
-  }, [isLoading, creds.length, projectId]);
+  }, [isLoading, creds.length, clientId, readOnly]);
 
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
@@ -173,13 +174,12 @@ function CredentialsSection({ projectId }: { projectId: number }) {
     editValues[key] !== undefined ? editValues[key] : (currentValue ?? "");
 
   const handleSave = async (key: string, label: string) => {
+    if (readOnly) return;
     const val = editValues[key] ?? "";
     setSavingKey(key);
-    await upsertMutation.mutateAsync({ projectId, key, label, value: val });
+    await upsertMutation.mutateAsync({ clientId, key, label, value: val });
     setSavingKey(null);
-  };
-
-  const allFilled = creds.filter(c => c.key !== "other_notes").every(c => {
+  };  const allFilled = creds.filter(c => c.key !== "other_notes").every(c => {
     const v = getValue(c.key, c.value);
     return v.trim().length > 0;
   });
@@ -412,9 +412,13 @@ function ProjectFormModal({
 function MilestoneRow({
   milestone,
   projectId,
+  isFirst,
+  isLast,
 }: {
   milestone: { id: number; title: string; isComplete: boolean; weight: number; dueDate?: number | null };
   projectId: number;
+  isFirst: boolean;
+  isLast: boolean;
 }) {
   const utils = trpc.useUtils();
   const toggle = trpc.projects.toggleMilestone.useMutation({
@@ -423,9 +427,35 @@ function MilestoneRow({
   const deleteMilestone = trpc.projects.deleteMilestone.useMutation({
     onSuccess: () => utils.projects.getById.invalidate({ id: projectId }),
   });
+  const reorder = trpc.projects.reorderMilestone.useMutation({
+    onSuccess: () => utils.projects.getById.invalidate({ id: projectId }),
+  });
 
   return (
-    <div className="flex items-center gap-3 py-2.5 group">
+    <div className="flex items-center gap-2 py-2.5 group">
+      {/* Reorder arrows */}
+      <div className="flex flex-col gap-0 shrink-0">
+        <button
+          onClick={() => !isFirst && reorder.mutate({ projectId, id: milestone.id, direction: "up" })}
+          disabled={isFirst || reorder.isPending}
+          className={`p-0.5 rounded transition-colors ${
+            isFirst ? "text-transparent" : "text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+          }`}
+          title="Move up"
+        >
+          <svg className="h-3 w-3" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2l4 5H2z"/></svg>
+        </button>
+        <button
+          onClick={() => !isLast && reorder.mutate({ projectId, id: milestone.id, direction: "down" })}
+          disabled={isLast || reorder.isPending}
+          className={`p-0.5 rounded transition-colors ${
+            isLast ? "text-transparent" : "text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+          }`}
+          title="Move down"
+        >
+          <svg className="h-3 w-3" viewBox="0 0 12 12" fill="currentColor"><path d="M6 10L2 5h8z"/></svg>
+        </button>
+      </div>
       <Checkbox
         checked={milestone.isComplete}
         onCheckedChange={(v) => toggle.mutate({ id: milestone.id, isComplete: !!v })}
@@ -436,22 +466,20 @@ function MilestoneRow({
           {milestone.title}
         </span>
       </div>
-      {milestone.weight > 0 && (
-        <span className={`text-xs font-medium shrink-0 px-1.5 py-0.5 rounded ${
-          milestone.isComplete
-            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-            : "bg-muted text-muted-foreground"
-        }`}>
-          {milestone.weight}%
-        </span>
-      )}
+      <span className={`text-xs font-medium shrink-0 px-1.5 py-0.5 rounded ${
+        milestone.isComplete
+          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+          : "bg-muted text-muted-foreground"
+      }`}>
+        {milestone.weight > 0 ? `${milestone.weight}%` : "—"}
+      </span>
       {milestone.dueDate && (
         <span className={`text-xs shrink-0 ${isOverdue(milestone.dueDate) && !milestone.isComplete ? "text-destructive" : "text-muted-foreground"}`}>
           {formatDate(milestone.dueDate)}
         </span>
       )}
       <button
-        onClick={() => deleteMilestone.mutate({ id: milestone.id })}
+        onClick={() => deleteMilestone.mutate({ id: milestone.id, projectId })}
         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -618,8 +646,14 @@ function ProjectDetailPanel({
             {milestones.length === 0 && (
               <p className="py-3 text-sm text-muted-foreground text-center">No milestones yet</p>
             )}
-            {milestones.map((m) => (
-              <MilestoneRow key={m.id} milestone={m as any} projectId={projectId} />
+            {milestones.map((m, idx) => (
+              <MilestoneRow
+                key={m.id}
+                milestone={m as any}
+                projectId={projectId}
+                isFirst={idx === 0}
+                isLast={idx === milestones.length - 1}
+              />
             ))}
           </div>
           {/* Add custom milestone */}
@@ -643,10 +677,17 @@ function ProjectDetailPanel({
           </div>
         </div>
 
-        {/* Credentials */}
-        <div>
-          <CredentialsSection projectId={projectId} />
-        </div>
+        {/* Credentials — stored at client level, accessible from any job */}
+        {project.clientId && (
+          <div>
+            <CredentialsSection clientId={project.clientId} />
+          </div>
+        )}
+        {!project.clientId && (
+          <div className="py-3 text-sm text-muted-foreground">
+            Assign a client to this project to manage credentials.
+          </div>
+        )}
 
         {/* Reminders */}
         <div>
