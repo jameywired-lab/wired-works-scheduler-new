@@ -40,6 +40,7 @@ import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
 import JobFormModal from "@/components/JobFormModal";
+import CloseOutModal from "@/components/CloseOutModal";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +57,7 @@ export default function JobDetailPage() {
   const [editNoteContent, setEditNoteContent] = useState("");
   const [smsMessage, setSmsMessage] = useState("");
   const [sendingSms, setSendingSms] = useState(false);
+  const [showCloseOut, setShowCloseOut] = useState(false);
 
   const { data: job, isLoading } = trpc.jobs.getById.useQuery({ id: jobId });
   const { data: crewNotes } = trpc.crewNotes.getByJob.useQuery({ jobId });
@@ -178,9 +180,27 @@ export default function JobDetailPage() {
             </button>
           )}
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowEditForm(true)} className="shrink-0">
-          <Edit2 className="h-3.5 w-3.5 mr-1.5" /> Edit
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {(job.jobType === "service_call" || job.jobType === "sales_call") && job.status !== "completed" && job.status !== "cancelled" && (
+            <Button
+              size="sm"
+              onClick={() => setShowCloseOut(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+              Complete Job
+            </Button>
+          )}
+          {job.status === "completed" && job.closeoutOutcome && (
+            <Badge className="bg-emerald-500/15 text-emerald-400 text-xs">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              Closed Out
+            </Badge>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setShowEditForm(true)}>
+            <Edit2 className="h-3.5 w-3.5 mr-1.5" /> Edit
+          </Button>
+        </div>
       </div>
 
       {/* Job details */}
@@ -554,6 +574,22 @@ export default function JobDetailPage() {
             setShowEditForm(false);
             utils.jobs.getById.invalidate({ id: jobId });
           }}
+        />
+      )}
+
+      {showCloseOut && job && (
+        <CloseOutModal
+          open={showCloseOut}
+          onClose={() => setShowCloseOut(false)}
+          onSuccess={() => {
+            setShowCloseOut(false);
+            utils.jobs.getById.invalidate({ id: jobId });
+          }}
+          jobId={jobId}
+          jobType={(job.jobType ?? "service_call") as "service_call" | "sales_call" | "project_job"}
+          clientName={job.client?.name ?? undefined}
+          clientPhone={job.client?.phone ?? undefined}
+          clientId={job.client?.id ?? undefined}
         />
       )}
     </div>

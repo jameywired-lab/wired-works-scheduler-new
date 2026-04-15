@@ -82,6 +82,15 @@ export const jobs = mysqlTable("jobs", {
   ownerInstructions: text("ownerInstructions"),
   googleCalendarEventId: varchar("googleCalendarEventId", { length: 255 }),
   jobType: mysqlEnum("jobType", ["service_call", "project_job", "sales_call"]).default("service_call").notNull(),
+  // Close-out fields
+  closeoutNotes: text("closeoutNotes"),
+  closeoutOutcome: mysqlEnum("closeoutOutcome", [
+    "client_happy_bill",
+    "client_issue_urgent",
+    "proposal_needed",
+    "bill_service_call",
+  ]),
+  closedAt: bigint("closedAt", { mode: "number" }), // UTC ms
   // SMS tracking
   bookingSmsSent: boolean("bookingSmsSent").default(false).notNull(),
   reminderSmsSent: boolean("reminderSmsSent").default(false).notNull(),
@@ -223,10 +232,17 @@ export const followUps = mysqlTable("followUps", {
   id: int("id").autoincrement().primaryKey(),
   contactName: varchar("contactName", { length: 255 }),
   phone: varchar("phone", { length: 32 }),
-  type: mysqlEnum("type", ["call", "text", "manual"]).default("manual").notNull(),
+  type: mysqlEnum("type", ["call", "text", "manual", "closeout", "proposal"]).default("manual").notNull(),
   note: text("note"),
   isFollowedUp: boolean("isFollowedUp").default(false).notNull(),
   contactedAt: bigint("contactedAt", { mode: "number" }), // UTC ms — when the call/text came in
+  // Proposal tracking
+  linkedJobId: int("linkedJobId").references(() => jobs.id),
+  clientId: int("clientId").references(() => clients.id),
+  proposalStatus: mysqlEnum("proposalStatus", ["none", "pending", "accepted", "declined", "not_ready"]).default("none").notNull(),
+  proposalSentAt: bigint("proposalSentAt", { mode: "number" }), // UTC ms — when proposal was sent
+  isUrgent: boolean("isUrgent").default(false).notNull(),
+  urgentAt: bigint("urgentAt", { mode: "number" }), // UTC ms — when it became urgent
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

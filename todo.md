@@ -219,3 +219,33 @@
 ### Dashboard
 - [x] Dashboard stat cards: break down by job type (Service Calls, Sales Leads, Projects)
 - [x] Dashboard filter tabs or sections: All / Service Calls / Sales Leads / Projects (stat cards added)
+
+## Job Close-Out Flow, Follow-Up Outcomes & Proposal Tracking
+
+### Database
+- [x] Add closeout fields to jobs: closeoutNotes (text), closeoutOutcome (enum), closedAt (bigint)
+- [x] Add proposal/urgency fields to followUps: proposalStatus (enum: none/pending/accepted/declined/not_ready), isUrgent (bool), urgentAt (bigint), proposalSentAt (bigint), linkedJobId (int)
+
+### Backend
+- [x] jobs.closeOut procedure: validate notes required, save outcome, set status=completed, auto-create follow-up
+- [x] followUps.completeTask procedure: mark done and remove from active list
+- [x] followUps.sendProposal procedure: set proposalStatus=pending, proposalSentAt=now, schedule 24h urgency flag
+- [x] followUps.resolveProposal procedure: accept (create project + remove follow-up), decline (remove), not_ready (keep)
+- [x] followUps.list: return isUrgent flag based on proposalSentAt + 24h window
+
+### Frontend — Close-Out Modal
+- [x] "Complete Job" button on JobDetailPage (visible for service_call and sales_call job types)
+- [x] Close-Out modal: mandatory notes textarea (blocks submit if empty), photo upload (up to 10)
+- [x] Service Call outcome checkboxes: "Client happy — ready for billing" / "Issue with client — respond ASAP"
+- [x] Sales Call outcome checkboxes: "Meeting done — proposal needed" / "Meeting done — bill out a service call"
+- [x] Validation: at least one checkbox must be selected before submit
+- [x] On submit: job marked completed, follow-up auto-created with correct type/urgency
+
+### Frontend — Follow-Up Section
+- [x] Follow-up cards show red highlight when isUrgent=true (proposal overdue 24h)
+- [x] "Complete Task" button on each follow-up — removes it from the list
+- [x] "Proposal Sent — Follow Up in 24h" button on proposal-type follow-ups
+- [x] After proposal sent: follow-up turns red after 24 hours
+- [x] Proposal outcome buttons: "Client Accepted", "Client Declined", "Client Not Ready Yet"
+- [x] Client Accepted: opens mini create-project dialog, then removes follow-up
+- [x] Client Declined / Not Ready Yet: removes follow-up from active list

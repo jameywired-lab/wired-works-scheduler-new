@@ -43,6 +43,13 @@
       "when": 1776259250373,
       "tag": "0005_parallel_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776261454037,
+      "tag": "0006_slow_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

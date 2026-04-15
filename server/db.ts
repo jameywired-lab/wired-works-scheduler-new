@@ -707,3 +707,27 @@ export async function getClientsByTag(tagId: number) {
     .where(eq(clientTags.tagId, tagId));
   return rows.map((r) => r.client);
 }
+
+// ─── Job Close-Out ────────────────────────────────────────────────────────────
+export async function closeJob(
+  id: number,
+  data: {
+    closeoutNotes: string;
+    closeoutOutcome: "client_happy_bill" | "client_issue_urgent" | "proposal_needed" | "bill_service_call";
+    closedAt: number;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db
+    .update(jobs)
+    .set({ ...data, status: "completed" })
+    .where(eq(jobs.id, id));
+}
+
+export async function getFollowUpById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(followUps).where(eq(followUps.id, id)).limit(1);
+  return rows[0];
+}

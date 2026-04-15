@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
+  closeJob,
   createFollowUp,
   createMilestone,
   createProject,
@@ -10,12 +11,15 @@ import {
   deleteProject,
   deleteReminder,
   getDueReminders,
+  getFollowUpById,
   getMilestonesByProject,
+  getJobById,
   getProjectById,
   getRemindersByProject,
   listFollowUps,
   listProjects,
   updateFollowUp,
+  updateJob,
   updateMilestone,
   updateProject,
   updateReminder,
@@ -220,5 +224,131 @@ export const followUpsRouter = router({
     .mutation(async ({ input }) => {
       await deleteFollowUp(input.id);
       return { success: true };
+    }),
+
+  // ── Close-out: complete a service/sales job and auto-create follow-up ────────
+  closeOut: p
+    .input(
+      z.object({
+        jobId: z.number(),
+        closeoutNotes: z.string().min(1, "Notes are required"),
+        closeoutOutcome: z.enum(["client_happy_bill", "client_issue_urgent", "proposal_needed", "bill_service_call"]),
+        contactName: z.string().optional(),
+        phone: z.string().optional(),
+        clientId: z.number().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { jobId, closeoutNotes, closeoutOutcome, contactName, phone, clientId } = input;
+      const now = Date.now();
+
+      // 1. Mark job as completed with close-out data
+      await closeJob(jobId, { closeoutNotes, closeoutOutcome, closedAt: now });
+
+      // 2. Determine follow-up type and note based on outcome
+      let followUpNote = closeoutNotes;
+      let followUpType: "closeout" | "proposal" = "closeout";
+      let isUrgent = false;
+
+      if (closeoutOutcome === "client_issue_urgent") {
+        followUpNote = `⚠️ URGENT — Issue with client. Notes: ${closeoutNotes}`;
+        isUrgent = true;
+      } else if (closeoutOutcome === "proposal_needed") {
+        followUpNote = `Proposal needed. Notes: ${closeoutNotes}`;
+        followUpType = "proposal";
+      } else if (closeoutOutcome === "bill_service_call") {
+        followUpNote = `Bill out service call. Notes: ${closeoutNotes}`;
+      } else if (closeoutOutcome === "client_happy_bill") {
+        followUpNote = `Client happy — ready for billing. Notes: ${closeoutNotes}`;
+      }
+
+      // 3. Create the follow-up
+      await createFollowUp({
+        contactName: contactName ?? undefined,
+        phone: phone ?? undefined,
+        type: followUpType,
+        note: followUpNote,
+        isFollowedUp: false,
+        contactedAt: now,
+        linkedJobId: jobId,
+        clientId: clientId ?? undefined,
+        proposalStatus: followUpType === "proposal" ? "none" : "none",
+        isUrgent,
+        urgentAt: isUrgent ? now : undefined,
+      });
+
+      return { success: true };
+    }),
+
+  // ── Mark a follow-up task as complete (removes from active list) ─────────────
+  completeTask: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await updateFollowUp(input.id, { isFollowedUp: true });
+      return { success: true };
+    }),
+
+  // ── Send proposal — sets proposalStatus=pending and records sent time ────────
+  sendProposal: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const now = Date.now();
+      await updateFollowUp(input.id, {
+        proposalStatus: "pending",
+        proposalSentAt: now,
+        type: "proposal",
+      });
+      return { success: true };
+    }),
+
+  // ── Mark follow-up as urgent (called by a scheduled check or manually) ───────
+  markUrgent: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await updateFollowUp(input.id, { isUrgent: true, urgentAt: Date.now() });
+      return { success: true };
+    }),
+
+  // ── Resolve proposal outcome ─────────────────────────────────────────────────
+  resolveProposal: p
+    .input(
+      z.object({
+        id: z.number(),
+        outcome: z.enum(["accepted", "declined", "not_ready"]),
+        // For accepted: project details
+        projectTitle: z.string().optional(),
+        projectDescription: z.string().optional(),
+        projectClientId: z.number().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, outcome } = input;
+      const followUp = await getFollowUpById(id);
+      if (!followUp) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (outcome === "accepted") {
+        // Create a project linked to the client
+        await createProject({
+          title: input.projectTitle ?? (followUp.contactName ? `Project — ${followUp.contactName}` : "New Project"),
+          description: input.projectDescription ?? followUp.note ?? undefined,
+          clientId: input.projectClientId ?? followUp.clientId ?? undefined,
+          status: "active",
+          startDate: Date.now(),
+        });
+        // Remove follow-up (accepted — done)
+        await deleteFollowUp(id);
+      } else if (outcome === "declined") {
+        // Remove follow-up (declined — done)
+        await deleteFollowUp(id);
+      } else {
+        // not_ready — remove from active list (mark as followed up) so it leaves the Follow-Up section
+        await updateFollowUp(id, {
+          proposalStatus: "not_ready",
+          isUrgent: false,
+          isFollowedUp: true,
+        });
+      }
+
+      return { success: true, outcome };
     }),
 });

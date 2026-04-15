@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +25,7 @@ import { trpc } from "@/lib/trpc";
 import { formatDate, formatTime, statusClass, statusLabel, type JobStatus } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
+  AlertTriangle,
   ArrowRight,
   Bell,
   Briefcase,
@@ -185,16 +186,11 @@ function FollowUpPanel() {
   const [newPhone, setNewPhone] = useState("");
   const [newNote, setNewNote] = useState("");
   const [newType, setNewType] = useState<"call" | "text" | "manual">("manual");
-  const [, setLocation] = useLocation();
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [acceptTitle, setAcceptTitle] = useState("");
 
-  // Today only for the dashboard panel
-  const todayRange = useMemo(() => {
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    const end = new Date(); end.setHours(23, 59, 59, 999);
-    return { startMs: start.getTime(), endMs: end.getTime() };
-  }, []);
-
-  const { data: followUps = [], isLoading } = trpc.followUps.list.useQuery(todayRange);
+  // All active (not followed-up) follow-ups
+  const { data: allFollowUps = [], isLoading } = trpc.followUps.list.useQuery();
 
   const createFollowUp = trpc.followUps.create.useMutation({
     onSuccess: () => {
@@ -206,31 +202,68 @@ function FollowUpPanel() {
     onError: (e) => toast.error(e.message),
   });
 
-  const toggleFollowUp = trpc.followUps.toggle.useMutation({
-    onMutate: async ({ id, isFollowedUp }) => {
-      await utils.followUps.list.cancel();
-      const prev = utils.followUps.list.getData(todayRange);
-      utils.followUps.list.setData(todayRange, (old) =>
-        old?.map((f) => f.id === id ? { ...f, isFollowedUp } : f)
-      );
-      return { prev };
+  const completeTask = trpc.followUps.completeTask.useMutation({
+    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Task completed!"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const sendProposal = trpc.followUps.sendProposal.useMutation({
+    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Proposal marked as sent — follow-up in 24h"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const resolveProposal = trpc.followUps.resolveProposal.useMutation({
+    onSuccess: (data) => {
+      utils.followUps.list.invalidate();
+      utils.projects.list.invalidate();
+      setAcceptingId(null);
+      setAcceptTitle("");
+      if (data.outcome === "accepted") toast.success("Project created! Client moved to Projects.");
+      else if (data.outcome === "declined") toast.success("Follow-up removed — client declined.");
+      else toast.success("Follow-up updated — client not ready yet.");
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) utils.followUps.list.setData(todayRange, ctx.prev); },
-    onSettled: () => utils.followUps.list.invalidate(),
+    onError: (e) => toast.error(e.message),
   });
 
   const deleteFollowUp = trpc.followUps.delete.useMutation({
     onSuccess: () => utils.followUps.list.invalidate(),
   });
 
-  const pending = followUps.filter((f) => !f.isFollowedUp);
-  const done = followUps.filter((f) => f.isFollowedUp);
+  const markUrgent = trpc.followUps.markUrgent.useMutation({
+    onSuccess: () => utils.followUps.list.invalidate(),
+  });
+
+  const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
+
+  const pending = allFollowUps.filter((f) => !f.isFollowedUp);
+  const done = allFollowUps.filter((f) => f.isFollowedUp);
+
+  // Auto-mark urgent if proposal sent > 24h ago (in effect to avoid render-phase side-effects)
+  useEffect(() => {
+    const now = Date.now();
+    pending.forEach((f) => {
+      if (
+        f.type === "proposal" &&
+        f.proposalStatus === "pending" &&
+        f.proposalSentAt &&
+        now - f.proposalSentAt > TWENTY_FOUR_H &&
+        !f.isUrgent
+      ) {
+        markUrgent.mutate({ id: f.id });
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFollowUps]);
 
   const TYPE_ICON: Record<string, React.ReactNode> = {
     call: <Phone className="h-3 w-3 text-blue-400" />,
     text: <MessageSquare className="h-3 w-3 text-emerald-400" />,
     manual: <Zap className="h-3 w-3 text-amber-400" />,
+    closeout: <CheckCircle2 className="h-3 w-3 text-emerald-400" />,
+    proposal: <Briefcase className="h-3 w-3 text-violet-400" />,
   };
+
+  const urgentCount = pending.filter((f) => f.isUrgent).length;
 
   return (
     <Card className="border-border">
@@ -242,12 +275,15 @@ function FollowUpPanel() {
             {pending.length > 0 && (
               <Badge className="bg-amber-500/15 text-amber-500 text-[10px] h-4 px-1.5">{pending.length}</Badge>
             )}
+            {urgentCount > 0 && (
+              <Badge className="bg-destructive/20 text-destructive text-[10px] h-4 px-1.5 flex items-center gap-0.5">
+                <AlertTriangle className="h-2.5 w-2.5" />{urgentCount} urgent
+              </Badge>
+            )}
           </CardTitle>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
-              <Plus className="h-3 w-3 mr-1" /> Add
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
+            <Plus className="h-3 w-3 mr-1" /> Add
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-3">
@@ -276,36 +312,162 @@ function FollowUpPanel() {
           </div>
         )}
 
+        {/* Accept project dialog */}
+        {acceptingId !== null && (
+          <div className="border border-emerald-500/30 rounded-lg p-3 space-y-2 bg-emerald-500/5">
+            <p className="text-xs font-semibold text-emerald-400">Create Project for Accepted Client</p>
+            <Input
+              value={acceptTitle}
+              onChange={(e) => setAcceptTitle(e.target.value)}
+              placeholder="Project title…"
+              className="h-7 text-xs"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setAcceptingId(null); setAcceptTitle(""); }}>Cancel</Button>
+              <Button
+                size="sm"
+                className="h-6 text-xs bg-emerald-600 hover:bg-emerald-700"
+                disabled={!acceptTitle.trim() || resolveProposal.isPending}
+                onClick={() => resolveProposal.mutate({
+                  id: acceptingId,
+                  outcome: "accepted",
+                  projectTitle: acceptTitle.trim(),
+                  projectClientId: allFollowUps.find((f) => f.id === acceptingId)?.clientId ?? undefined,
+                })}
+              >
+                Create Project
+              </Button>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="space-y-2">{[1,2].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
-        ) : followUps.length === 0 ? (
+        ) : pending.length === 0 && done.length === 0 ? (
           <div className="text-center py-4">
-            <p className="text-xs text-muted-foreground">No follow-ups logged today</p>
+            <p className="text-xs text-muted-foreground">No follow-ups</p>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {/* Pending first */}
-            {pending.map((f) => (
-              <div key={f.id} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card hover:border-primary/20 transition-colors group">
-                <Checkbox checked={false} onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: true })} className="mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs font-medium truncate">{f.contactName || "Unknown"}</span>
-                    {TYPE_ICON[f.type]}
-                    {f.phone && <span className="text-[10px] text-muted-foreground">{f.phone}</span>}
+          <div className="space-y-2">
+            {/* Pending follow-ups — urgent first */}
+            {[...pending].sort((a, b) => (b.isUrgent ? 1 : 0) - (a.isUrgent ? 1 : 0)).map((f) => {
+              const isUrgent = f.isUrgent;
+              const isProposal = f.type === "proposal";
+              const proposalPending = isProposal && f.proposalStatus === "pending";
+              const proposalUnsent = isProposal && (f.proposalStatus === "none" || f.proposalStatus === "not_ready");
+
+              return (
+                <div
+                  key={f.id}
+                  className={`rounded-lg border p-3 transition-all group ${
+                    isUrgent
+                      ? "border-destructive/50 bg-destructive/5 ring-1 ring-destructive/20"
+                      : isProposal
+                      ? "border-violet-500/30 bg-violet-500/5"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  {/* Header row */}
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isUrgent && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+                        <span className={`text-xs font-semibold truncate ${isUrgent ? "text-destructive" : ""}`}>
+                          {f.contactName || "Unknown"}
+                        </span>
+                        {TYPE_ICON[f.type]}
+                        {f.phone && <span className="text-[10px] text-muted-foreground">{f.phone}</span>}
+                        {isUrgent && (
+                          <Badge className="bg-destructive/15 text-destructive text-[10px] h-4 px-1.5">URGENT</Badge>
+                        )}
+                        {proposalPending && (
+                          <Badge className="bg-violet-500/15 text-violet-400 text-[10px] h-4 px-1.5">Proposal Sent</Badge>
+                        )}
+                      </div>
+                      {f.note && (
+                        <p className={`text-[10px] mt-0.5 line-clamp-2 ${
+                          isUrgent ? "text-destructive/80" : "text-muted-foreground"
+                        }`}>{f.note}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => deleteFollowUp.mutate({ id: f.id })}
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all text-xs shrink-0 mt-0.5"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  {f.note && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{f.note}</p>}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {/* Complete Task — always available */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] px-2"
+                      disabled={completeTask.isPending}
+                      onClick={() => completeTask.mutate({ id: f.id })}
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-400" />
+                      Complete Task
+                    </Button>
+
+                    {/* Proposal: unsent → show Send Proposal button */}
+                    {proposalUnsent && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[10px] px-2 border-violet-500/40 text-violet-400 hover:bg-violet-500/10"
+                        disabled={sendProposal.isPending}
+                        onClick={() => sendProposal.mutate({ id: f.id })}
+                      >
+                        <Briefcase className="h-3 w-3 mr-1" />
+                        Proposal Sent — Follow Up in 24h
+                      </Button>
+                    )}
+
+                    {/* Proposal: pending → show outcome buttons */}
+                    {proposalPending && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="h-6 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={resolveProposal.isPending}
+                          onClick={() => setAcceptingId(f.id)}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Client Accepted
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+                          disabled={resolveProposal.isPending}
+                          onClick={() => resolveProposal.mutate({ id: f.id, outcome: "declined" })}
+                        >
+                          Client Declined
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2"
+                          disabled={resolveProposal.isPending}
+                          onClick={() => resolveProposal.mutate({ id: f.id, outcome: "not_ready" })}
+                        >
+                          Not Ready Yet
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <button onClick={() => deleteFollowUp.mutate({ id: f.id })} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all text-xs">✕</button>
-              </div>
-            ))}
-            {/* Done */}
+              );
+            })}
+
+            {/* Done — compact */}
             {done.slice(0, 3).map((f) => (
-              <div key={f.id} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card/50 opacity-50 group">
-                <Checkbox checked={true} onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: false })} className="mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs line-through text-muted-foreground truncate block">{f.contactName || "Unknown"}</span>
-                </div>
+              <div key={f.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card/50 opacity-50">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span className="text-xs line-through text-muted-foreground truncate flex-1">{f.contactName || "Unknown"}</span>
               </div>
             ))}
           </div>
