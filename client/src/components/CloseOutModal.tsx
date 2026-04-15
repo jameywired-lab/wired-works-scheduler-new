@@ -208,11 +208,13 @@ export default function CloseOutModal({
             </Label>
             <div className="space-y-2">
               {outcomes.map((opt) => (
-                <button
+                <div
                   key={opt.value}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setOutcome(opt.value)}
-                  className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-all ${
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setOutcome(opt.value)}
+                  className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
                     outcome === opt.value
                       ? "border-primary bg-primary/10"
                       : "border-border bg-card hover:border-primary/40"
@@ -235,7 +237,7 @@ export default function CloseOutModal({
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
