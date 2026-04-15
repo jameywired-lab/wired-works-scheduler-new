@@ -601,3 +601,7 @@
 - [x] Service Calls Today card → /calendar
 - [x] Active Projects card → /projects
 - [x] Sales Calls Today card → /calendar
+
+## Color-Coded Dashboard Stat Cards
+
+- [x] Each stat card gets a distinct accent color (border-left, icon color, background tint): Today's Jobs=teal, Remaining=amber, Completed=emerald, Active Clients=blue, Service Calls=violet, Active Projects=orange, Sales Calls=green

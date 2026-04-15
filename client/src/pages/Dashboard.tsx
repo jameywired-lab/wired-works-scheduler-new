@@ -83,10 +83,10 @@ export default function Dashboard() {
 
       {/* Stats row — primary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Today's Jobs" value={isLoading ? null : todayJobs.length} icon={<Calendar className="h-4 w-4 text-primary" />} loading={isLoading} onClick={() => setLocation("/calendar")} />
-        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} loading={isLoading} onClick={() => setLocation("/calendar")} />
-        <StatCard label="Completed" value={isLoading ? null : completedToday} icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} loading={isLoading} onClick={() => setLocation("/calendar")} />
-        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-violet-400" />} loading={isLoading} onClick={() => setLocation("/clients")} />
+        <StatCard label="Today's Jobs" value={isLoading ? null : todayJobs.length} icon={<Calendar className="h-4 w-4 text-cyan-400" />} iconBg="bg-cyan-500/15" accent="border-l-cyan-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
+        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} iconBg="bg-amber-500/15" accent="border-l-amber-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
+        <StatCard label="Completed" value={isLoading ? null : completedToday} icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} iconBg="bg-emerald-500/15" accent="border-l-emerald-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
+        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-blue-400" />} iconBg="bg-blue-500/15" accent="border-l-blue-500" loading={isLoading} onClick={() => setLocation("/clients")} />
       </div>
 
       {/* Job-type breakdown row */}
@@ -94,21 +94,27 @@ export default function Dashboard() {
         <StatCard
           label="Service Calls Today"
           value={isLoading ? null : serviceCallsToday}
-          icon={<Wrench className="h-4 w-4 text-blue-400" />}
+          icon={<Wrench className="h-4 w-4 text-violet-400" />}
+          iconBg="bg-violet-500/15"
+          accent="border-l-violet-500"
           loading={isLoading}
           onClick={() => setLocation("/calendar")}
         />
         <StatCard
           label="Active Projects"
           value={isLoading ? null : projectJobsActive}
-          icon={<Briefcase className="h-4 w-4 text-violet-400" />}
+          icon={<Briefcase className="h-4 w-4 text-orange-400" />}
+          iconBg="bg-orange-500/15"
+          accent="border-l-orange-500"
           loading={isLoading}
           onClick={() => setLocation("/projects")}
         />
         <StatCard
           label="Sales Calls Today"
           value={isLoading ? null : salesCallsToday}
-          icon={<Phone className="h-4 w-4 text-emerald-400" />}
+          icon={<Phone className="h-4 w-4 text-green-400" />}
+          iconBg="bg-green-500/15"
+          accent="border-l-green-500"
           loading={isLoading}
           onClick={() => setLocation("/calendar")}
         />
@@ -620,24 +626,25 @@ function ProjectMiniCard({
 }
 
 // ─── Shared Components ────────────────────────────────────────────────────────
-function StatCard({ label, value, icon, loading, accent, onClick }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string; onClick?: () => void }) {
+function StatCard({ label, value, icon, loading, accent, iconBg, onClick }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string; iconBg?: string; onClick?: () => void }) {
   const inner = (
     <CardContent className="p-4">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs text-muted-foreground font-medium">{label}</p>
-        {icon}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] text-muted-foreground font-semibold tracking-wide uppercase">{label}</p>
+        <div className={`p-1.5 rounded-lg ${iconBg ?? "bg-muted/50"}`}>{icon}</div>
       </div>
-      {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{value}</p>}
+      {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-3xl font-bold">{value}</p>}
     </CardContent>
   );
+  const borderClass = accent ? `border-l-[3px] ${accent}` : "";
   if (onClick) {
     return (
-      <Card className="bg-card border-border cursor-pointer hover:border-primary/40 hover:shadow-md transition-all" onClick={onClick}>
+      <Card className={`bg-card cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all ${borderClass}`} onClick={onClick}>
         {inner}
       </Card>
     );
   }
-  return <Card className="bg-card border-border">{inner}</Card>;
+  return <Card className={`bg-card ${borderClass}`}>{inner}</Card>;
 }
 
 function JobCard({ job, onClick }: { job: { id: number; title: string; status: string; scheduledStart: number; scheduledEnd: number; address?: string | null }; onClick: () => void }) {
