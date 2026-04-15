@@ -525,7 +525,7 @@
 - [x] communications.delete procedure: delete a communication by id
 - [x] Client detail page: Communications section with channel/direction selector, subject (email), body, history list
 - [x] History list: color-coded left border by channel/direction, timestamp, delete button
-- [ ] Inbound SMS webhook: POST /api/webhooks/sms-inbound — parse OpenPhone webhook, match client by phone, insert communication, create follow-up (requires OpenPhone webhook config)
+- [x] Inbound SMS webhook: POST /api/openphone/webhook — parse OpenPhone webhook, match client by phone, insert communication, create follow-up
 - [ ] Inbound email webhook: POST /api/webhooks/email-inbound — parse email provider webhook, match client by email, insert communication, create follow-up (requires email provider webhook config)
 
 ## Inbound SMS Webhook (OpenPhone → Communications + Follow-Up)
@@ -536,3 +536,18 @@
 - [x] Always: create followUp row (type=text, contactName=client name or sender number, phone=sender, note=message preview)
 - [x] Return 200 OK to OpenPhone immediately to prevent retries
 - [x] Missed calls and voicemails also create follow-ups (call.completed event)
+
+## SMS Reply from App
+
+- [ ] communications.sendSms procedure: send SMS via OpenPhone API from 9046851240 to a given phone number, log as outbound communication if clientId known
+- [ ] Follow-Ups page: add Reply button on text/call follow-up cards that have a phone number — opens inline text box, sends via sendSms, shows success toast
+- [ ] Client Communications section: add Reply button on inbound SMS rows — opens inline reply box pre-filled with recipient phone
+- [ ] Outbound SMS logged in clientCommunications (direction=outbound, channel=sms) if client is matched
+
+## SMS Reply Button & Calendar Color-Coding (this session)
+
+- [x] SMS reply button on Communications section of client detail page — inline reply composer on inbound SMS rows
+- [x] sendSms tRPC procedure wired to reply button in Communications section (logs outbound SMS, sends via OpenPhone)
+- [x] Calendar color-coding by job type: blue=Service Call, green=Sales Call, violet=Project Job, grey=Cancelled
+- [x] Calendar legend showing color key for each job type
+- [x] Crew home "Today's Jobs" summary card: job count, completed/remaining progress bar, job list with times

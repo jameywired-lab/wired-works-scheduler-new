@@ -13,12 +13,15 @@ import JobFormModal from "@/components/JobFormModal";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useMobile";
 
-const STATUS_COLORS: Record<string, string> = {
-  scheduled: "oklch(0.50 0.18 200)",
-  in_progress: "oklch(0.58 0.18 80)",
-  completed: "oklch(0.50 0.18 145)",
-  cancelled: "oklch(0.35 0.05 240)",
+// Color by job type (primary dimension)
+const JOB_TYPE_COLORS: Record<string, { base: string; muted: string; label: string }> = {
+  service_call: { base: "oklch(0.50 0.18 220)", muted: "oklch(0.42 0.14 220)", label: "Service Call" },
+  sales_call:   { base: "oklch(0.50 0.18 145)", muted: "oklch(0.42 0.14 145)", label: "Sales Call" },
+  project_job:  { base: "oklch(0.50 0.18 295)", muted: "oklch(0.42 0.14 295)", label: "Project Job" },
 };
+
+// Dim cancelled events regardless of type
+const CANCELLED_COLOR = "oklch(0.35 0.05 240)";
 
 export default function CalendarPage() {
   const { user } = useAuth();
@@ -41,16 +44,23 @@ export default function CalendarPage() {
   });
 
   const events: EventInput[] = useMemo(() => {
-    return (jobs ?? []).map((job) => ({
-      id: String(job.id),
-      title: job.title,
-      start: new Date(job.scheduledStart),
-      end: new Date(job.scheduledEnd),
-      backgroundColor: STATUS_COLORS[job.status] ?? STATUS_COLORS.scheduled,
-      borderColor: STATUS_COLORS[job.status] ?? STATUS_COLORS.scheduled,
-      classNames: [`fc-event-${job.status}`],
-      extendedProps: { status: job.status },
-    }));
+    return (jobs ?? []).map((job) => {
+      const typeColors = JOB_TYPE_COLORS[job.jobType ?? "service_call"] ?? JOB_TYPE_COLORS.service_call;
+      const isCancelled = job.status === "cancelled";
+      const bgColor = isCancelled ? CANCELLED_COLOR : typeColors.base;
+      // Dim completed events slightly
+      const finalColor = job.status === "completed" ? typeColors.muted : bgColor;
+      return {
+        id: String(job.id),
+        title: job.title,
+        start: new Date(job.scheduledStart),
+        end: new Date(job.scheduledEnd),
+        backgroundColor: finalColor,
+        borderColor: finalColor,
+        classNames: [`fc-event-${job.status}`, `fc-type-${job.jobType ?? "service_call"}`],
+        extendedProps: { status: job.status, jobType: job.jobType },
+      };
+    });
   }, [jobs]);
 
   const handleEventClick = (info: EventClickArg) => {
@@ -80,6 +90,20 @@ export default function CalendarPage() {
           <Plus className="h-4 w-4 mr-1.5" />
           New Job
         </Button>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 mb-3">
+        {Object.entries(JOB_TYPE_COLORS).map(([type, { base, label }]) => (
+          <div key={type} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: base }} />
+            {label}
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: CANCELLED_COLOR }} />
+          Cancelled
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl p-3 md:p-5">

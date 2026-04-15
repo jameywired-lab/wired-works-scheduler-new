@@ -81,6 +81,19 @@ export default function CrewJobsPage() {
   // Filter to only active/upcoming jobs (not cancelled)
   const activeJobs = jobs.filter((j) => j.status !== "cancelled");
 
+  // Today's jobs summary
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const todayJobs = activeJobs.filter((j) => {
+    if (!j.scheduledStart) return false;
+    const t = j.scheduledStart;
+    return t >= todayStart.getTime() && t <= todayEnd.getTime();
+  });
+  const todayCompleted = todayJobs.filter((j) => j.status === "completed").length;
+  const todayRemaining = todayJobs.filter((j) => j.status !== "completed").length;
+
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     const remaining = MAX_PHOTOS - photos.length;
@@ -195,6 +208,48 @@ export default function CrewJobsPage() {
           </p>
         </div>
       </div>
+
+      {/* Today's summary card */}
+      {todayJobs.length > 0 && (
+        <div className="bg-gradient-to-r from-teal-900/40 to-teal-800/20 border border-teal-700/30 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-teal-400 font-medium uppercase tracking-wide">Today</p>
+              <p className="text-lg font-bold mt-0.5">
+                {todayJobs.length} job{todayJobs.length !== 1 ? "s" : ""} scheduled
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-teal-400">{todayCompleted}/{todayJobs.length}</p>
+              <p className="text-xs text-muted-foreground">completed</p>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="w-full bg-teal-950/60 rounded-full h-2">
+            <div
+              className="bg-teal-500 h-2 rounded-full transition-all"
+              style={{ width: `${todayJobs.length > 0 ? (todayCompleted / todayJobs.length) * 100 : 0}%` }}
+            />
+          </div>
+          {/* List today's jobs */}
+          <div className="space-y-1.5">
+            {todayJobs.map((j) => (
+              <div key={j.id} className="flex items-center gap-2 text-sm">
+                <span className={`h-2 w-2 rounded-full shrink-0 ${j.status === "completed" ? "bg-teal-500" : j.status === "in_progress" ? "bg-amber-400" : "bg-zinc-500"}`} />
+                <span className={`flex-1 truncate ${j.status === "completed" ? "line-through text-muted-foreground" : ""}`}>{j.title}</span>
+                {j.scheduledStart && (
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {new Date(j.scheduledStart).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          {todayRemaining === 0 && todayJobs.length > 0 && (
+            <p className="text-xs text-teal-400 font-medium text-center">All done for today!</p>
+          )}
+        </div>
+      )}
 
       {activeJobs.length === 0 && (
         <Card className="text-center py-16">

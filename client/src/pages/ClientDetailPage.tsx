@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import {
   formatDate,
@@ -42,7 +43,7 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { KeyRound, Eye, EyeOff, X } from "lucide-react";
@@ -422,7 +423,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Communications section */}
-      <ClientCommunicationsSection clientId={clientId} clientName={client.name} />
+      <ClientCommunicationsSection clientId={clientId} clientName={client.name} clientPhone={client.phone ?? undefined} />
 
       {/* Address modal */}
       <Dialog open={showAddressModal} onOpenChange={(v) => !v && setShowAddressModal(false)}>
@@ -688,7 +689,7 @@ function ClientCredentialsSection({ clientId }: { clientId: number }) {
 }
 
 // ─── Client Communications Section ───────────────────────────────────────────
-function ClientCommunicationsSection({ clientId, clientName }: { clientId: number; clientName: string }) {
+function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { clientId: number; clientName: string; clientPhone?: string }) {
   const utils = trpc.useUtils();
   const { data: comms, isLoading } = trpc.communications.list.useQuery({ clientId });
 
@@ -711,6 +712,18 @@ function ClientCommunicationsSection({ clientId, clientName }: { clientId: numbe
 
   const deleteComm = trpc.communications.delete.useMutation({
     onSuccess: () => utils.communications.list.invalidate({ clientId }),
+  });
+
+  const [replyToId, setReplyToId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const sendSms = trpc.communications.sendSms.useMutation({
+    onSuccess: () => {
+      utils.communications.list.invalidate({ clientId });
+      toast.success("Message sent");
+      setReplyText("");
+      setReplyToId(null);
+    },
+    onError: (err) => toast.error(err.message ?? "Failed to send"),
   });
 
   const channelIcon = (ch: string) => {
@@ -812,8 +825,8 @@ function ClientCommunicationsSection({ clientId, clientName }: { clientId: numbe
         ) : (
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {comms.map((c) => (
+              <React.Fragment key={c.id}>
               <div
-                key={c.id}
                 className={`flex gap-3 p-2.5 rounded-lg border border-border border-l-4 ${channelColor(c.channel, c.direction)} bg-muted/10`}
               >
                 <span className="text-base shrink-0 mt-0.5">{channelIcon(c.channel)}</span>
@@ -829,14 +842,54 @@ function ClientCommunicationsSection({ clientId, clientName }: { clientId: numbe
                   {c.subject && <p className="text-xs font-medium text-foreground/80 mb-0.5">{c.subject}</p>}
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{c.body}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => deleteComm.mutate({ id: c.id })}
-                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors mt-0.5"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex flex-col gap-1 shrink-0 mt-0.5">
+                  {c.direction === "inbound" && c.channel === "sms" && clientPhone && (
+                    <button
+                      type="button"
+                      onClick={() => { setReplyToId(replyToId === c.id ? null : c.id); setReplyText(""); }}
+                      className="text-teal-500 hover:text-teal-300 transition-colors"
+                      title="Reply"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => deleteComm.mutate({ id: c.id })}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
+              {/* Inline reply composer for this message */}
+              {replyToId === c.id && clientPhone && (
+                <div className="mt-2 ml-7 border border-teal-600/30 rounded-md p-2.5 bg-teal-950/20 space-y-2">
+                  <Textarea
+                    placeholder={`Reply to ${clientName}…`}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    className="min-h-[60px] text-xs bg-zinc-900/60 border-zinc-700 resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && replyText.trim()) {
+                        sendSms.mutate({ to: clientPhone, body: replyText.trim(), clientId });
+                      }
+                    }}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setReplyToId(null)}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      className="h-6 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                      disabled={!replyText.trim() || sendSms.isPending}
+                      onClick={() => sendSms.mutate({ to: clientPhone, body: replyText.trim(), clientId })}
+                    >
+                      {sendSms.isPending ? "Sending…" : "Send"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              </React.Fragment>
             ))}
           </div>
         )}

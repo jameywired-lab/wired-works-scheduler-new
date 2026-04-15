@@ -1085,6 +1085,34 @@ const communicationsRouter = router({
       await db.delete(clientCommunications).where(eqC(clientCommunications.id, input.id));
       return { success: true };
     }),
+
+  // Send an outbound SMS reply via OpenPhone and log it
+  sendSms: p
+    .input(z.object({
+      to: z.string().min(7),          // recipient phone number
+      body: z.string().min(1),        // message text
+      clientId: z.number().optional(), // if known, log against client
+    }))
+    .mutation(async ({ input }) => {
+      const result = await sendSms(input.to, input.body);
+      if (!result.success) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error ?? "Failed to send SMS" });
+      }
+      // Log as outbound communication if we have a clientId
+      if (input.clientId) {
+        const db = await getDb();
+        if (db) {
+          await db.insert(clientCommunications).values({
+            clientId: input.clientId,
+            direction: "outbound",
+            channel: "sms",
+            body: input.body,
+            toAddress: input.to,
+          });
+        }
+      }
+      return { success: true, messageId: result.messageId };
+    }),
 });
 
 // ─── App Router ───────────────────────────────────────────────────────────────
