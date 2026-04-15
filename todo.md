@@ -620,3 +620,9 @@
 ## Dashboard Follow-Up Panel Color
 
 - [x] Dashboard: make the Follow-Up panel box fully orange (bg-orange-500/600, white text, orange header/border)
+
+## Follow-Up Delete Fix
+
+- [x] Delete the three "unknown" crossed-out follow-up records from the database (contactName IS NULL or empty, isFollowedUp = true)
+- [x] Dashboard FollowUpPanel: ensure delete (trash) button is always visible on every item, not hidden behind hover or conditional logic
+- [x] FollowUpsPage: ensure delete button is always visible on every item

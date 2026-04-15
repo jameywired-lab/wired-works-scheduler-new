@@ -103,6 +103,10 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
   const complete = trpc.followUps.completeTask.useMutation({
     onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Follow-up completed"); },
   });
+  const deleteFollowUp = trpc.followUps.delete.useMutation({
+    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Follow-up deleted"); },
+    onError: (err) => toast.error(err.message ?? "Failed to delete"),
+  });
   const remindTomorrow = trpc.followUps.remindTomorrow.useMutation({
     onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Reminder set for tomorrow"); },
   });
@@ -263,6 +267,17 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
               Proposal Outcome {showProposalActions ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
             </Button>
           )}
+
+          {/* Delete — always visible */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs border-red-600/50 text-red-400 hover:bg-red-950/50 ml-auto"
+            onClick={() => deleteFollowUp.mutate({ id: f.id })}
+            disabled={deleteFollowUp.isPending}
+          >
+            <X className="h-3 w-3 mr-1" />Delete
+          </Button>
         </div>
 
         {/* Inline SMS reply composer */}

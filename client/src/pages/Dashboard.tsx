@@ -416,7 +416,8 @@ function FollowUpPanel() {
                     </div>
                     <button
                       onClick={() => deleteFollowUp.mutate({ id: f.id })}
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all text-xs shrink-0 mt-0.5"
+                      className="text-white/60 hover:text-white transition-colors text-xs shrink-0 mt-0.5 p-0.5 rounded hover:bg-white/20"
+                      title="Delete"
                     >
                       ✕
                     </button>
