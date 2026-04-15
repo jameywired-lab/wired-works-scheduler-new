@@ -339,3 +339,13 @@
 
 ### Setup Guide
 - [x] Zapier setup guide delivered to user in result message (not a separate page)
+
+## Portal.io Webhook Field Mapping Fix
+
+- [x] Update webhook to accept Portal.io real fields: name, number, total, status, createdDate, modifiedDate, orderSuppliers
+- [x] Map name → projectTitle, number → proposal number in description, total → proposalTotal
+- [x] Extract client info from orderSuppliers array if present
+- [x] Keep backward-compat with the original field names (clientName, clientEmail, etc.) so manual Zapier calls still work
+- [x] Add GET /api/webhooks/proposal-accepted/info endpoint that returns the expected field schema (for Zapier testing)
+- [x] In-memory log of last 10 webhook calls returned by /info endpoint
+- [x] Update vitest tests for new field mapping (7 tests, all passing)
