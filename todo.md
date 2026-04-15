@@ -527,3 +527,12 @@
 - [x] History list: color-coded left border by channel/direction, timestamp, delete button
 - [ ] Inbound SMS webhook: POST /api/webhooks/sms-inbound — parse OpenPhone webhook, match client by phone, insert communication, create follow-up (requires OpenPhone webhook config)
 - [ ] Inbound email webhook: POST /api/webhooks/email-inbound — parse email provider webhook, match client by email, insert communication, create follow-up (requires email provider webhook config)
+
+## Inbound SMS Webhook (OpenPhone → Communications + Follow-Up)
+
+- [x] POST /api/openphone/webhook endpoint: receive OpenPhone inbound message webhook (already registered)
+- [x] Normalize sender phone number to E.164 and match against clients table
+- [x] If client found: insert clientCommunications row (direction=inbound, channel=sms, body=message text, clientId)
+- [x] Always: create followUp row (type=text, contactName=client name or sender number, phone=sender, note=message preview)
+- [x] Return 200 OK to OpenPhone immediately to prevent retries
+- [x] Missed calls and voicemails also create follow-ups (call.completed event)

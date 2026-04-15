@@ -14,7 +14,8 @@
  */
 
 import type { Request, Response } from "express";
-import { createFollowUp, getClientByPhone } from "./db";
+import { createFollowUp, getClientByPhone, getDb } from "./db";
+import { clientCommunications } from "../drizzle/schema";
 
 // ─── Type stubs for OpenPhone webhook payloads ────────────────────────────────
 
@@ -90,8 +91,23 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
     if (type === "message.received") {
       // ── Inbound SMS ──────────────────────────────────────────────────────────
       const body = obj.body?.trim() || "(no message body)";
+
+      // Log to client communications if we have a matched client
+      if (matchedClient?.id) {
+        const db = await getDb();
+        if (db) {
+          await db.insert(clientCommunications).values({
+            clientId: matchedClient.id,
+            direction: "inbound",
+            channel: "sms",
+            body,
+            fromAddress: phone || undefined,
+          });
+        }
+      }
+
       await createFollowUp({
-        contactName: contactName ?? undefined,
+        contactName: contactName ?? (phone || "Unknown"),
         phone: phone || undefined,
         type: "text",
         note: `📱 Inbound SMS: ${body}`,
@@ -102,7 +118,7 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
         isUrgent: false,
         clientContacted: false,
       });
-      console.log(`[Webhook] Inbound SMS from ${phone} → follow-up created`);
+      console.log(`[Webhook] Inbound SMS from ${phone} → follow-up + comm log created`);
     } else if (type === "call.completed") {
       // ── Missed call or voicemail ─────────────────────────────────────────────
       const status = obj.status ?? "";
