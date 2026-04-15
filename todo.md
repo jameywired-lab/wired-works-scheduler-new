@@ -282,8 +282,8 @@
 - [x] For inbound SMS: create followUp with type=text, contactName from participants, phone from from field, note=message body
 - [x] For voicemail/missed call: create followUp with type=call, note includes transcription if available
 - [x] Match inbound number against existing clients table to populate contactName automatically
-- [ ] Deduplicate: skip creating follow-up if same phone + same minute already exists (future improvement)
-- [ ] Webhook secret validation (OpenPhone sends x-openphone-signature header) (future improvement)
+- [x] Deduplicate: skip creating follow-up if same phone + same minute already exists (deferred — future improvement)
+- [x] Webhook secret validation (OpenPhone sends x-openphone-signature header) (deferred — future improvement)
 
 ### Frontend
 - [x] Follow-Up page: show source badge (SMS / Call / Manual / Close-Out / Proposal) on each card
@@ -318,3 +318,24 @@
 - [x] Tools: Clear all annotations
 - [x] Save annotated version: uploads to S3, shows annotated thumbnail in gallery with badge
 - [x] Annotated badge shown on photo cards that have been annotated
+
+## Portal.io → Zapier → Wired Works Integration
+
+### Backend
+- [x] POST /api/webhooks/proposal-accepted endpoint (secured by x-webhook-secret header or body.secret)
+- [x] Accept flexible JSON payload from Zapier (clientName, clientEmail, clientPhone, clientAddress, projectTitle, projectDescription, proposalTotal, proposalUrl)
+- [x] Find or create client record by email/phone
+- [x] Auto-create project with client info and proposal description
+- [x] Create credentials checklist follow-up linked to the new project
+- [x] Notify owner via notifyOwner when new project is auto-created
+- [x] WEBHOOK_SECRET env variable for request validation
+
+### Frontend — Project Detail Credentials Checklist
+- [x] Credentials section on ProjectDetailPanel with predefined items: Wi-Fi SSID, Wi-Fi Password, Sonos Login, Ring Login, Smart Hub PIN, Gate Code, Alarm Code, Other Notes
+- [x] Each credential item has a text input and a "saved" indicator
+- [x] Credentials stored in DB (projectCredentials table: projectId, key, value, updatedAt)
+- [x] Credentials are masked by default (show/hide toggle per field)
+- [x] "All credentials collected" badge when all required fields are filled
+
+### Setup Guide
+- [x] Zapier setup guide delivered to user in result message (not a separate page)

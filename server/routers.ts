@@ -37,6 +37,9 @@ import {
   updateCrewNote,
   updateJob,
   updateUserRole,
+  getProjectCredentials,
+  upsertProjectCredential,
+  seedProjectCredentials,
 } from "./db";
 import { sendSms } from "./sms";
 import {
@@ -695,6 +698,34 @@ const jobDocumentsRouter = router({
     }),
 });
 
+// ─── Project Credentials Router ────────────────────────────────────────────
+const projectCredentialsRouter = router({
+  list: p
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => getProjectCredentials(input.projectId)),
+
+  seed: p
+    .input(z.object({ projectId: z.number() }))
+    .mutation(async ({ input }) => {
+      await seedProjectCredentials(input.projectId);
+      return { success: true };
+    }),
+
+  upsert: p
+    .input(
+      z.object({
+        projectId: z.number(),
+        key: z.string(),
+        label: z.string(),
+        value: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await upsertProjectCredential(input.projectId, input.key, input.label, input.value);
+      return { success: true };
+    }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -720,7 +751,7 @@ export const appRouter = router({
   jobPhotos: jobPhotosRouter,
   messaging: messagingRouter,
   tags: tagsRouter,
-  jobDocuments: jobDocumentsRouter,
+   jobDocuments: jobDocumentsRouter,
+  projectCredentials: projectCredentialsRouter,
 });
-
 export type AppRouter = typeof appRouter;

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +43,12 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
+  CheckCircle2,
   Clock,
+  Eye,
+  EyeOff,
   FolderOpen,
+  KeyRound,
   MoreVertical,
   Plus,
   Trash2,
@@ -75,6 +79,125 @@ function formatDate(ms: number | null | undefined) {
 function isOverdue(ms: number | null | undefined) {
   if (!ms) return false;
   return ms < Date.now();
+}
+
+// ─── Credentials Section ─────────────────────────────────────────────────────
+function CredentialsSection({ projectId }: { projectId: number }) {
+  const utils = trpc.useUtils();
+  const { data: creds = [], isLoading } = trpc.projectCredentials.list.useQuery({ projectId });
+  const seedMutation = trpc.projectCredentials.seed.useMutation({
+    onSuccess: () => utils.projectCredentials.list.invalidate({ projectId }),
+  });
+  const upsertMutation = trpc.projectCredentials.upsert.useMutation({
+    onSuccess: () => {
+      utils.projectCredentials.list.invalidate({ projectId });
+      toast.success("Credential saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Seed defaults on first load if empty
+  useEffect(() => {
+    if (!isLoading && creds.length === 0) {
+      seedMutation.mutate({ projectId });
+    }
+  }, [isLoading, creds.length, projectId]);
+
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  const getValue = (key: string, currentValue: string | null) =>
+    editValues[key] !== undefined ? editValues[key] : (currentValue ?? "");
+
+  const handleSave = async (key: string, label: string) => {
+    const val = editValues[key] ?? "";
+    setSavingKey(key);
+    await upsertMutation.mutateAsync({ projectId, key, label, value: val });
+    setSavingKey(null);
+  };
+
+  const allFilled = creds.filter(c => c.key !== "other_notes").every(c => {
+    const v = getValue(c.key, c.value);
+    return v.trim().length > 0;
+  });
+
+  const toggleVisible = (key: string) => {
+    setVisibleKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const isSensitive = (key: string) =>
+    ["wifi_password", "sonos_password", "ring_password", "smart_hub_pin", "gate_code", "alarm_code"].includes(key);
+
+  if (isLoading) return <div className="py-4 text-sm text-muted-foreground">Loading credentials...</div>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <KeyRound className="h-4 w-4 text-muted-foreground" />
+          Client Credentials
+        </h3>
+        {allFilled && (
+          <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5" /> All collected
+          </span>
+        )}
+      </div>
+      <div className="space-y-3">
+        {creds.map((cred) => {
+          const val = getValue(cred.key, cred.value);
+          const sensitive = isSensitive(cred.key);
+          const visible = visibleKeys.has(cred.key);
+          const hasValue = (cred.value ?? "").trim().length > 0;
+          return (
+            <div key={cred.key} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground">{cred.label}</label>
+                {hasValue && (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ Saved</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={sensitive && !visible ? "password" : "text"}
+                    value={val}
+                    onChange={(e) => setEditValues(prev => ({ ...prev, [cred.key]: e.target.value }))}
+                    placeholder={`Enter ${cred.label.toLowerCase()}...`}
+                    className="h-8 text-sm pr-8"
+                    onKeyDown={(e) => e.key === "Enter" && handleSave(cred.key, cred.label)}
+                  />
+                  {sensitive && (
+                    <button
+                      type="button"
+                      onClick={() => toggleVisible(cred.key)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => handleSave(cred.key, cred.label)}
+                  disabled={savingKey === cred.key || val === (cred.value ?? "")}
+                >
+                  {savingKey === cred.key ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ─── Project Form Modal ───────────────────────────────────────────────────────
@@ -398,6 +521,11 @@ function ProjectDetailPanel({
               <Plus className="h-3.5 w-3.5" />
             </Button>
           </div>
+        </div>
+
+        {/* Credentials Checklist */}
+        <div>
+          <CredentialsSection projectId={projectId} />
         </div>
 
         {/* Reminders */}

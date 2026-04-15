@@ -306,3 +306,15 @@ export const clientTags = mysqlTable("clientTags", {
 });
 export type ClientTag = typeof clientTags.$inferSelect;
 export type InsertClientTag = typeof clientTags.$inferInsert;
+
+// ─── Project Credentials ─────────────────────────────────────────────────────
+export const projectCredentials = mysqlTable("projectCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull().references(() => projects.id),
+  key: varchar("key", { length: 128 }).notNull(),   // e.g. "wifi_ssid", "sonos_login"
+  label: varchar("label", { length: 255 }).notNull(), // e.g. "Wi-Fi SSID"
+  value: text("value"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ProjectCredential = typeof projectCredentials.$inferSelect;
+export type InsertProjectCredential = typeof projectCredentials.$inferInsert;

@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleOpenPhoneWebhook } from "../openphoneWebhook";
+import { handleProposalAcceptedWebhook } from "../proposalAcceptedWebhook";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -38,6 +39,8 @@ async function startServer() {
   registerOAuthRoutes(app);
   // OpenPhone inbound webhook — auto-creates follow-ups for inbound SMS and missed calls/voicemails
   app.post("/api/openphone/webhook", handleOpenPhoneWebhook);
+  // Portal.io → Zapier → Wired Works: auto-create project when proposal is accepted
+  app.post("/api/webhooks/proposal-accepted", handleProposalAcceptedWebhook);
   // tRPC API
   app.use(
     "/api/trpc",

@@ -41,6 +41,9 @@ import {
   jobDocuments,
   JobDocument,
   InsertJobDocument,
+  projectCredentials,
+  ProjectCredential,
+  InsertProjectCredential,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -772,4 +775,61 @@ export async function savePhotoAnnotation(id: number, annotatedS3Key: string, an
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   await db.update(jobPhotos).set({ annotatedS3Key, annotatedS3Url }).where(eq(jobPhotos.id, id));
+}
+
+// ─── Project Credentials ─────────────────────────────────────────────────────
+export async function getProjectCredentials(projectId: number): Promise<ProjectCredential[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projectCredentials).where(eq(projectCredentials.projectId, projectId));
+}
+
+export async function upsertProjectCredential(
+  projectId: number,
+  key: string,
+  label: string,
+  value: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const existing = await db
+    .select()
+    .from(projectCredentials)
+    .where(eq(projectCredentials.projectId, projectId))
+    .then((rows) => rows.find((r) => r.key === key));
+  if (existing) {
+    await db
+      .update(projectCredentials)
+      .set({ value })
+      .where(eq(projectCredentials.id, existing.id));
+  } else {
+    await db.insert(projectCredentials).values({ projectId, key, label, value });
+  }
+}
+
+export async function seedProjectCredentials(projectId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const defaults: { key: string; label: string }[] = [
+    { key: "wifi_ssid", label: "Wi-Fi Network Name (SSID)" },
+    { key: "wifi_password", label: "Wi-Fi Password" },
+    { key: "sonos_email", label: "Sonos Account Email" },
+    { key: "sonos_password", label: "Sonos Account Password" },
+    { key: "ring_email", label: "Ring Account Email" },
+    { key: "ring_password", label: "Ring Account Password" },
+    { key: "smart_hub_pin", label: "Smart Hub / Controller PIN" },
+    { key: "gate_code", label: "Gate Code" },
+    { key: "alarm_code", label: "Alarm Code" },
+    { key: "other_notes", label: "Other Access Notes" },
+  ];
+  const existing = await db
+    .select()
+    .from(projectCredentials)
+    .where(eq(projectCredentials.projectId, projectId));
+  const existingKeys = new Set(existing.map((r) => r.key));
+  for (const d of defaults) {
+    if (!existingKeys.has(d.key)) {
+      await db.insert(projectCredentials).values({ projectId, key: d.key, label: d.label, value: "" });
+    }
+  }
 }
