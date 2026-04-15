@@ -312,7 +312,25 @@ export default function JobFormModal({
               <Select
                 value={form.clientId}
                 onValueChange={(v) => {
-                  setForm((f) => ({ ...f, clientId: v, selectedAddressId: "custom", address: "" }));
+                  // Immediately populate address from the client's stored address
+                  const selectedClient = clients?.find((c) => String(c.id) === v);
+                  const clientAddr = selectedClient
+                    ? [
+                        selectedClient.addressLine1,
+                        selectedClient.addressLine2,
+                        selectedClient.city,
+                        selectedClient.state,
+                        selectedClient.zip,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    : "";
+                  setForm((f) => ({
+                    ...f,
+                    clientId: v,
+                    selectedAddressId: "custom",
+                    address: clientAddr || f.address,
+                  }));
                   setShowNewClient(false);
                 }}
               >

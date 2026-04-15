@@ -435,3 +435,9 @@
 - [x] Add "Job Type" select field (New Construction / Commercial / Retrofit) to create project form
 - [x] Job type is required for new projects; shows stage preview hint
 - [x] Edit project form also supports changing job type
+
+## Client Address Auto-Populate in Job Form
+
+- [x] When a client is selected in the new job form, auto-fill the address field with the client's primary address (street + city + state + zip)
+- [x] If the client has no address on file, leave the field blank (no error)
+- [x] User can still manually edit the address after it auto-fills
