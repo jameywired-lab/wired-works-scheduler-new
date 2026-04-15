@@ -356,3 +356,9 @@
 - [x] Webhook: check for existing project with same name before creating a new one (dedup by name)
 - [x] Delete button already existed in three-dot menu on project cards; fixed FK constraint error (projectCredentials deleted first)
 - [x] Confirmed delete removes project and its associated credentials (projectCredentials) and milestones/reminders (cascade)
+
+## Dark/Light Mode Fix
+
+- [x] Diagnose ThemeProvider defaultTheme and CSS variable definitions in index.css
+- [x] Fix light mode CSS variables so background is white/light and text is dark when light mode is selected
+- [x] Ensure theme toggle in DashboardLayout correctly persists and applies the selected theme
