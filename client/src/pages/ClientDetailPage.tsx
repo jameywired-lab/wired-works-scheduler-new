@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import JobFormModal from "@/components/JobFormModal";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -441,13 +442,22 @@ export default function ClientDetailPage() {
               </Select>
             </div>
 
-            {/* Address Line 1 */}
+            {/* Address Line 1 — Google Maps autocomplete */}
             <div className="space-y-1.5">
               <Label>Address Line 1 *</Label>
-              <Input
-                placeholder="123 Main St"
+              <AddressAutocomplete
                 value={addressForm.addressLine1}
-                onChange={(e) => setAddressForm((f) => ({ ...f, addressLine1: e.target.value }))}
+                onChange={(v) => setAddressForm((f) => ({ ...f, addressLine1: v }))}
+                onPlaceSelect={({ street, city, state, zip }) => {
+                  setAddressForm((f) => ({
+                    ...f,
+                    addressLine1: street,
+                    city: city || f.city,
+                    state: state || f.state,
+                    zip: zip || f.zip,
+                  }));
+                }}
+                placeholder="123 Main St"
                 className="bg-input border-border"
               />
             </div>

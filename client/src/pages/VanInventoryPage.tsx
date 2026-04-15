@@ -25,6 +25,7 @@ import {
   Send,
   ClipboardList,
   Pencil,
+  RotateCcw,
   Trash2,
   Plus,
   X,
@@ -32,6 +33,7 @@ import {
 
 export default function VanInventoryPage() {
   const [showConfirmSend, setShowConfirmSend] = useState(false);
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [partText, setPartText] = useState("");
   const [requestedBy, setRequestedBy] = useState("Crew");
   const [editMode, setEditMode] = useState(false);
@@ -86,6 +88,18 @@ export default function VanInventoryPage() {
     onError: (err) => {
       toast.error(err.message);
       setShowConfirmSend(false);
+    },
+  });
+
+  const resetAll = trpc.inventory.resetAll.useMutation({
+    onSuccess: () => {
+      toast.success("Inventory reset to fully stocked (100%).");
+      setShowConfirmReset(false);
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setShowConfirmReset(false);
     },
   });
 
@@ -145,6 +159,15 @@ export default function VanInventoryPage() {
               >
                 <Pencil className="h-4 w-4" />
                 Edit Inventory
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmReset(true)}
+                disabled={resetAll.isPending}
+                className="gap-2 text-amber-600 border-amber-500/40 hover:bg-amber-500/10"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset to Full
               </Button>
               <Button
                 onClick={() => setShowConfirmSend(true)}
@@ -485,6 +508,28 @@ export default function VanInventoryPage() {
               className="bg-blue-600 hover:bg-blue-700"
             >
               {sendReport.isPending ? "Sending..." : "Send Report"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset to Full Confirmation Dialog */}
+      <AlertDialog open={showConfirmReset} onOpenChange={(open) => { if (!open) setShowConfirmReset(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Inventory to Full?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set every item's current quantity back to its target quantity, marking the van as fully stocked (100%). Use this after a supply run when everything has been restocked.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => resetAll.mutate()}
+              disabled={resetAll.isPending}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {resetAll.isPending ? "Resetting…" : "Reset to Full"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

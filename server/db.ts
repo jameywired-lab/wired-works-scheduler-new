@@ -494,7 +494,23 @@ export async function getDashboardData() {
 export async function listProjects() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projects).orderBy(desc(projects.updatedAt));
+  return db
+    .select({
+      id: projects.id,
+      clientId: projects.clientId,
+      title: projects.title,
+      description: projects.description,
+      status: projects.status,
+      projectType: projects.projectType,
+      startDate: projects.startDate,
+      dueDate: projects.dueDate,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+      clientName: clients.name,
+    })
+    .from(projects)
+    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .orderBy(desc(projects.updatedAt));
 }
 
 export async function getProjectById(id: number) {

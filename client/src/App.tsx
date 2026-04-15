@@ -17,6 +17,7 @@ import ImportPage from "./pages/ImportPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import CrewJobsPage from "./pages/CrewJobsPage";
 import CrewClientsPage from "./pages/CrewClientsPage";
+import CrewProjectsPage from "./pages/CrewProjectsPage";
 import FollowUpPage from "./pages/FollowUpPage";
 import VanInventoryPage from "./pages/VanInventoryPage";
 
@@ -36,6 +37,7 @@ function AppRoutes() {
         <Route path="/projects" component={ProjectsPage} />
         <Route path="/crew-jobs" component={CrewJobsPage} />
         <Route path="/crew-clients" component={CrewClientsPage} />
+        <Route path="/crew-projects" component={CrewProjectsPage} />
         <Route path="/follow-ups" component={FollowUpPage} />
         <Route path="/van-inventory" component={VanInventoryPage} />
         <Route component={NotFound} />

@@ -31,6 +31,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { toast } from "sonner";
 
 interface JobFormModalProps {
@@ -506,12 +507,13 @@ export default function JobFormModal({
             )}
 
             <div className="flex gap-2">
-              <Input
-                placeholder="123 Main St, City, State"
+              <AddressAutocomplete
                 value={form.address}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, address: e.target.value, selectedAddressId: "custom" }))
+                onChange={(v) => setForm((f) => ({ ...f, address: v, selectedAddressId: "custom" }))}
+                onPlaceSelect={({ formatted }) =>
+                  setForm((f) => ({ ...f, address: formatted, selectedAddressId: "custom" }))
                 }
+                placeholder="123 Main St, City, State"
                 className="bg-input border-border flex-1"
               />
               {hasAddress && (

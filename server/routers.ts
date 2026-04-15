@@ -888,6 +888,14 @@ const inventoryRouter = router({
       });
       return { success: true, smsSent: result.success };
     }),
+
+  resetAll: p.mutation(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    // Set currentQty = targetQty for every item (fully restocked)
+    await db.execute(sqlExpr`UPDATE vanInventoryItems SET currentQty = targetQty`);
+    return { success: true };
+  }),
 });
 
 // ─── App Router ───────────────────────────────────────────────────────────────

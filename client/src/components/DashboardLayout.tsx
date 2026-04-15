@@ -59,8 +59,10 @@ const adminNavItems = [
 
 // Nav shown exclusively to crew role
 const crewNavItems = [
-  { icon: LayoutDashboard, label: "My Jobs", path: "/crew-jobs" },
+  { icon: Calendar, label: "My Schedule", path: "/crew-jobs" },
+  { icon: FolderOpen, label: "Projects", path: "/crew-projects" },
   { icon: Users, label: "Clients", path: "/crew-clients" },
+  { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
 ];
 
 const adminBottomNavItems = [
@@ -72,8 +74,10 @@ const adminBottomNavItems = [
 ];
 
 const crewBottomNavItems = [
-  { icon: LayoutDashboard, label: "My Jobs", path: "/crew-jobs" },
+  { icon: Calendar, label: "Schedule", path: "/crew-jobs" },
+  { icon: FolderOpen, label: "Projects", path: "/crew-projects" },
   { icon: Users, label: "Clients", path: "/crew-clients" },
+  { icon: Truck, label: "Inventory", path: "/van-inventory" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -463,3 +463,29 @@
 - [x] Job detail page (admin): show client credentials panel if the job has a client
 - [x] Crew job view: show client credentials panel so crew can access wifi/alarm/etc. on site
 - [x] Credentials are hidden behind show/hide toggle for sensitive fields (passwords, PINs, codes)
+
+## Inventory Reset
+
+- [ ] inventory.resetAll procedure: set currentQty = targetQty for all items (fully stocked / 100%)
+- [ ] VanInventoryPage: "Reset Inventory" button (with confirmation dialog) that calls resetAll and refreshes the list
+
+## Inventory Reset
+
+- [x] inventory.resetAll procedure: set currentQty = targetQty for all items (fully stocked / 100%)
+- [x] VanInventoryPage: "Reset to Full" button with amber styling and confirmation dialog
+- [x] Confirmation dialog explains the action before executing
+
+## Technician (Crew) View Redesign
+
+- [x] Crew sidebar nav: show only My Schedule, Projects, Clients, Van Inventory
+- [x] Crew projects view (/crew-projects): read-only view of all active projects — client name, job type badge, milestone progress pie, stage list (no edit)
+- [x] Mobile bottom nav for crew: Schedule | Projects | Clients | Van Inventory (4 tabs)
+- [x] Crew van inventory view: same VanInventoryPage accessible via crew nav
+
+## Google Maps Address Autocomplete
+
+- [x] Create reusable AddressAutocomplete component using Google Maps Places API (via Manus proxy)
+- [x] Wire autocomplete into client address form (ClientDetailPage add/edit address dialog)
+- [x] Wire autocomplete into job form (JobFormModal address field)
+- [x] On place selection: auto-fill street, city, state, zip as separate fields
+- [x] Fallback to plain text input if Maps API not available
