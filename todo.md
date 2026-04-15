@@ -616,3 +616,7 @@
 - [x] Client delete: cascade-delete all related records (jobs+children, projects+children, addresses, tags, communications, follow-ups, credentials) before deleting client row
 - [x] Client detail page: address not showing — show client.addressLine1/city/state/zip as fallback when no clientAddresses records exist, with Directions + "Save as Address" button
 - [x] Add-address form: restore Google Places autocomplete — fixed script loading to poll for google.maps.places after onload, handle already-loaded case, add try/catch around autocomplete init
+
+## Dashboard Follow-Up Panel Color
+
+- [x] Dashboard: make the Follow-Up panel box fully orange (bg-orange-500/600, white text, orange header/border)

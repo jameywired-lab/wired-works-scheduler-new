@@ -285,32 +285,32 @@ function FollowUpPanel() {
   const urgentCount = pending.filter((f) => f.isUrgent).length;
 
   return (
-    <Card className="border-border">
+    <Card className="border-orange-500 bg-orange-500 text-white">
       <CardHeader className="pb-3 pt-4 px-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Phone className="h-4 w-4 text-primary" />
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-white">
+            <Phone className="h-4 w-4 text-white" />
             Follow-Up
             {pending.length > 0 && (
-              <Badge className="bg-amber-500/15 text-amber-500 text-[10px] h-4 px-1.5">{pending.length}</Badge>
+              <Badge className="bg-white/25 text-white text-[10px] h-4 px-1.5">{pending.length}</Badge>
             )}
             {urgentCount > 0 && (
-              <Badge className="bg-destructive/20 text-destructive text-[10px] h-4 px-1.5 flex items-center gap-0.5">
+              <Badge className="bg-white/30 text-white text-[10px] h-4 px-1.5 flex items-center gap-0.5">
                 <AlertTriangle className="h-2.5 w-2.5" />{urgentCount} urgent
               </Badge>
             )}
           </CardTitle>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setLocation("/follow-ups")}>
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-white/80 hover:text-white hover:bg-white/20 px-2" onClick={() => setLocation("/follow-ups")}>
               View All
             </Button>
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-white/80 hover:text-white hover:bg-white/20 px-2" onClick={() => setShowAddForm(!showAddForm)}>
               <Plus className="h-3 w-3 mr-1" /> Add
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-3">
+      <CardContent className="px-4 pb-4 space-y-3 text-white">
         {/* Quick add form */}
         {showAddForm && (
           <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
