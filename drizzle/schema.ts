@@ -1,5 +1,6 @@
 import {
   boolean,
+  decimal,
   int,
   mysqlEnum,
   mysqlTable,
@@ -191,12 +192,13 @@ export const projects = mysqlTable("projects", {
   description: text("description"),
   status: mysqlEnum("status", ["active", "on_hold", "completed", "cancelled"]).default("active").notNull(),
   projectType: mysqlEnum("projectType", ["new_construction", "commercial", "retrofit"]),
-  startDate: bigint("startDate", { mode: "number" }), // UTC ms
+   startDate: bigint("startDate", { mode: "number" }), // UTC ms
   dueDate: bigint("dueDate", { mode: "number" }),     // UTC ms
+  projectValue: decimal("projectValue", { precision: 12, scale: 2 }),  // $ value of the project
+  completedAt: bigint("completedAt", { mode: "number" }),              // UTC ms when marked completed
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 
@@ -383,3 +385,13 @@ export const clientCommunications = mysqlTable("clientCommunications", {
 });
 export type ClientCommunication = typeof clientCommunications.$inferSelect;
 export type InsertClientCommunication = typeof clientCommunications.$inferInsert;
+
+// ─── SMS Templates ────────────────────────────────────────────────────────────
+export const smsTemplates = mysqlTable("smsTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 64 }).notNull().unique(),
+  body: text("body").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SmsTemplate = typeof smsTemplates.$inferSelect;
+export type InsertSmsTemplate = typeof smsTemplates.$inferInsert;

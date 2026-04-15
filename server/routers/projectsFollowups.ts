@@ -18,6 +18,7 @@ import {
   getProjectById,
   getRemindersByProject,
   listFollowUps,
+  getRevenueReport,
   listProjects,
   recalcMilestoneWeights,
   swapMilestoneSortOrder,
@@ -87,10 +88,12 @@ export const projectsRouter = router({
         projectType: z.enum(["new_construction", "commercial", "retrofit"]).optional(),
         startDate: z.number().optional(),
         dueDate: z.number().optional(),
+        projectValue: z.number().nullable().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      await createProject(input);
+      const { projectValue, ...rest } = input;
+      await createProject({ ...rest, projectValue: projectValue != null ? String(projectValue) : null });
       const all = await listProjects();
       const newId = all[0]?.id;
       // Auto-seed milestone stages for the chosen project type
@@ -120,11 +123,19 @@ export const projectsRouter = router({
         projectType: z.enum(["new_construction", "commercial", "retrofit"]).nullable().optional(),
         startDate: z.number().nullable().optional(),
         dueDate: z.number().nullable().optional(),
+        projectValue: z.number().nullable().optional(),
+        completedAt: z.number().nullable().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      await updateProject(id, data);
+      const { id, projectValue, ...rest } = input;
+      // When marking completed, auto-set completedAt if not provided
+      const completedAt = rest.completedAt ?? (rest.status === "completed" ? Date.now() : undefined);
+      await updateProject(id, {
+        ...rest,
+        projectValue: projectValue != null ? String(projectValue) : null,
+        completedAt: completedAt ?? null,
+      });
       return { success: true };
     }),
 
@@ -247,6 +258,8 @@ export const projectsRouter = router({
       await deleteReminder(input.id);
       return { success: true };
     }),
+
+  revenueReport: p.query(async () => getRevenueReport()),
 });
 
 // ─── Follow-Ups Router ────────────────────────────────────────────────────────

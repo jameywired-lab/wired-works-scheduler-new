@@ -21,6 +21,7 @@ import CrewProjectsPage from "./pages/CrewProjectsPage";
 import FollowUpPage from "./pages/FollowUpPage";
 import VanInventoryPage from "./pages/VanInventoryPage";
 import MarketingPage from "./pages/MarketingPage";
+import RevenueReportPage from "./pages/RevenueReportPage";
 
 function AppRoutes() {
   return (
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="/follow-ups" component={FollowUpPage} />
         <Route path="/van-inventory" component={VanInventoryPage} />
         <Route path="/marketing" component={MarketingPage} />
+        <Route path="/revenue-report" component={RevenueReportPage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

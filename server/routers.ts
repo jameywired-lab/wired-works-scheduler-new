@@ -46,6 +46,9 @@ import {
   createFollowUp,
   getCrewNotesByClient,
   getJobPhotosByClient,
+  listSmsTemplates,
+  upsertSmsTemplate,
+  getSmsTemplate,
 } from "./db";
 import { sendSms } from "./sms";
 import {
@@ -320,7 +323,6 @@ const jobsRouter = router({
       if (sendBookingSms && newJob && client?.phone) {
         const startDate = new Date(input.scheduledStart);
         const dateStr = startDate.toLocaleDateString("en-US", {
-          weekday: "long",
           month: "long",
           day: "numeric",
         });
@@ -328,7 +330,15 @@ const jobsRouter = router({
           hour: "numeric",
           minute: "2-digit",
         });
-        const body = `Hi ${client.name}! Your appointment has been confirmed for ${dateStr} at ${timeStr}. We look forward to seeing you! Reply STOP to opt out.`;
+        // Load template from DB (falls back to default if not customised)
+        const templateBody = await getSmsTemplate("booking_confirmation");
+        const clientFirstName = client.name.split(" ")[0];
+        const body = templateBody
+          .replace(/\{clientName\}/g, clientFirstName)
+          .replace(/\{fullName\}/g, client.name)
+          .replace(/\{jobTitle\}/g, newJob.title)
+          .replace(/\{date\}/g, dateStr)
+          .replace(/\{time\}/g, timeStr);
         const result = await sendSms(client.phone, body);
         await createSmsLog({
           jobId: newJob.id,
@@ -1119,11 +1129,19 @@ const communicationsRouter = router({
       }
       return { success: true, messageId: result.messageId };
     }),
+});// ─── SMS Templates Router ───────────────────────────────────────────────────────────────────────────────
+const smsTemplatesRouter = router({
+  list: p.query(async () => listSmsTemplates()),
+  save: p
+    .input(z.object({ key: z.string().min(1), body: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await upsertSmsTemplate(input.key, input.body);
+      return { success: true };
+    }),
 });
 
-// ─── App Router ───────────────────────────────────────────────────────────────
+// ─── App Router ───────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
-  system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -1152,5 +1170,6 @@ export const appRouter = router({
   inventory: inventoryRouter,
   marketing: marketingRouter,
   communications: communicationsRouter,
+  smsTemplates: smsTemplatesRouter,
 });
 export type AppRouter = typeof appRouter;

@@ -289,6 +289,11 @@ function ProjectFormModal({
   const [clientId, setClientId] = useState<string>(editProject?.clientId ? String(editProject.clientId) : "none");
   const [status, setStatus] = useState<ProjectStatus>(editProject?.status ?? "active");
   const [projectType, setProjectType] = useState<string>(editProject?.projectType ?? "none");
+  const [projectValue, setProjectValue] = useState<string>(
+    editProject && (editProject as any).projectValue != null
+      ? String((editProject as any).projectValue)
+      : ""
+  );
   const [startDate, setStartDate] = useState(
     editProject?.startDate ? new Date(editProject.startDate).toISOString().split("T")[0] : ""
   );
@@ -316,6 +321,7 @@ function ProjectFormModal({
       projectType: projectType !== "none" ? (projectType as ProjectType) : undefined,
       startDate: startDate ? new Date(startDate).getTime() : undefined,
       dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
+      projectValue: projectValue !== "" ? parseFloat(projectValue) : null,
     };
     if (editProject) {
       updateProject.mutate({ id: editProject.id, ...payload });
@@ -385,6 +391,24 @@ function ProjectFormModal({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1.5 block flex items-center gap-1.5">
+              Project Value ($)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={projectValue}
+                onChange={(e) => setProjectValue(e.target.value)}
+                className="pl-7"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Total contract or project value for revenue tracking</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

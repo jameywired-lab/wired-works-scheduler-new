@@ -113,6 +113,20 @@
       "when": 1776281736559,
       "tag": "0015_nasty_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1776285907867,
+      "tag": "0016_glamorous_joshua_kane",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1776286901889,
+      "tag": "0017_ordinary_blackheart",
+      "breakpoints": true
     }
   ]
 }

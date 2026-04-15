@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
@@ -9,17 +10,143 @@ import {
   ExternalLink,
   Loader2,
   MessageSquare,
-  Settings,
+  Save,
   Unlink,
   Zap,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+// ─── SMS Template Editor ──────────────────────────────────────────────────────
+const TEMPLATE_LABELS: Record<string, { label: string; description: string; vars: string[] }> = {
+  booking_confirmation: {
+    label: "Booking Confirmation",
+    description: "Sent automatically when a new job is created.",
+    vars: ["{clientName}", "{jobTitle}", "{date}", "{time}"],
+  },
+  reminder: {
+    label: "1-Hour Reminder",
+    description: "Send manually from the job detail page before an appointment.",
+    vars: ["{clientName}", "{date}", "{time}"],
+  },
+  review_request: {
+    label: "Review Request",
+    description: "Sent automatically when a job is marked completed.",
+    vars: ["{clientName}"],
+  },
+};
+
+const PREVIEW_VARS: Record<string, string> = {
+  "{clientName}": "Jamey",
+  "{fullName}": "Jamey Farrell",
+  "{jobTitle}": "Service Call",
+  "{date}": "April 17th",
+  "{time}": "9:00 AM",
+};
+
+function resolvePreview(body: string) {
+  let out = body;
+  for (const [k, v] of Object.entries(PREVIEW_VARS)) {
+    out = out.replaceAll(k, v);
+  }
+  return out;
+}
+
+function SmsTemplateEditor() {
+  const { data: templates, isLoading } = trpc.smsTemplates.list.useQuery();
+  const saveMutation = trpc.smsTemplates.save.useMutation();
+  const utils = trpc.useUtils();
+
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (templates) {
+      const initial: Record<string, string> = {};
+      templates.forEach((t) => { initial[t.key] = t.body; });
+      setDrafts(initial);
+    }
+  }, [templates]);
+
+  const handleSave = async (key: string) => {
+    try {
+      await saveMutation.mutateAsync({ key, body: drafts[key] });
+      utils.smsTemplates.list.invalidate();
+      toast.success("Template saved!");
+    } catch {
+      toast.error("Failed to save template.");
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading templates…</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(TEMPLATE_LABELS).map(([key, meta]) => {
+        const body = drafts[key] ?? "";
+        const preview = resolvePreview(body);
+        const isDirty = templates?.find((t) => t.key === key)?.body !== body;
+
+        return (
+          <div key={key} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{meta.label}</p>
+                <p className="text-xs text-muted-foreground">{meta.description}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!isDirty || saveMutation.isPending}
+                onClick={() => handleSave(key)}
+                className="shrink-0 ml-3"
+              >
+                {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                Save
+              </Button>
+            </div>
+
+            <Textarea
+              value={body}
+              onChange={(e) => setDrafts((d) => ({ ...d, [key]: e.target.value }))}
+              rows={3}
+              className="text-sm font-mono resize-none"
+              placeholder="Enter message text…"
+            />
+
+            {/* Available variables */}
+            <div className="flex flex-wrap gap-1">
+              {meta.vars.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className="text-[10px] font-mono bg-muted hover:bg-muted/80 text-muted-foreground px-1.5 py-0.5 rounded cursor-pointer"
+                  onClick={() => setDrafts((d) => ({ ...d, [key]: (d[key] ?? "") + v }))}
+                  title={`Insert ${v}`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+
+            {/* Live preview */}
+            <div className="p-3 bg-muted/40 border border-border rounded-lg">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Preview</p>
+              <p className="text-sm text-foreground">{preview || <span className="italic text-muted-foreground">Empty message</span>}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
   const { data: calStatus, isLoading: calLoading } = trpc.googleCalendar.status.useQuery();
@@ -35,7 +162,6 @@ export default function SettingsPage() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code) {
-      // Exchange code via tRPC
       fetch(`/api/trpc/googleCalendar.callback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,15 +179,12 @@ export default function SettingsPage() {
           }
         })
         .catch(() => toast.error("Failed to connect Google Calendar."));
-      // Clean up URL
       window.history.replaceState({}, "", "/settings");
     }
   }, []);
 
   const handleConnectGoogle = () => {
-    if (authUrlData?.url) {
-      window.location.href = authUrlData.url;
-    }
+    if (authUrlData?.url) window.location.href = authUrlData.url;
   };
 
   const handleDisconnectGoogle = async () => {
@@ -160,34 +283,21 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* SMS */}
+      {/* SMS Templates */}
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-primary" /> SMS Notifications
+            <MessageSquare className="h-4 w-4 text-primary" /> SMS Message Templates
           </CardTitle>
         </CardHeader>
-        <CardContent className="px-5 pb-5 space-y-3">
-          <p className="text-sm text-muted-foreground">
-            SMS notifications are powered by <strong className="text-foreground">OpenPhone (Quo)</strong>. Messages are sent from your OpenPhone number <strong className="text-foreground">(904) 685-1240</strong> to your clients automatically.
+        <CardContent className="px-5 pb-5 space-y-2">
+          <p className="text-sm text-muted-foreground mb-4">
+            Customise the text messages sent to clients. Click a variable tag to insert it, or type it directly. The preview shows how the message will look with sample data.
           </p>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <span className="text-muted-foreground"><strong className="text-foreground">Booking confirmation</strong> — sent automatically when a job is created</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <span className="text-muted-foreground"><strong className="text-foreground">1-hour reminder</strong> — send manually from the job detail page</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <span className="text-muted-foreground"><strong className="text-foreground">Review request</strong> — sent automatically when a job is marked completed</span>
-            </div>
-          </div>
-          <div className="p-3 bg-muted/50 border border-border rounded-lg">
-            <p className="text-xs text-muted-foreground font-mono">
-              Required env vars: <span className="text-foreground">OPENPHONE_API_KEY</span>, <span className="text-foreground">OPENPHONE_FROM_NUMBER</span>
+          <SmsTemplateEditor />
+          <div className="pt-2 p-3 bg-muted/50 border border-border rounded-lg">
+            <p className="text-xs text-muted-foreground">
+              Messages are sent from <strong className="text-foreground">(904) 685-1240</strong> via OpenPhone.
             </p>
           </div>
         </CardContent>

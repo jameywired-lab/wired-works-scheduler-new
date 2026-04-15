@@ -44,6 +44,7 @@ import {
   projectCredentials,
   ProjectCredential,
   InsertProjectCredential,
+  smsTemplates,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -242,11 +243,30 @@ export async function listJobs() {
 export async function listJobsByDateRange(startMs: number, endMs: number) {
   const db = await getDb();
   if (!db) return [];
-  return db
+  const jobRows = await db
     .select()
     .from(jobs)
     .where(and(gte(jobs.scheduledStart, startMs), lte(jobs.scheduledStart, endMs)))
     .orderBy(jobs.scheduledStart);
+  if (jobRows.length === 0) return [];
+  // Fetch all assignments for these jobs in one query
+  const jobIds = jobRows.map((j) => j.id);
+  const assignmentRows = await db
+    .select({
+      jobId: jobAssignments.jobId,
+      crewMemberId: jobAssignments.crewMemberId,
+      crewMemberName: crewMembers.name,
+    })
+    .from(jobAssignments)
+    .innerJoin(crewMembers, eq(jobAssignments.crewMemberId, crewMembers.id))
+    .where(inArray(jobAssignments.jobId, jobIds));
+  // Group assignments by jobId
+  const assignmentsByJob = new Map<number, { crewMemberId: number; crewMemberName: string }[]>();
+  for (const a of assignmentRows) {
+    if (!assignmentsByJob.has(a.jobId)) assignmentsByJob.set(a.jobId, []);
+    assignmentsByJob.get(a.jobId)!.push({ crewMemberId: a.crewMemberId, crewMemberName: a.crewMemberName ?? "" });
+  }
+  return jobRows.map((j) => ({ ...j, crew: assignmentsByJob.get(j.id) ?? [] }));
 }
 
 export async function listJobsForCrew(crewMemberId: number) {
@@ -454,7 +474,7 @@ export async function getDashboardData() {
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const [todayJobs, upcomingJobs, recentJobs, clientCount, crewCount] = await Promise.all([
+  const [todayJobs, upcomingJobs, recentJobs, clientCount, crewCount, activeProjectsData] = await Promise.all([
     db
       .select()
       .from(jobs)
@@ -479,17 +499,22 @@ export async function getDashboardData() {
     db.select().from(jobs).orderBy(desc(jobs.updatedAt)).limit(5),
     db.select({ count: sql<number>`count(*)` }).from(clients),
     db.select({ count: sql<number>`count(*)` }).from(crewMembers).where(eq(crewMembers.isActive, true)),
+    db.select({ count: sql<number>`count(*)`, pipelineValue: sql<string>`COALESCE(SUM(projectValue), 0)` })
+      .from(projects)
+      .where(sql`${projects.status} IN ('active', 'on_hold')`),
   ]);
-
+  const activeProjectCount = activeProjectsData[0]?.count ?? 0;
+  const pipelineValue = parseFloat(String(activeProjectsData[0]?.pipelineValue ?? "0"));
   return {
     todayJobs,
     upcomingJobs,
     recentJobs,
     totalClients: clientCount[0]?.count ?? 0,
     totalCrew: crewCount[0]?.count ?? 0,
+    activeProjectCount,
+     pipelineValue,
   };
 }
-
 // ─── Projects ─────────────────────────────────────────────────────────────────
 export async function listProjects() {
   const db = await getDb();
@@ -982,4 +1007,88 @@ export async function getJobPhotosByClient(clientId: number) {
     .innerJoin(jobs, eq(jobPhotos.jobId, jobs.id))
     .where(eq(jobs.clientId, clientId))
     .orderBy(desc(jobPhotos.createdAt));
+}
+
+// ─── SMS Templates ────────────────────────────────────────────────────────────
+const DEFAULT_TEMPLATES: Record<string, string> = {
+  booking_confirmation: "Hi {clientName}, your appointment has been booked with Wired Works for {time} on {date}. We will see you then. If you need to make any changes feel free to respond to this number.",
+  reminder: "Hi {clientName}! Just a reminder that your appointment is tomorrow at {time}. See you then!",
+  review_request: "Hi {clientName}! Thank you for choosing Wired Works. We'd love to hear your feedback! Reply to this message or leave us a review.",
+};
+
+export async function getSmsTemplate(key: string): Promise<string> {
+  const db = await getDb();
+  if (!db) return DEFAULT_TEMPLATES[key] ?? "";
+  const rows = await db.select().from(smsTemplates).where(eq(smsTemplates.key, key)).limit(1);
+  return rows[0]?.body ?? DEFAULT_TEMPLATES[key] ?? "";
+}
+
+export async function listSmsTemplates() {
+  const db = await getDb();
+  const result: Array<{ key: string; body: string; isDefault: boolean }> = [];
+  for (const [key, defaultBody] of Object.entries(DEFAULT_TEMPLATES)) {
+    if (db) {
+      const rows = await db.select().from(smsTemplates).where(eq(smsTemplates.key, key)).limit(1);
+      result.push({ key, body: rows[0]?.body ?? defaultBody, isDefault: !rows[0] });
+    } else {
+      result.push({ key, body: defaultBody, isDefault: true });
+    }
+  }
+  return result;
+}
+
+export async function upsertSmsTemplate(key: string, body: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db
+    .insert(smsTemplates)
+    .values({ key, body })
+    .onDuplicateKeyUpdate({ set: { body } });
+}
+
+// ─── Revenue Report ───────────────────────────────────────────────────────────
+export async function getRevenueReport() {
+  const db = await getDb();
+  if (!db) return { pipeline: [], closed: [], pipelineTotal: 0, closedTotal: 0 };
+
+  const [pipelineRows, closedRows] = await Promise.all([
+    // Active / on-hold projects with a value
+    db
+      .select({
+        id: projects.id,
+        title: projects.title,
+        clientName: clients.name,
+        status: projects.status,
+        projectType: projects.projectType,
+        projectValue: projects.projectValue,
+        startDate: projects.startDate,
+        dueDate: projects.dueDate,
+      })
+      .from(projects)
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(sql`${projects.status} IN ('active', 'on_hold')`)
+      .orderBy(desc(projects.updatedAt)),
+
+    // Completed projects with a value — include completedAt for monthly grouping
+    db
+      .select({
+        id: projects.id,
+        title: projects.title,
+        clientName: clients.name,
+        status: projects.status,
+        projectType: projects.projectType,
+        projectValue: projects.projectValue,
+        completedAt: projects.completedAt,
+        startDate: projects.startDate,
+      })
+      .from(projects)
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(sql`${projects.status} = 'completed' AND ${projects.projectValue} IS NOT NULL`)
+      .orderBy(desc(projects.completedAt)),
+  ]);
+
+  const pipelineTotal = pipelineRows.reduce((s, r) => s + parseFloat(String(r.projectValue ?? "0")), 0);
+  const closedTotal = closedRows.reduce((s, r) => s + parseFloat(String(r.projectValue ?? "0")), 0);
+
+  return { pipeline: pipelineRows, closed: closedRows, pipelineTotal, closedTotal };
 }

@@ -40,6 +40,7 @@ import {
   Users2,
   Zap,
   Mail,
+  TrendingUp,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -56,6 +57,7 @@ const adminNavItems = [
   { icon: Bell, label: "Follow-Ups", path: "/follow-ups" },
   { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
   { icon: Mail, label: "Marketing", path: "/marketing" },
+  { icon: TrendingUp, label: "Revenue Report", path: "/revenue-report" },
   { icon: Users2, label: "Crew", path: "/crew" },
 ];
 

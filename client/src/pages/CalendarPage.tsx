@@ -20,8 +20,61 @@ const JOB_TYPE_COLORS: Record<string, { base: string; muted: string; label: stri
   project_job:  { base: "oklch(0.50 0.18 295)", muted: "oklch(0.42 0.14 295)", label: "Project Job" },
 };
 
-// Dim cancelled events regardless of type
 const CANCELLED_COLOR = "oklch(0.35 0.05 240)";
+
+// ─── Crew initials config ─────────────────────────────────────────────────────
+// Maps crew member name fragments → initials + badge color
+// Add more entries here as the team grows
+const CREW_INITIALS: Array<{ match: string; initials: string; color: string }> = [
+  { match: "warren",  initials: "WL", color: "oklch(0.60 0.20 30)"  },  // orange
+  { match: "jason s", initials: "JS", color: "oklch(0.55 0.20 160)" },  // teal
+  { match: "jason",   initials: "JS", color: "oklch(0.55 0.20 160)" },  // teal (fallback)
+  { match: "jf",      initials: "JF", color: "oklch(0.55 0.20 280)" },  // violet (owner)
+];
+
+// Owner initials (JF) — shown when the job has no crew assigned or owner is assigned
+const OWNER_INITIALS = { initials: "JF", color: "oklch(0.55 0.20 280)" };
+
+function getCrewBadge(name: string): { initials: string; color: string } {
+  const lower = name.toLowerCase();
+  for (const entry of CREW_INITIALS) {
+    if (lower.includes(entry.match)) return entry;
+  }
+  // Fallback: derive initials from name
+  const parts = name.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+  return { initials, color: "oklch(0.50 0.10 240)" };
+}
+
+function CrewBadge({ name, size = "sm" }: { name: string; size?: "sm" | "xs" }) {
+  const { initials, color } = getCrewBadge(name);
+  const dim = size === "xs" ? "14px" : "18px";
+  const fontSize = size === "xs" ? "7px" : "8px";
+  return (
+    <span
+      title={name}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: dim,
+        height: dim,
+        borderRadius: "50%",
+        backgroundColor: color,
+        color: "#fff",
+        fontSize,
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        flexShrink: 0,
+        border: "1px solid rgba(255,255,255,0.25)",
+      }}
+    >
+      {initials}
+    </span>
+  );
+}
 
 export default function CalendarPage() {
   const { user } = useAuth();
@@ -48,7 +101,6 @@ export default function CalendarPage() {
       const typeColors = JOB_TYPE_COLORS[job.jobType ?? "service_call"] ?? JOB_TYPE_COLORS.service_call;
       const isCancelled = job.status === "cancelled";
       const bgColor = isCancelled ? CANCELLED_COLOR : typeColors.base;
-      // Dim completed events slightly
       const finalColor = job.status === "completed" ? typeColors.muted : bgColor;
       return {
         id: String(job.id),
@@ -58,7 +110,11 @@ export default function CalendarPage() {
         backgroundColor: finalColor,
         borderColor: finalColor,
         classNames: [`fc-event-${job.status}`, `fc-type-${job.jobType ?? "service_call"}`],
-        extendedProps: { status: job.status, jobType: job.jobType },
+        extendedProps: {
+          status: job.status,
+          jobType: job.jobType,
+          crew: (job as any).crew ?? [],
+        },
       };
     });
   }, [jobs]);
@@ -104,6 +160,26 @@ export default function CalendarPage() {
           <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: CANCELLED_COLOR }} />
           Cancelled
         </div>
+        <div className="flex items-center gap-3 ml-2 border-l border-border pl-3">
+          {[
+            { initials: "JF", color: "oklch(0.55 0.20 280)", label: "JF (you)" },
+            { initials: "WL", color: "oklch(0.60 0.20 30)",  label: "WL (Warren)" },
+            { initials: "JS", color: "oklch(0.55 0.20 160)", label: "JS (Jason)" },
+          ].map(({ initials, color, label }) => (
+            <div key={initials} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  width: 16, height: 16, borderRadius: "50%", backgroundColor: color,
+                  color: "#fff", fontSize: 8, fontWeight: 700,
+                }}
+              >
+                {initials}
+              </span>
+              {label}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl p-3 md:p-5">
@@ -133,21 +209,30 @@ export default function CalendarPage() {
           allDaySlot={false}
           nowIndicator
           eventTimeFormat={{ hour: "numeric", minute: "2-digit", meridiem: "short" }}
-          buttonText={{
-            today: "Today",
-            month: "Month",
-            week: "Week",
-            day: "Day",
-            list: "List",
+          buttonText={{ today: "Today", month: "Month", week: "Week", day: "Day", list: "List" }}
+          eventContent={(info) => {
+            const crew: Array<{ crewMemberId: number; crewMemberName: string }> =
+              info.event.extendedProps.crew ?? [];
+            return (
+              <div className="px-1 py-0.5 overflow-hidden w-full">
+                <div className="flex items-center gap-1 w-full">
+                  <span className="font-medium text-[11px] leading-tight truncate flex-1 min-w-0">
+                    {info.event.title}
+                  </span>
+                  {crew.length > 0 && (
+                    <span className="flex items-center gap-0.5 shrink-0">
+                      {crew.slice(0, 3).map((c) => (
+                        <CrewBadge key={c.crewMemberId} name={c.crewMemberName} size="xs" />
+                      ))}
+                    </span>
+                  )}
+                </div>
+                {!isMobile && (
+                  <div className="text-[10px] opacity-80 truncate">{info.timeText}</div>
+                )}
+              </div>
+            );
           }}
-          eventContent={(info) => (
-            <div className="px-1 py-0.5 overflow-hidden">
-              <div className="font-medium text-[11px] leading-tight truncate">{info.event.title}</div>
-              {!isMobile && (
-                <div className="text-[10px] opacity-80 truncate">{info.timeText}</div>
-              )}
-            </div>
-          )}
         />
       </div>
 

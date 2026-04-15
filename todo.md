@@ -559,3 +559,45 @@
 - [x] Frontend: Add "Notes & Photos" tab/section to ClientDetailPage showing all notes and photos grouped by job
 - [x] Notes: show job title, date, author, note content — newest job first
 - [x] Photos: show photo grid with job label, click to open full-screen lightbox
+
+## Editable SMS Templates
+
+- [x] Add smsTemplates table (id, key, body, updatedAt) — key is unique (e.g. "booking_confirmation")
+- [x] Apply migration
+- [x] smsTemplates.get procedure: return template by key (or default if not set)
+- [x] smsTemplates.save procedure: upsert template body by key
+- [x] Remove opt-out text from default booking confirmation template
+- [x] Settings page: add "SMS Templates" section with textarea editor + live preview (shows resolved variables like {clientName}, {date}, {time})
+- [x] Wire jobs.create booking SMS to use the saved template body from DB
+
+## Calendar Crew Initials Badges
+
+- [x] Calendar events: fetch job assignments alongside events (join crewMembers)
+- [x] Show small initials circles on each calendar event (WL=Warren, JS=Jason Smith, JF=owner)
+- [x] Each crew member gets a distinct color circle; multiple crew shown side by side
+
+## Project Job Dropdown in Job Form
+
+- [x] JobFormModal: when jobType = project_job, show a "Select Project" dropdown listing active projects (with client name)
+- [x] Selecting a project auto-fills the client dropdown and address field
+- [x] Link the job to the project (add projectId column to jobs table if not present)
+- [x] Project credentials shown in a read-only panel below the project dropdown so crew can see access info
+
+## Project Value & Revenue Forecast
+
+- [x] Add projectValue (decimal, nullable) column to projects table; migrate
+- [x] Project create/edit form: add "Project Value ($)" input field
+- [x] Projects page: show live pipeline total (sum of active project values)
+- [x] Projects page: show monthly closed revenue (sum of completed projects by close month)
+- [x] Revenue report page (/reports/revenue): table of closed projects by month + pipeline summary, printable
+- [x] Dashboard: add pipeline value card
+
+## Dashboard Clickable Stat Cards
+
+- [x] Today's Jobs card → /calendar
+- [x] Remaining card → /calendar
+- [x] Completed card → /calendar
+- [x] Active Clients card → /clients
+- [x] Service Calls Today card → /calendar
+- [x] Active Projects card → /projects
+- [x] Sales Calls Today card → /calendar

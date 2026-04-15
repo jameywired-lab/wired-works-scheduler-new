@@ -83,10 +83,10 @@ export default function Dashboard() {
 
       {/* Stats row — primary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Today's Jobs" value={isLoading ? null : todayJobs.length} icon={<Calendar className="h-4 w-4 text-primary" />} loading={isLoading} />
-        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} loading={isLoading} />
-        <StatCard label="Completed" value={isLoading ? null : completedToday} icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} loading={isLoading} />
-        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-violet-400" />} loading={isLoading} />
+        <StatCard label="Today's Jobs" value={isLoading ? null : todayJobs.length} icon={<Calendar className="h-4 w-4 text-primary" />} loading={isLoading} onClick={() => setLocation("/calendar")} />
+        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} loading={isLoading} onClick={() => setLocation("/calendar")} />
+        <StatCard label="Completed" value={isLoading ? null : completedToday} icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} loading={isLoading} onClick={() => setLocation("/calendar")} />
+        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-violet-400" />} loading={isLoading} onClick={() => setLocation("/clients")} />
       </div>
 
       {/* Job-type breakdown row */}
@@ -96,18 +96,21 @@ export default function Dashboard() {
           value={isLoading ? null : serviceCallsToday}
           icon={<Wrench className="h-4 w-4 text-blue-400" />}
           loading={isLoading}
+          onClick={() => setLocation("/calendar")}
         />
         <StatCard
           label="Active Projects"
           value={isLoading ? null : projectJobsActive}
           icon={<Briefcase className="h-4 w-4 text-violet-400" />}
           loading={isLoading}
+          onClick={() => setLocation("/projects")}
         />
         <StatCard
           label="Sales Calls Today"
           value={isLoading ? null : salesCallsToday}
           icon={<Phone className="h-4 w-4 text-emerald-400" />}
           loading={isLoading}
+          onClick={() => setLocation("/calendar")}
         />
       </div>
 
@@ -617,18 +620,24 @@ function ProjectMiniCard({
 }
 
 // ─── Shared Components ────────────────────────────────────────────────────────
-function StatCard({ label, value, icon, loading, accent }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string }) {
-  return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-muted-foreground font-medium">{label}</p>
-          {icon}
-        </div>
-        {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{value}</p>}
-      </CardContent>
-    </Card>
+function StatCard({ label, value, icon, loading, accent, onClick }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string; onClick?: () => void }) {
+  const inner = (
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+        {icon}
+      </div>
+      {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{value}</p>}
+    </CardContent>
   );
+  if (onClick) {
+    return (
+      <Card className="bg-card border-border cursor-pointer hover:border-primary/40 hover:shadow-md transition-all" onClick={onClick}>
+        {inner}
+      </Card>
+    );
+  }
+  return <Card className="bg-card border-border">{inner}</Card>;
 }
 
 function JobCard({ job, onClick }: { job: { id: number; title: string; status: string; scheduledStart: number; scheduledEnd: number; address?: string | null }; onClick: () => void }) {

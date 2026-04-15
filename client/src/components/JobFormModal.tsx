@@ -17,12 +17,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import {
   Briefcase,
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  KeyRound,
   Loader2,
   MapPin,
   Phone,
@@ -95,6 +97,10 @@ export default function JobFormModal({
     { id: jobId! },
     { enabled: isEdit && open }
   );
+  // Projects for project_job type
+  const { data: allProjects } = trpc.projects.list.useQuery();
+  const activeProjects = allProjects?.filter((p) => p.status === "active" || p.status === "on_hold") ?? [];
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const createJob = trpc.jobs.create.useMutation();
   const updateJob = trpc.jobs.update.useMutation();
@@ -119,6 +125,32 @@ export default function JobFormModal({
     sendBookingSms: true,
     syncToGoogleCalendar: true,
   });
+
+  // Fetch credentials for selected project
+  const { data: projectCredentials } = trpc.projectCredentials.list.useQuery(
+    { projectId: Number(selectedProjectId) },
+    { enabled: !!selectedProjectId && form.jobType === "project_job" }
+  );
+
+  // When a project is selected, auto-fill client
+  const handleProjectSelect = (projectIdStr: string) => {
+    setSelectedProjectId(projectIdStr);
+    const project = activeProjects.find((p) => String(p.id) === projectIdStr);
+    if (project) {
+      const selectedClient = clients?.find((c) => c.id === project.clientId);
+      const clientAddr = selectedClient
+        ? [selectedClient.addressLine1, selectedClient.addressLine2, selectedClient.city, selectedClient.state, selectedClient.zip]
+            .filter(Boolean).join(", ")
+        : "";
+      setForm((f) => ({
+        ...f,
+        clientId: String(project.clientId),
+        title: f.title || project.title,
+        address: clientAddr || f.address,
+        selectedAddressId: "custom",
+      }));
+    }
+  };
 
   // Inline new-client form state
   const [showNewClient, setShowNewClient] = useState(false);
@@ -305,6 +337,55 @@ export default function JobFormModal({
               })}
             </div>
           </div>
+
+          {/* Project selector — only shown when job type is project_job */}
+          {form.jobType === "project_job" && (
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5 text-violet-400" />
+                Link to Project
+              </Label>
+              <Select value={selectedProjectId} onValueChange={handleProjectSelect}>
+                <SelectTrigger className="bg-input border-border">
+                  <SelectValue placeholder="Select an active project…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeProjects.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No active projects found</div>
+                  ) : (
+                    activeProjects.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        <span className="font-medium">{p.title}</span>
+                        {p.clientName && (
+                          <span className="text-muted-foreground ml-1.5 text-xs">— {p.clientName}</span>
+                        )}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+
+              {/* Project credentials panel */}
+              {selectedProjectId && projectCredentials && projectCredentials.length > 0 && (
+                <div className="mt-2 p-3 bg-violet-500/5 border border-violet-500/20 rounded-lg space-y-2">
+                  <p className="text-xs font-medium text-violet-400 flex items-center gap-1.5">
+                    <KeyRound className="h-3.5 w-3.5" />
+                    Project Credentials
+                  </p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {projectCredentials.map((cred) => (
+                      <div key={cred.id} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{cred.label}</span>
+                        <span className="font-mono text-foreground bg-muted px-2 py-0.5 rounded select-all">
+                          {cred.value || <span className="italic text-muted-foreground">not set</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Client */}
           <div className="space-y-1.5">
