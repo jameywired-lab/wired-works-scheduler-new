@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { handleOpenPhoneWebhook } from "../openphoneWebhook";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +36,8 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  // OpenPhone inbound webhook — auto-creates follow-ups for inbound SMS and missed calls/voicemails
+  app.post("/api/openphone/webhook", handleOpenPhoneWebhook);
   // tRPC API
   app.use(
     "/api/trpc",

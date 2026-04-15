@@ -731,3 +731,12 @@ export async function getFollowUpById(id: number) {
   const rows = await db.select().from(followUps).where(eq(followUps.id, id)).limit(1);
   return rows[0];
 }
+
+export async function getClientByPhone(phone: string): Promise<Client | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  // Normalise to digits only for comparison
+  const digits = phone.replace(/\D/g, "");
+  const all = await db.select().from(clients).orderBy(clients.name);
+  return all.find((c) => c.phone && c.phone.replace(/\D/g, "").endsWith(digits.slice(-10)));
+}

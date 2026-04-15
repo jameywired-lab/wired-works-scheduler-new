@@ -243,6 +243,8 @@ export const followUps = mysqlTable("followUps", {
   proposalSentAt: bigint("proposalSentAt", { mode: "number" }), // UTC ms — when proposal was sent
   isUrgent: boolean("isUrgent").default(false).notNull(),
   urgentAt: bigint("urgentAt", { mode: "number" }), // UTC ms — when it became urgent
+  remindAt: bigint("remindAt", { mode: "number" }), // UTC ms — snooze until this time
+  clientContacted: boolean("clientContacted").default(false).notNull(), // pinned to top when true
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

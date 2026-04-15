@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   closeJob,
+  createCrewNote,
   createFollowUp,
   createMilestone,
   createProject,
@@ -262,7 +263,14 @@ export const followUpsRouter = router({
         followUpNote = `Client happy — ready for billing. Notes: ${closeoutNotes}`;
       }
 
-      // 3. Create the follow-up
+      // 3. Auto-log close-out notes as a crew field note on the job
+      await createCrewNote({
+        jobId,
+        content: `[Close-Out] ${closeoutNotes}`,
+        authorName: contactName ?? "Tech",
+      });
+
+      // 4. Create the follow-up
       await createFollowUp({
         contactName: contactName ?? undefined,
         phone: phone ?? undefined,
@@ -350,5 +358,22 @@ export const followUpsRouter = router({
       }
 
       return { success: true, outcome };
+    }),
+
+  // ── Snooze follow-up until tomorrow ─────────────────────────────────────────────────────
+  remindTomorrow: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const tomorrow = Date.now() + 24 * 60 * 60 * 1000;
+      await updateFollowUp(input.id, { remindAt: tomorrow });
+      return { success: true };
+    }),
+
+  // ── Mark client as contacted — pins to top of list ───────────────────────────────
+  markClientContacted: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await updateFollowUp(input.id, { clientContacted: true });
+      return { success: true };
     }),
 });

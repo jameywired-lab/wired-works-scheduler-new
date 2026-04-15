@@ -181,6 +181,7 @@ export default function Dashboard() {
 // ─── Follow-Up Panel ──────────────────────────────────────────────────────────
 function FollowUpPanel() {
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -235,7 +236,16 @@ function FollowUpPanel() {
 
   const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
 
-  const pending = allFollowUps.filter((f) => !f.isFollowedUp);
+  const now2 = Date.now();
+  const pending = allFollowUps
+    .filter((f) => !f.isFollowedUp && (!(f as any).remindAt || (f as any).remindAt <= now2))
+    .sort((a, b) => {
+      if ((a as any).clientContacted && !(b as any).clientContacted) return -1;
+      if (!(a as any).clientContacted && (b as any).clientContacted) return 1;
+      if (a.isUrgent && !b.isUrgent) return -1;
+      if (!a.isUrgent && b.isUrgent) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   const done = allFollowUps.filter((f) => f.isFollowedUp);
 
   // Auto-mark urgent if proposal sent > 24h ago (in effect to avoid render-phase side-effects)
@@ -281,9 +291,14 @@ function FollowUpPanel() {
               </Badge>
             )}
           </CardTitle>
-          <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
-            <Plus className="h-3 w-3 mr-1" /> Add
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setLocation("/follow-ups")}>
+              View All
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
+              <Plus className="h-3 w-3 mr-1" /> Add
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-3">

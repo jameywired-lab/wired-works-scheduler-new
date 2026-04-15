@@ -249,3 +249,42 @@
 - [x] Proposal outcome buttons: "Client Accepted", "Client Declined", "Client Not Ready Yet"
 - [x] Client Accepted: opens mini create-project dialog, then removes follow-up
 - [x] Client Declined / Not Ready Yet: removes follow-up from active list
+
+## Follow-Up Page & Close-Out Field Note Sync
+
+### Backend
+- [x] Auto-log close-out notes as a crewNote when followUps.closeOut is called (jobId + notes + authorName)
+- [x] Add remindAt (bigint) column to followUps table — used for "Remind Me Tomorrow"
+- [x] Add clientContacted (boolean, default false) column to followUps table
+- [x] followUps.remindTomorrow procedure: set remindAt = now + 24h
+- [x] followUps.markClientContacted procedure: set clientContacted=true, move to front of list (sort by clientContacted desc, then createdAt desc)
+- [x] followUps.list: sort order — clientContacted first, then by createdAt desc (client-side sort on FollowUpPage)
+
+### Frontend — Dedicated Follow-Up Page
+- [x] Create FollowUpPage.tsx at /follow-ups route
+- [x] Show ALL active follow-ups (not just today's) in a full-page list
+- [x] Sort: Client Contacted items pinned to top with a distinct badge
+- [x] Each card: Complete button, Remind Me Tomorrow button, Client Contacted button
+- [x] Remind Me Tomorrow: grays out item until tomorrow (based on remindAt)
+- [x] Client Contacted: moves item to top of list with a "Contacted" badge
+- [x] Completed items shown in a collapsed "Done" section at the bottom
+- [x] Add "Follow-Up" to sidebar navigation (admin view)
+
+### Frontend — Dashboard Panel Update
+- [x] Dashboard Follow-Up panel: add "View All" link → /follow-ups
+- [x] Dashboard Follow-Up panel: show client-contacted items at top
+
+## OpenPhone Inbound Webhook → Follow-Up Auto-Creation
+
+### Backend
+- [x] Extend /api/openphone/webhook endpoint to handle message.received events (inbound SMS)
+- [x] Extend /api/openphone/webhook endpoint to handle call.completed events (missed call/voicemail)
+- [x] For inbound SMS: create followUp with type=text, contactName from participants, phone from from field, note=message body
+- [x] For voicemail/missed call: create followUp with type=call, note includes transcription if available
+- [x] Match inbound number against existing clients table to populate contactName automatically
+- [ ] Deduplicate: skip creating follow-up if same phone + same minute already exists (future improvement)
+- [ ] Webhook secret validation (OpenPhone sends x-openphone-signature header) (future improvement)
+
+### Frontend
+- [x] Follow-Up page: show source badge (SMS / Call / Manual / Close-Out / Proposal) on each card
+- [x] Follow-Up page: show phone number and matched client name if available

@@ -50,6 +50,13 @@
       "when": 1776261454037,
       "tag": "0006_slow_lucky_pierre",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1776262989643,
+      "tag": "0007_bright_captain_cross",
+      "breakpoints": true
     }
   ]
 }

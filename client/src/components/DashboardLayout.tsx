@@ -23,6 +23,7 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  Bell,
   Calendar,
   FolderOpen,
   LayoutDashboard,
@@ -50,6 +51,7 @@ const adminNavItems = [
   { icon: Calendar, label: "Calendar", path: "/calendar" },
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: FolderOpen, label: "Projects", path: "/projects" },
+  { icon: Bell, label: "Follow-Ups", path: "/follow-ups" },
   { icon: Users2, label: "Crew", path: "/crew" },
 ];
 
