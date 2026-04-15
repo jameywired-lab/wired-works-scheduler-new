@@ -519,7 +519,8 @@ export async function updateProject(id: number, data: Partial<InsertProject>) {
 export async function deleteProject(id: number) {
   const db = await getDb();
   if (!db) return;
-  // milestones and reminders cascade-delete via FK
+  // Delete projectCredentials first (no cascade), then project (milestones/reminders cascade via FK)
+  await db.delete(projectCredentials).where(eq(projectCredentials.projectId, id));
   await db.delete(projects).where(eq(projects.id, id));
 }
 

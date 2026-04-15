@@ -349,3 +349,10 @@
 - [x] Add GET /api/webhooks/proposal-accepted/info endpoint that returns the expected field schema (for Zapier testing)
 - [x] In-memory log of last 10 webhook calls returned by /info endpoint
 - [x] Update vitest tests for new field mapping (7 tests, all passing)
+
+## Project Delete & Webhook Deduplication
+
+- [x] Add projects.delete procedure to backend (delete project by id, owner-only)
+- [x] Webhook: check for existing project with same name before creating a new one (dedup by name)
+- [x] Delete button already existed in three-dot menu on project cards; fixed FK constraint error (projectCredentials deleted first)
+- [x] Confirmed delete removes project and its associated credentials (projectCredentials) and milestones/reminders (cascade)

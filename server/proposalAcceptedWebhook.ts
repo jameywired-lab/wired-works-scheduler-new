@@ -25,7 +25,7 @@
 import type { Request, Response } from "express";
 import { getDb, seedProjectCredentials } from "./db";
 import { clients, projects, followUps } from "../drizzle/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, like } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { ENV } from "./_core/env";
 
@@ -178,6 +178,25 @@ export async function handleProposalAcceptedWebhook(req: Request, res: Response)
         addressLine1: clientAddress ?? null,
       });
       clientId = (result as any).insertId as number;
+    }
+
+    // Dedup: if a project with the same title already exists, return it instead of creating a duplicate
+    const existingProject = await db
+      .select({ id: projects.id, title: projects.title })
+      .from(projects)
+      .where(like(projects.title, projectTitle))
+      .limit(1);
+
+    if (existingProject.length > 0) {
+      const existingId = existingProject[0].id;
+      logCall({ receivedAt, status: "ok", projectTitle, clientName, message: `Duplicate skipped — project #${existingId} already exists` });
+      return res.status(200).json({
+        success: true,
+        projectId: existingId,
+        clientId,
+        duplicate: true,
+        message: `Project "${projectTitle}" already exists (id: ${existingId}) — skipped duplicate creation`,
+      });
     }
 
     // Create project
