@@ -391,3 +391,14 @@
 - [x] Add "inventory" to followUp source enum in schema (alongside sms/call/closeout/proposal/manual)
 - [x] Follow-Up page: show "Inventory" source badge (orange/amber color) on inventory-sourced cards
 - [x] Follow-Up page: inventory follow-ups show the item/part name prominently
+
+## Inventory Item Editor (Admin)
+
+- [x] inventory.createItem procedure: insert new item (name, targetQty, sortOrder = max+1)
+- [x] inventory.updateItem procedure: update name and/or targetQty for an item
+- [x] inventory.deleteItem procedure: delete an item by id
+- [x] VanInventoryPage: "Edit Inventory" toggle button in page header
+- [x] Edit mode: each row shows inline name text input + target qty number input + delete (trash) button
+- [x] Edit mode: "Add Item" row at the bottom with name + target qty inputs and an Add button
+- [x] Edit mode: changes save on blur/Enter, delete prompts confirmation dialog
+- [x] Exit edit mode: "Done Editing" button returns to normal checklist view

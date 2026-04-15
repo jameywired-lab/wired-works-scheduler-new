@@ -730,7 +730,7 @@ const projectCredentialsRouter = router({
 // ─── Inventory Router ───────────────────────────────────────────────────────
 import { getDb } from "./db";
 import { vanInventoryItems, partsRequests } from "../drizzle/schema";
-import { asc, desc as descOp, eq as eqOp } from "drizzle-orm";
+import { asc, desc as descOp, eq as eqOp, sql as sqlExpr } from "drizzle-orm";
 
 const inventoryRouter = router({
   listItems: p.query(async () => {
@@ -738,6 +738,45 @@ const inventoryRouter = router({
     if (!db) return [];
     return db.select().from(vanInventoryItems).orderBy(asc(vanInventoryItems.sortOrder));
   }),
+
+  createItem: p
+    .input(z.object({ name: z.string().min(1), targetQty: z.number().int().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      // Place new item at the end
+      const [maxRow] = await db.select({ maxSort: sqlExpr<number>`MAX(sortOrder)` }).from(vanInventoryItems);
+      const nextSort = (maxRow?.maxSort ?? -1) + 1;
+      await db.insert(vanInventoryItems).values({
+        name: input.name,
+        targetQty: input.targetQty,
+        currentQty: 0,
+        sortOrder: nextSort,
+      });
+      return { success: true };
+    }),
+
+  updateItem: p
+    .input(z.object({ id: z.number(), name: z.string().min(1).optional(), targetQty: z.number().int().min(1).optional() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const updates: Record<string, unknown> = {};
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.targetQty !== undefined) updates.targetQty = input.targetQty;
+      if (Object.keys(updates).length === 0) return { success: true };
+      await db.update(vanInventoryItems).set(updates).where(eqOp(vanInventoryItems.id, input.id));
+      return { success: true };
+    }),
+
+  deleteItem: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(vanInventoryItems).where(eqOp(vanInventoryItems.id, input.id));
+      return { success: true };
+    }),
 
   updateCurrentQty: p
     .input(z.object({ id: z.number(), currentQty: z.number().min(0) }))
