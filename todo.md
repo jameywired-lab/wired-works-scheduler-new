@@ -701,3 +701,10 @@
 ## Bug Fix — SMS Time Timezone
 
 - [x] Fix SMS confirmation text showing UTC time instead of local Eastern time (e.g. 10:30 AM EDT booked shows as 2:30 PM in SMS) — fixed by adding timeZone: "America/New_York" to both booking and reminder SMS formatters
+
+## Client Detail — Contact Info & Credentials Fix
+
+- [x] Merge address into contact info section (show phone, email, address all together — no separate address tab)
+- [x] Fix client credentials section: make label and value both editable inline, add new credential button, delete per row
+- [x] Mobile crew nav: Van Inventory already in crew bottom nav (confirmed); improved nav colors (navy bg, yellow active state)
+- [x] Mobile top bar: navy background, white logo, current page label, user avatar dropdown

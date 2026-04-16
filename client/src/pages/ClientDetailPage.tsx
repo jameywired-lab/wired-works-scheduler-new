@@ -237,12 +237,17 @@ export default function ClientDetailPage() {
         </Button>
       </div>
 
-      {/* Contact info */}
+      {/* Contact info — phone, email, address all in one card */}
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Contact Information
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Contact Information
+            </CardTitle>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openNewAddress}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Address
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {client.phone && (
@@ -252,10 +257,7 @@ export default function ClientDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Phone</p>
-                <a
-                  href={`tel:${client.phone}`}
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
+                <a href={`tel:${client.phone}`} className="text-sm font-medium hover:text-primary transition-colors">
                   {client.phone}
                 </a>
               </div>
@@ -268,143 +270,75 @@ export default function ClientDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Email</p>
-                <a
-                  href={`mailto:${client.email}`}
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
+                <a href={`mailto:${client.email}`} className="text-sm font-medium hover:text-primary transition-colors">
                   {client.email}
                 </a>
               </div>
+            </div>
+          )}
+          {/* Primary address from client record */}
+          {client.addressLine1 && (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <MapPin className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Address</p>
+                <p className="text-sm font-medium leading-snug">
+                  {[client.addressLine1, client.addressLine2, client.city, client.state, client.zip].filter(Boolean).join(", ")}
+                </p>
+              </div>
+              <Button
+                variant="ghost" size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
+                title="Get directions"
+                onClick={() => openDirections([client.addressLine1, client.city, client.state, client.zip].filter(Boolean).join(", "))}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+          {/* Additional saved addresses */}
+          {!addressesLoading && addresses && addresses.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-border">
+              {addresses.map((addr) => {
+                const fullAddr = buildAddressString(addr);
+                return (
+                  <div key={addr.id} className="flex items-start justify-between gap-3 p-2.5 bg-muted/40 rounded-lg border border-border/50">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-semibold">{addr.label}</span>
+                          {addr.isPrimary && (
+                            <Badge className="bg-primary/15 text-primary border-0 text-[10px] px-1.5 py-0 rounded-full">
+                              <Star className="h-2.5 w-2.5 mr-0.5 fill-current" />Primary
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{fullAddr}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => openDirections(fullAddr)}>
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => openEditAddress(addr)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteAddress.mutate({ id: addr.id })}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
           {client.notes && (
             <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Notes</p>
               <p className="text-sm text-foreground/80">{client.notes}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Addresses section */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Addresses
-            </CardTitle>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openNewAddress}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Address
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {addressesLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-16 rounded-lg" />
-              ))}
-            </div>
-          ) : !addresses || addresses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <MapPin className="h-8 w-8 text-muted-foreground/30 mb-2" />
-              {client?.addressLine1 ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-1">Address on file:</p>
-                  <p className="text-sm font-medium mb-3">
-                    {[client.addressLine1, client.addressLine2, client.city, client.state, client.zip].filter(Boolean).join(", ")}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openDirections([client.addressLine1, client.city, client.state, client.zip].filter(Boolean).join(", "))}>
-                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> Directions
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setAddressForm({
-                          ...emptyAddressForm(),
-                          addressLine1: client.addressLine1 ?? "",
-                          addressLine2: client.addressLine2 ?? "",
-                          city: client.city ?? "",
-                          state: client.state ?? "",
-                          zip: client.zip ?? "",
-                          isPrimary: true,
-                        });
-                        setEditingAddressId(null);
-                        setShowAddressModal(true);
-                      }}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Save as Address
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">No addresses saved yet.</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={openNewAddress}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add First Address
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {addresses.map((addr) => {
-                const fullAddr = buildAddressString(addr);
-                return (
-                  <div
-                    key={addr.id}
-                    className="flex items-start justify-between gap-3 p-3 bg-muted/40 rounded-lg border border-border/50"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <MapPin className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold">{addr.label}</span>
-                          {addr.isPrimary && (
-                            <Badge className="bg-primary/15 text-primary border-0 text-[10px] px-1.5 py-0 rounded-full">
-                              <Star className="h-2.5 w-2.5 mr-0.5 fill-current" />
-                              Primary
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5 leading-snug">{fullAddr}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-primary"
-                        title="Get directions"
-                        onClick={() => openDirections(fullAddr)}
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        title="Edit address"
-                        onClick={() => openEditAddress(addr)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        title="Delete address"
-                        onClick={() => deleteAddress.mutate({ id: addr.id })}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           )}
         </CardContent>
@@ -693,14 +627,20 @@ function ClientCredentialsSection({ clientId }: { clientId: number }) {
   });
 
   const [shown, setShown] = useState<Record<number, boolean>>({});
-  const [editing, setEditing] = useState<Record<number, string>>({});
+  const [editingVal, setEditingVal] = useState<Record<number, string>>({});
+  const [editingLabel, setEditingLabel] = useState<Record<number, string>>({});
   const [newLabel, setNewLabel] = useState("");
   const [newValue, setNewValue] = useState("");
 
   const toggleShow = (id: number) => setShown((s) => ({ ...s, [id]: !s[id] }));
 
-  const handleBlur = (id: number, key: string, label: string, val: string) => {
+  const handleValueBlur = (id: number, key: string, label: string, val: string) => {
     upsert.mutate({ clientId, key, label, value: val });
+  };
+
+  const handleLabelBlur = (id: number, key: string, newLabelVal: string, currentVal: string) => {
+    if (!newLabelVal.trim()) return;
+    upsert.mutate({ clientId, key, label: newLabelVal.trim(), value: currentVal });
   };
 
   const handleAdd = () => {
@@ -741,20 +681,29 @@ function ClientCredentialsSection({ clientId }: { clientId: number }) {
             {(creds ?? []).map((c) => {
               const sensitive = isSensitive(c.label);
               const isVisible = shown[c.id] || !sensitive;
-              const editVal = editing[c.id] ?? c.value ?? "";
+              const editVal = editingVal[c.id] ?? c.value ?? "";
+              const editLbl = editingLabel[c.id] ?? c.label ?? "";
               return (
                 <div key={c.id} className="flex items-center gap-2 group">
-                  <div className="w-32 shrink-0">
-                    <p className="text-xs font-medium text-muted-foreground truncate">{c.label}</p>
+                  <div className="w-36 shrink-0">
+                    <Input
+                      value={editLbl}
+                      onChange={(e) =>
+                        setEditingLabel((prev) => ({ ...prev, [c.id]: e.target.value }))
+                      }
+                      onBlur={() => handleLabelBlur(c.id, c.key, editLbl, editVal)}
+                      className="h-8 text-xs font-medium bg-muted/50 border-border"
+                      placeholder="Label"
+                    />
                   </div>
                   <div className="flex-1 relative">
                     <Input
                       type={sensitive && !isVisible ? "password" : "text"}
                       value={editVal}
                       onChange={(e) =>
-                        setEditing((prev) => ({ ...prev, [c.id]: e.target.value }))
+                        setEditingVal((prev) => ({ ...prev, [c.id]: e.target.value }))
                       }
-                      onBlur={() => handleBlur(c.id, c.key, c.label, editVal)}
+                      onBlur={() => handleValueBlur(c.id, c.key, editLbl, editVal)}
                       className="h-8 text-sm bg-input border-border pr-8"
                       placeholder="—"
                     />

@@ -312,28 +312,26 @@ function DashboardLayoutContent({
       <SidebarInset className={isMobile ? "pb-16" : ""}>
         {/* Mobile top bar */}
         {isMobile && (
-          <div className="flex border-b border-border h-14 items-center justify-between bg-background/95 px-4 backdrop-blur sticky top-0 z-40">
+          <div className="flex h-14 items-center justify-between px-4 sticky top-0 z-40" style={{ background: "var(--sidebar)" }}>
             <div className="flex items-center gap-2">
               <img
                 src="https://d2xsxph8kpxj0f.cloudfront.net/310519663534371359/gYJ9uUE9i5ygur2GefRATd/wired-works-logo_d2ca4ec2.png"
                 alt="Wired Works"
-                className="h-7 w-auto object-contain dark:invert"
+                className="h-8 w-auto object-contain"
+                style={{ filter: "brightness(0) invert(1)" }}
               />
-              <span className="font-bold tracking-tight text-sm">{activeLabel}</span>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="focus:outline-none">
-                  <Avatar className="h-8 w-8 border border-border">
-                    <AvatarFallback className="text-xs font-semibold bg-primary/20 text-primary">{initials}</AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-white/80">{activeLabel}</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="focus:outline-none">
+                    <Avatar className="h-8 w-8 border border-white/20">
+                      <AvatarFallback className="text-xs font-semibold bg-white/20 text-white">{initials}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={toggleTheme}>
-                    {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation("/settings")}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
@@ -352,6 +350,7 @@ function DashboardLayoutContent({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+            </div>
           </div>
         )}
 
@@ -359,7 +358,7 @@ function DashboardLayoutContent({
 
         {/* Mobile bottom nav */}
         {isMobile && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t border-sidebar-border">
+          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border" style={{ background: "var(--sidebar)" }}>
             <div className="flex items-center justify-around h-16 px-2">
               {(isCrew ? crewBottomNavItems : adminBottomNavItems).map((item) => {
                 const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
@@ -368,11 +367,11 @@ function DashboardLayoutContent({
                     key={item.path}
                     onClick={() => setLocation(item.path)}
                     className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${
-                      isActive ? "text-primary" : "text-muted-foreground"
+                      isActive ? "text-white" : "text-white/50"
                     }`}
                   >
-                    <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />
-                    <span className="text-[10px] font-medium">{item.label}</span>
+                    <item.icon className={`h-5 w-5 ${isActive ? "text-yellow-300" : ""}`} />
+                    <span className={`text-[10px] font-medium ${isActive ? "text-yellow-300" : ""}`}>{item.label}</span>
                   </button>
                 );
               })}
