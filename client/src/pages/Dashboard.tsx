@@ -93,7 +93,6 @@ export default function Dashboard() {
           loading={isLoading}
           onClick={() => setLocation("/calendar")}
         />
-        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} iconBg="bg-amber-500/15" accent="border-l-amber-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
         <StatCard
           label="Active Projects"
           value={isLoading ? null : projectJobsActive}
