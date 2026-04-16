@@ -179,7 +179,7 @@ function DashboardLayoutContent({
       {!isMobile && (
         <div className="relative" ref={sidebarRef}>
           <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar" disableTransition={isResizing}>
-            <SidebarHeader className="h-16 justify-center border-b border-sidebar-border">
+            <SidebarHeader className="h-28 justify-center border-b border-sidebar-border">
               <div className="flex items-center gap-3 px-2">
                 <button
                   onClick={toggleSidebar}
@@ -193,8 +193,8 @@ function DashboardLayoutContent({
                     <img
                       src="https://d2xsxph8kpxj0f.cloudfront.net/310519663534371359/gYJ9uUE9i5ygur2GefRATd/wired-works-logo_d2ca4ec2.png"
                       alt="Wired Works"
-                      className="h-8 w-auto object-contain invert brightness-0 invert"
-                      style={{ filter: "brightness(0) invert(1)" }}
+                      className="w-auto object-contain"
+                      style={{ filter: "brightness(0) invert(1)", height: "96px" }}
                     />
                   </div>
                 )}
