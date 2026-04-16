@@ -322,13 +322,16 @@ const jobsRouter = router({
       // Send booking SMS
       if (sendBookingSms && newJob && client?.phone) {
         const startDate = new Date(input.scheduledStart);
+        const tzOptions = { timeZone: "America/New_York" } as const;
         const dateStr = startDate.toLocaleDateString("en-US", {
           month: "long",
           day: "numeric",
+          ...tzOptions,
         });
         const timeStr = startDate.toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
+          ...tzOptions,
         });
         // Load template from DB (falls back to default if not customised)
         const templateBody = await getSmsTemplate("booking_confirmation");
@@ -463,7 +466,7 @@ const jobsRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Client has no phone number" });
 
       const startDate = new Date(job.scheduledStart);
-      const timeStr = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      const timeStr = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
       const body = `Hi ${client.name}! Just a reminder that your appointment is in 1 hour at ${timeStr}. See you soon! Reply STOP to opt out.`;
       const result = await sendSms(client.phone, body);
       await createSmsLog({

@@ -697,3 +697,7 @@
 - [x] Update stat cards to white with light borders and navy accents (via CSS variables)
 - [x] Update dashboard schedule, panels, and Follow-Up card to light mode
 - [x] Set ThemeProvider to light only
+
+## Bug Fix — SMS Time Timezone
+
+- [x] Fix SMS confirmation text showing UTC time instead of local Eastern time (e.g. 10:30 AM EDT booked shows as 2:30 PM in SMS) — fixed by adding timeZone: "America/New_York" to both booking and reminder SMS formatters
