@@ -746,6 +746,37 @@ const projectCredentialsRouter = router({
       await upsertProjectCredential(input.projectId, input.key, input.label, input.value);
       return { success: true };
     }),
+
+  // Add a brand-new custom credential row
+  add: p
+    .input(z.object({ projectId: z.number(), label: z.string().min(1), value: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const key = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      await db.insert(projectCredentials).values({ projectId: input.projectId, key, label: input.label, value: input.value });
+      return { success: true };
+    }),
+
+  // Delete a credential permanently
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(projectCredentials).where(eq(projectCredentials.id, input.id));
+      return { success: true };
+    }),
+
+  // Update label of a credential
+  updateLabel: p
+    .input(z.object({ id: z.number(), label: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(projectCredentials).set({ label: input.label }).where(eq(projectCredentials.id, input.id));
+      return { success: true };
+    }),
 });
 
 // ─── Client Credentials Router ───────────────────────────────────────────────────────
@@ -1140,7 +1171,72 @@ const smsTemplatesRouter = router({
     }),
 });
 
-// ─── App Router ───────────────────────────────────────────────────────────────────────────────
+// ─── Project Notes Router ────────────────────────────────────────────
+import {
+  listProjectNotes,
+  createProjectNote,
+  deleteProjectNote,
+  listProjectPhotos,
+  createProjectPhoto,
+  deleteProjectPhoto,
+} from "./db";
+const projectNotesRouter = router({
+  list: p
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => listProjectNotes(input.projectId)),
+  create: p
+    .input(z.object({ projectId: z.number(), body: z.string().min(1), authorName: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      await createProjectNote(input);
+      return { success: true };
+    }),
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteProjectNote(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── Project Photos Router ────────────────────────────────────────────
+const projectPhotosRouter = router({
+  list: p
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => listProjectPhotos(input.projectId)),
+  upload: p
+    .input(z.object({
+      projectId: z.number(),
+      filename: z.string(),
+      mimeType: z.string(),
+      sizeBytes: z.number().optional(),
+      base64: z.string(), // base64-encoded file data
+      uploadedBy: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { storagePut } = await import("./storage");
+      const buffer = Buffer.from(input.base64, "base64");
+      const key = `project-photos/${input.projectId}/${Date.now()}-${input.filename}`;
+      const { url } = await storagePut(key, buffer, input.mimeType);
+      await createProjectPhoto({
+        projectId: input.projectId,
+        s3Key: key,
+        s3Url: url,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        uploadedBy: input.uploadedBy,
+      });
+      return { success: true, url };
+    }),
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteProjectPhoto(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -1164,12 +1260,15 @@ export const appRouter = router({
   jobPhotos: jobPhotosRouter,
   messaging: messagingRouter,
   tags: tagsRouter,
-   jobDocuments: jobDocumentsRouter,
+  jobDocuments: jobDocumentsRouter,
   projectCredentials: projectCredentialsRouter,
   clientCredentials: clientCredentialsRouter,
   inventory: inventoryRouter,
   marketing: marketingRouter,
   communications: communicationsRouter,
   smsTemplates: smsTemplatesRouter,
+  projectNotes: projectNotesRouter,
+  projectPhotos: projectPhotosRouter,
+  system: systemRouter,
 });
 export type AppRouter = typeof appRouter;

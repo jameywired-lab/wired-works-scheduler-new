@@ -665,3 +665,16 @@
 ## Bug Fix — Google Places Autocomplete in New Client Form
 
 - [x] Fix Google Places autocomplete not working on Address Line 1 field in the new client creation form
+
+## Project Credentials & Notes/Photos
+
+- [x] Project credentials: make label and value both editable inline, with Save button per row
+- [x] Project credentials: add "Add Credential" button to create new blank credential rows
+- [x] Project credentials: add Delete button per row to permanently remove a credential
+- [x] Remove "Smart Hub Controller Pin" and "Alarm Code" from default credential seed/templates (14 rows deleted from DB)
+- [x] DB: projectNotes table (projectId, authorName, body, createdAt)
+- [x] DB: projectPhotos table (projectId, s3Key, s3Url, uploadedBy, createdAt)
+- [x] Backend: projectNotes.list, projectNotes.create, projectNotes.delete procedures
+- [x] Backend: projectPhotos.list, projectPhotos.upload (S3), projectPhotos.delete procedures
+- [x] Project detail panel: Notes section — add note textarea + save, list of notes with delete
+- [x] Project detail panel: Photos section — upload up to 10 photos, photo grid, click to enlarge, delete

@@ -399,3 +399,30 @@ export const smsTemplates = mysqlTable("smsTemplates", {
 });
 export type SmsTemplate = typeof smsTemplates.$inferSelect;
 export type InsertSmsTemplate = typeof smsTemplates.$inferInsert;
+
+// ─── Project Notes ────────────────────────────────────────────────────────────
+export const projectNotes = mysqlTable("projectNotes", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull().references(() => projects.id),
+  authorName: varchar("authorName", { length: 255 }).default("Admin"),
+  body: text("body").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ProjectNote = typeof projectNotes.$inferSelect;
+export type InsertProjectNote = typeof projectNotes.$inferInsert;
+
+// ─── Project Photos ───────────────────────────────────────────────────────────
+export const projectPhotos = mysqlTable("projectPhotos", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull().references(() => projects.id),
+  s3Key: varchar("s3Key", { length: 512 }).notNull(),
+  s3Url: text("s3Url").notNull(),
+  filename: varchar("filename", { length: 255 }),
+  mimeType: varchar("mimeType", { length: 64 }),
+  sizeBytes: int("sizeBytes"),
+  uploadedBy: varchar("uploadedBy", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ProjectPhoto = typeof projectPhotos.$inferSelect;
+export type InsertProjectPhoto = typeof projectPhotos.$inferInsert;

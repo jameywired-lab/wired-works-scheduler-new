@@ -965,9 +965,7 @@ export async function seedClientCredentials(clientId: number): Promise<void> {
     { key: "sonos_password", label: "Sonos Account Password" },
     { key: "ring_email", label: "Ring Account Email" },
     { key: "ring_password", label: "Ring Account Password" },
-    { key: "smart_hub_pin", label: "Smart Hub / Controller PIN" },
     { key: "gate_code", label: "Gate Code" },
-    { key: "alarm_code", label: "Alarm Code" },
     { key: "other_notes", label: "Other Access Notes" },
   ];
   const existing = await db
@@ -1015,9 +1013,7 @@ export async function seedProjectCredentials(projectId: number): Promise<void> {
     { key: "sonos_password", label: "Sonos Account Password" },
     { key: "ring_email", label: "Ring Account Email" },
     { key: "ring_password", label: "Ring Account Password" },
-    { key: "smart_hub_pin", label: "Smart Hub / Controller PIN" },
     { key: "gate_code", label: "Gate Code" },
-    { key: "alarm_code", label: "Alarm Code" },
     { key: "other_notes", label: "Other Access Notes" },
   ];
   const existing = await db
@@ -1156,4 +1152,64 @@ export async function getRevenueReport() {
   const closedTotal = closedRows.reduce((s, r) => s + parseFloat(String(r.projectValue ?? "0")), 0);
 
   return { pipeline: pipelineRows, closed: closedRows, pipelineTotal, closedTotal };
+}
+
+// ─── Project Notes ────────────────────────────────────────────────────────────
+import { projectNotes, projectPhotos } from "../drizzle/schema";
+
+export async function listProjectNotes(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectNotes)
+    .where(eq(projectNotes.projectId, projectId))
+    .orderBy(desc(projectNotes.createdAt));
+}
+
+export async function createProjectNote(data: { projectId: number; authorName?: string; body: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(projectNotes).values({
+    projectId: data.projectId,
+    authorName: data.authorName ?? "Admin",
+    body: data.body,
+  });
+}
+
+export async function deleteProjectNote(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(projectNotes).where(eq(projectNotes.id, id));
+}
+
+// ─── Project Photos ───────────────────────────────────────────────────────────
+export async function listProjectPhotos(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectPhotos)
+    .where(eq(projectPhotos.projectId, projectId))
+    .orderBy(desc(projectPhotos.createdAt));
+}
+
+export async function createProjectPhoto(data: {
+  projectId: number;
+  s3Key: string;
+  s3Url: string;
+  filename?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  uploadedBy?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(projectPhotos).values(data);
+}
+
+export async function deleteProjectPhoto(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(projectPhotos).where(eq(projectPhotos.id, id));
 }
