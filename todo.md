@@ -661,3 +661,7 @@
 - [x] When Referral is selected: show editable "Referred by" text field
 - [x] When Other is selected: show editable free-text field
 - [x] Dashboard: show sum of all populated jobTotal values as a revenue stat card
+
+## Bug Fix — Google Places Autocomplete in New Client Form
+
+- [x] Fix Google Places autocomplete not working on Address Line 1 field in the new client creation form

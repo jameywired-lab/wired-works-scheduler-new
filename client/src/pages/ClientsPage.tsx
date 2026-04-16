@@ -29,6 +29,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 
 // ─── Preset tag colors ────────────────────────────────────────────────────────
 const PRESET_COLORS = [
@@ -459,7 +460,21 @@ export default function ClientsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Address Line 1</Label>
-              <Input value={form.addressLine1} onChange={(e) => setForm((f) => ({ ...f, addressLine1: e.target.value }))} className="bg-input border-border" placeholder="123 Main St" />
+              <AddressAutocomplete
+                value={form.addressLine1}
+                onChange={(v) => setForm((f) => ({ ...f, addressLine1: v }))}
+                onPlaceSelect={({ street, city, state, zip }) => {
+                  setForm((f) => ({
+                    ...f,
+                    addressLine1: street || f.addressLine1,
+                    city: city || f.city,
+                    state: state || f.state,
+                    zip: zip || f.zip,
+                  }));
+                }}
+                placeholder="123 Main St"
+                className="bg-input border-border"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Address Line 2</Label>
