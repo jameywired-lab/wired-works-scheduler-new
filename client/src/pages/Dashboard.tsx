@@ -77,18 +77,27 @@ export default function Dashboard() {
           style={{ filter: "grayscale(100%) brightness(3)" }}
         />
       </div>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      {/* Header Banner */}
+      <div
+        className="-mx-4 md:-mx-6 lg:-mx-8 px-6 py-5 flex items-center justify-between gap-4 rounded-xl"
+        style={{ background: "linear-gradient(135deg, #0f1f3d 0%, #1a3460 60%, #1e3f7a 100%)" }}
+      >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-white">
             Good {getGreeting()},{" "}
-            <span className="gradient-text">{user?.name?.split(" ")[0] ?? "there"}</span>
+            <span style={{ color: "#e8ff00", textShadow: "0 0 20px rgba(232,255,0,0.4)" }}>
+              {user?.name?.split(" ")[0] ?? "there"}
+            </span>
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-blue-200/70 text-sm mt-1">
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
           </p>
         </div>
-        <Button onClick={() => setShowJobForm(true)} size="sm" className="shrink-0">
+        <Button
+          onClick={() => setShowJobForm(true)}
+          size="sm"
+          className="shrink-0 bg-[#e8ff00] hover:bg-[#d4eb00] text-[#0f1f3d] font-semibold border-0"
+        >
           <Plus className="h-4 w-4 mr-1.5" />
           New Job
         </Button>
