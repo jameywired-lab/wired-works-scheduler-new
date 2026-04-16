@@ -678,3 +678,9 @@
 - [x] Backend: projectPhotos.list, projectPhotos.upload (S3), projectPhotos.delete procedures
 - [x] Project detail panel: Notes section — add note textarea + save, list of notes with delete
 - [x] Project detail panel: Photos section — upload up to 10 photos, photo grid, click to enlarge, delete
+
+## Dashboard Cleanup
+
+- [x] Remove "Service Calls Today", "Sales Calls Today", and "Completed" stat cards from dashboard
+- [x] Update "Today's Jobs" card to show sub-labels: service call count and project job count
+- [x] Today's Schedule: completed jobs turn green/muted with a "Completed ✓" badge at the bottom

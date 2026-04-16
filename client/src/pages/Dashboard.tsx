@@ -56,11 +56,8 @@ export default function Dashboard() {
   const upcomingJobs = data?.upcomingJobs ?? [];
   const completedToday = todayJobs.filter((j) => j.status === "completed").length;
   const scheduledToday = todayJobs.filter((j) => j.status === "scheduled" || j.status === "in_progress").length;
-
-  // Job-type breakdown (all upcoming + today)
-  const allJobs = [...todayJobs, ...upcomingJobs];
   const serviceCallsToday = todayJobs.filter((j) => j.jobType === "service_call" || !j.jobType).length;
-  const salesCallsToday = todayJobs.filter((j) => j.jobType === "sales_call").length;
+  const projectJobsToday = todayJobs.filter((j) => j.jobType === "project_job").length;
   // Use real project count from dashboard data
   const projectJobsActive = data?.activeProjectCount ?? 0;
   const totalJobTotal = data?.totalJobTotal ?? 0;
@@ -84,25 +81,19 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Stats row — primary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Today's Jobs" value={isLoading ? null : todayJobs.length} icon={<Calendar className="h-4 w-4 text-cyan-400" />} iconBg="bg-cyan-500/15" accent="border-l-cyan-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
-        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} iconBg="bg-amber-500/15" accent="border-l-amber-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
-        <StatCard label="Completed" value={isLoading ? null : completedToday} icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} iconBg="bg-emerald-500/15" accent="border-l-emerald-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
-        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-blue-400" />} iconBg="bg-blue-500/15" accent="border-l-blue-500" loading={isLoading} onClick={() => setLocation("/clients")} />
-      </div>
-
-      {/* Job-type breakdown row */}
+      {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
-          label="Service Calls Today"
-          value={isLoading ? null : serviceCallsToday}
-          icon={<Wrench className="h-4 w-4 text-violet-400" />}
-          iconBg="bg-violet-500/15"
-          accent="border-l-violet-500"
+          label="Today's Jobs"
+          value={isLoading ? null : todayJobs.length}
+          sublabel={isLoading ? undefined : `${serviceCallsToday} service · ${projectJobsToday} project`}
+          icon={<Calendar className="h-4 w-4 text-cyan-400" />}
+          iconBg="bg-cyan-500/15"
+          accent="border-l-cyan-500"
           loading={isLoading}
           onClick={() => setLocation("/calendar")}
         />
+        <StatCard label="Remaining" value={isLoading ? null : scheduledToday} icon={<Clock className="h-4 w-4 text-amber-400" />} iconBg="bg-amber-500/15" accent="border-l-amber-500" loading={isLoading} onClick={() => setLocation("/calendar")} />
         <StatCard
           label="Active Projects"
           value={isLoading ? null : projectJobsActive}
@@ -112,15 +103,11 @@ export default function Dashboard() {
           loading={isLoading}
           onClick={() => setLocation("/projects")}
         />
-        <StatCard
-          label="Sales Calls Today"
-          value={isLoading ? null : salesCallsToday}
-          icon={<Phone className="h-4 w-4 text-green-400" />}
-          iconBg="bg-green-500/15"
-          accent="border-l-green-500"
-          loading={isLoading}
-          onClick={() => setLocation("/calendar")}
-        />
+        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-blue-400" />} iconBg="bg-blue-500/15" accent="border-l-blue-500" loading={isLoading} onClick={() => setLocation("/clients")} />
+      </div>
+
+      {/* Revenue row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <RevenueCard loading={isLoading} totalJobTotal={totalJobTotal} onClick={() => setLocation("/projects")} />
       </div>
 
@@ -648,7 +635,7 @@ function RevenueCard({ loading, totalJobTotal, onClick }: { loading: boolean; to
   return <Card className="bg-card border-l-[3px] border-l-emerald-500">{inner}</Card>;
 }
 
-function StatCard({ label, value, icon, loading, accent, iconBg, onClick }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string; iconBg?: string; onClick?: () => void }) {
+function StatCard({ label, value, sublabel, icon, loading, accent, iconBg, onClick }: { label: string; value: number | null; sublabel?: string; icon: React.ReactNode; loading: boolean; accent?: string; iconBg?: string; onClick?: () => void }) {
   const inner = (
     <CardContent className="p-4">
       <div className="flex items-center justify-between mb-3">
@@ -656,6 +643,7 @@ function StatCard({ label, value, icon, loading, accent, iconBg, onClick }: { la
         <div className={`p-1.5 rounded-lg ${iconBg ?? "bg-muted/50"}`}>{icon}</div>
       </div>
       {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-3xl font-bold">{value}</p>}
+      {!loading && sublabel && <p className="text-[11px] text-muted-foreground mt-1">{sublabel}</p>}
     </CardContent>
   );
   const borderClass = accent ? `border-l-[3px] ${accent}` : "";
@@ -670,11 +658,21 @@ function StatCard({ label, value, icon, loading, accent, iconBg, onClick }: { la
 }
 
 function JobCard({ job, onClick }: { job: { id: number; title: string; status: string; scheduledStart: number; scheduledEnd: number; address?: string | null }; onClick: () => void }) {
+  const isCompleted = job.status === "completed";
   return (
-    <button onClick={onClick} className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/40 hover:bg-card/80 transition-all group">
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-xl p-4 transition-all group border ${
+        isCompleted
+          ? "bg-emerald-500/8 border-emerald-500/30 hover:border-emerald-500/50"
+          : "bg-card border-border hover:border-primary/40 hover:bg-card/80"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">{job.title}</p>
+          <p className={`font-medium text-sm truncate transition-colors ${
+            isCompleted ? "text-emerald-400 line-through decoration-emerald-400/50" : "group-hover:text-primary"
+          }`}>{job.title}</p>
           {job.address && <p className="text-xs text-muted-foreground truncate mt-0.5">{job.address}</p>}
         </div>
         <Badge className={`${statusClass(job.status as JobStatus)} text-[10px] shrink-0 rounded-full`}>
@@ -682,8 +680,15 @@ function JobCard({ job, onClick }: { job: { id: number; title: string; status: s
         </Badge>
       </div>
       <div className="flex items-center gap-1.5 mt-2">
-        <Clock className="h-3 w-3 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">{formatTime(job.scheduledStart)} – {formatTime(job.scheduledEnd)}</span>
+        <Clock className={`h-3 w-3 ${isCompleted ? "text-emerald-400/60" : "text-muted-foreground"}`} />
+        <span className={`text-xs ${isCompleted ? "text-emerald-400/70" : "text-muted-foreground"}`}>
+          {formatTime(job.scheduledStart)} – {formatTime(job.scheduledEnd)}
+        </span>
+        {isCompleted && (
+          <span className="ml-auto flex items-center gap-1 text-xs font-medium text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Completed
+          </span>
+        )}
       </div>
     </button>
   );
