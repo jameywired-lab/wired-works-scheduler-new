@@ -636,3 +636,28 @@
 
 - [x] Project detail panel: show client name, phone, and address at the top (below project title/status)
 - [x] Project detail panel: credentials section is already inline-editable (Input + Save button per field); confirmed working
+
+## Client Detail — Projects in Job History
+
+- [x] Client detail page: add a "Projects" section in the job history area showing all projects linked to the client (title, type badge, status badge, progress %, due date)
+- [x] Each project row/card should be clickable and navigate to the Projects page with that project selected/highlighted
+
+## Dashboard Active Projects Card Fix
+
+- [x] Dashboard: Active Projects stat card shows accurate count (from projects table, not job count)
+- [x] Dashboard: Active Projects stat card is clickable and navigates to /projects
+- [x] Dashboard: Total Revenue card added (sum of all jobTotal values)
+
+## Project Detail — Job Total & Lead Source
+
+- [x] DB: add jobTotal (decimal) column to projects table for the dollar amount of the job
+- [x] DB: add leadSource (varchar) column to projects table (enum-like: house_home_builders, coast_homes, google, past_client, van_lead, truck_lead, referral, other)
+- [x] DB: add referralName (varchar) column to projects table (used when leadSource = referral)
+- [x] DB: add leadSourceOther (varchar) column to projects table (free-text for unknown/other lead)
+- [x] Apply migration
+- [x] Backend: expose jobTotal, leadSource, referralName, leadSourceOther in projects.create, projects.update, projects.listByClient, projects.list, projects.getById
+- [x] Project detail panel: show Job Total field (editable inline, dollar input)
+- [x] Project detail panel: show "How They Heard of Us" dropdown (House and Home Builders, Coast Homes, Google, Past Client, Van Lead, Truck Lead, Referral, Other)
+- [x] When Referral is selected: show editable "Referred by" text field
+- [x] When Other is selected: show editable free-text field
+- [x] Dashboard: show sum of all populated jobTotal values as a revenue stat card

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Circle,
+  DollarSign,
   Eye,
   EyeOff,
   FolderOpen,
@@ -52,12 +54,15 @@ import {
   KeyRound,
   MapPin,
   MoreVertical,
+  Pencil,
   Phone,
   Plus,
+  Save,
   Trash2,
   User,
   Wrench,
   Building2,
+  X,
 } from "lucide-react";
 
 // ─── Types & Constants ────────────────────────────────────────────────────────
@@ -532,6 +537,25 @@ function ProjectDetailPanel({
   const [reminderDate, setReminderDate] = useState("");
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  // Job Total inline edit
+  const [editingJobTotal, setEditingJobTotal] = useState(false);
+  const [jobTotalInput, setJobTotalInput] = useState("");
+  // Lead Source inline edit
+  const [editingLeadSource, setEditingLeadSource] = useState(false);
+  const [leadSourceInput, setLeadSourceInput] = useState("");
+  const [referralNameInput, setReferralNameInput] = useState("");
+  const [leadSourceOtherInput, setLeadSourceOtherInput] = useState("");
+
+  const updateProject = trpc.projects.update.useMutation({
+    onSuccess: () => {
+      utils.projects.getById.invalidate({ id: projectId });
+      utils.projects.list.invalidate();
+      setEditingJobTotal(false);
+      setEditingLeadSource(false);
+      toast.success("Saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const addMilestone = trpc.projects.addMilestone.useMutation({
     onSuccess: () => {
@@ -678,6 +702,134 @@ function ProjectDetailPanel({
               <div className={`font-medium mt-0.5 ${isOverdue(project.dueDate) && project.status === "active" ? "text-destructive" : ""}`}>
                 {formatDate(project.dueDate)}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Job Total */}
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Job Total
+            </h3>
+            {!editingJobTotal && (
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => {
+                setJobTotalInput(project.jobTotal != null ? String(project.jobTotal) : "");
+                setEditingJobTotal(true);
+              }}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+          {editingJobTotal ? (
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={jobTotalInput}
+                  onChange={(e) => setJobTotalInput(e.target.value)}
+                  placeholder="0.00"
+                  className="pl-6 h-8 text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") updateProject.mutate({ id: projectId, jobTotal: jobTotalInput !== "" ? parseFloat(jobTotalInput) : null });
+                    if (e.key === "Escape") setEditingJobTotal(false);
+                  }}
+                />
+              </div>
+              <Button size="sm" onClick={() => updateProject.mutate({ id: projectId, jobTotal: jobTotalInput !== "" ? parseFloat(jobTotalInput) : null })} disabled={updateProject.isPending}>
+                <Save className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingJobTotal(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="text-lg font-semibold">
+              {project.jobTotal != null ? `$${parseFloat(String(project.jobTotal)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : <span className="text-sm text-muted-foreground">Not set — click pencil to add</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Lead Source */}
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">How They Heard of Us</h3>
+            {!editingLeadSource && (
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => {
+                setLeadSourceInput((project as any).leadSource ?? "");
+                setReferralNameInput((project as any).referralName ?? "");
+                setLeadSourceOtherInput((project as any).leadSourceOther ?? "");
+                setEditingLeadSource(true);
+              }}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+          {editingLeadSource ? (
+            <div className="space-y-3">
+              <Select value={leadSourceInput} onValueChange={setLeadSourceInput}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select source..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="house_home_builders">House and Home Builders</SelectItem>
+                  <SelectItem value="coast_homes">Coast Homes</SelectItem>
+                  <SelectItem value="google">Google</SelectItem>
+                  <SelectItem value="past_client">Past Client</SelectItem>
+                  <SelectItem value="van_lead">Van Lead</SelectItem>
+                  <SelectItem value="truck_lead">Truck Lead</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {leadSourceInput === "referral" && (
+                <Input
+                  value={referralNameInput}
+                  onChange={(e) => setReferralNameInput(e.target.value)}
+                  placeholder="Referred by (client name)..."
+                  className="h-8 text-sm"
+                />
+              )}
+              {leadSourceInput === "other" && (
+                <Input
+                  value={leadSourceOtherInput}
+                  onChange={(e) => setLeadSourceOtherInput(e.target.value)}
+                  placeholder="Describe how they found us..."
+                  className="h-8 text-sm"
+                />
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => updateProject.mutate({ id: projectId, leadSource: leadSourceInput || null, referralName: referralNameInput || null, leadSourceOther: leadSourceOtherInput || null })} disabled={updateProject.isPending}>
+                  <Save className="h-3.5 w-3.5 mr-1" /> Save
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingLeadSource(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm">
+              {(() => {
+                const src = (project as any).leadSource;
+                const labels: Record<string, string> = {
+                  house_home_builders: "House and Home Builders",
+                  coast_homes: "Coast Homes",
+                  google: "Google",
+                  past_client: "Past Client",
+                  van_lead: "Van Lead",
+                  truck_lead: "Truck Lead",
+                  referral: "Referral",
+                  other: "Other",
+                };
+                if (!src) return <span className="text-muted-foreground">Not set — click pencil to add</span>;
+                const label = labels[src] ?? src;
+                if (src === "referral" && (project as any).referralName) return <span>{label} — referred by <strong>{(project as any).referralName}</strong></span>;
+                if (src === "other" && (project as any).leadSourceOther) return <span>{label}: {(project as any).leadSourceOther}</span>;
+                return <span>{label}</span>;
+              })()}
             </div>
           )}
         </div>
@@ -939,12 +1091,24 @@ export default function ProjectsPage() {
   const { data: dueReminders = [] } = trpc.projects.getDueReminders.useQuery();
   const utils = trpc.useUtils();
 
+  const searchStr = useSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editProject, setEditProject] = useState<any>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => {
+    const params = new URLSearchParams(searchStr);
+    const pid = params.get("project");
+    return pid ? Number(pid) : null;
+  });
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+
+  // Sync URL param changes (e.g. navigating from client detail)
+  useEffect(() => {
+    const params = new URLSearchParams(searchStr);
+    const pid = params.get("project");
+    if (pid) setSelectedProjectId(Number(pid));
+  }, [searchStr]);
 
   const deleteProject = trpc.projects.delete.useMutation({
     onSuccess: () => {

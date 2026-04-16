@@ -35,6 +35,7 @@ import {
   Calendar,
   Clock,
   ExternalLink,
+  FolderOpen,
   Mail,
   MapPin,
   Pencil,
@@ -108,6 +109,10 @@ export default function ClientDetailPage() {
 
   const { data: client, isLoading: clientLoading } = trpc.clients.getById.useQuery({ id: clientId });
   const { data: allJobs, isLoading: jobsLoading } = trpc.jobs.list.useQuery();
+  const { data: clientProjects = [], isLoading: projectsLoading } = trpc.projects.listByClient.useQuery(
+    { clientId },
+    { enabled: !!clientId }
+  );
   const { data: addresses, isLoading: addressesLoading } = trpc.clientAddresses.getByClient.useQuery(
     { clientId },
     { enabled: !!clientId }
@@ -456,6 +461,82 @@ export default function ClientDetailPage() {
                   </div>
                 </button>
               ))}
+          </div>
+        )}
+      </div>
+
+      {/* Projects section */}
+      <div className="space-y-3">
+        <h2 className="font-semibold flex items-center gap-2">
+          <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          Projects
+        </h2>
+        {projectsLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-16 rounded-xl" />
+            ))}
+          </div>
+        ) : clientProjects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 bg-card border border-dashed border-border rounded-xl text-center">
+            <FolderOpen className="h-8 w-8 text-muted-foreground/30 mb-2" />
+            <p className="text-sm text-muted-foreground">No projects for this client yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {clientProjects.map((proj) => {
+              const statusColors: Record<string, string> = {
+                active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+                on_hold: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+                completed: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+                cancelled: "bg-red-500/15 text-red-600 dark:text-red-400",
+              };
+              const statusLabels: Record<string, string> = {
+                active: "Active",
+                on_hold: "On Hold",
+                completed: "Completed",
+                cancelled: "Cancelled",
+              };
+              const typeLabels: Record<string, string> = {
+                new_construction: "New Construction",
+                commercial: "Commercial",
+                retrofit: "Retrofit",
+              };
+              return (
+                <button
+                  key={proj.id}
+                  onClick={() => setLocation(`/projects?project=${proj.id}`)}
+                  className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all group"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                        {proj.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {proj.projectType && (
+                          <span className="text-xs text-muted-foreground">{typeLabels[proj.projectType] ?? proj.projectType}</span>
+                        )}
+                        {proj.dueDate && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>Due {new Date(proj.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                          </div>
+                        )}
+                        {proj.projectValue && (
+                          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            ${parseFloat(String(proj.projectValue)).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Badge className={`${statusColors[proj.status] ?? ""} text-[10px] shrink-0 rounded-full`}>
+                      {statusLabels[proj.status] ?? proj.status}
+                    </Badge>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

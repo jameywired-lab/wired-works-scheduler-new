@@ -20,6 +20,7 @@ import {
   listFollowUps,
   getRevenueReport,
   listProjects,
+  listProjectsByClient,
   recalcMilestoneWeights,
   swapMilestoneSortOrder,
   updateFollowUp,
@@ -89,11 +90,15 @@ export const projectsRouter = router({
         startDate: z.number().optional(),
         dueDate: z.number().optional(),
         projectValue: z.number().nullable().optional(),
+        jobTotal: z.number().nullable().optional(),
+        leadSource: z.string().nullable().optional(),
+        referralName: z.string().nullable().optional(),
+        leadSourceOther: z.string().nullable().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { projectValue, ...rest } = input;
-      await createProject({ ...rest, projectValue: projectValue != null ? String(projectValue) : null });
+      const { projectValue, jobTotal, ...rest } = input;
+      await createProject({ ...rest, projectValue: projectValue != null ? String(projectValue) : null, jobTotal: jobTotal != null ? String(jobTotal) : null });
       const all = await listProjects();
       const newId = all[0]?.id;
       // Auto-seed milestone stages for the chosen project type
@@ -124,16 +129,21 @@ export const projectsRouter = router({
         startDate: z.number().nullable().optional(),
         dueDate: z.number().nullable().optional(),
         projectValue: z.number().nullable().optional(),
+        jobTotal: z.number().nullable().optional(),
+        leadSource: z.string().nullable().optional(),
+        referralName: z.string().nullable().optional(),
+        leadSourceOther: z.string().nullable().optional(),
         completedAt: z.number().nullable().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { id, projectValue, ...rest } = input;
+      const { id, projectValue, jobTotal, ...rest } = input;
       // When marking completed, auto-set completedAt if not provided
       const completedAt = rest.completedAt ?? (rest.status === "completed" ? Date.now() : undefined);
       await updateProject(id, {
         ...rest,
         projectValue: projectValue != null ? String(projectValue) : null,
+        jobTotal: jobTotal != null ? String(jobTotal) : null,
         completedAt: completedAt ?? null,
       });
       return { success: true };
@@ -260,6 +270,10 @@ export const projectsRouter = router({
     }),
 
   revenueReport: p.query(async () => getRevenueReport()),
+
+  listByClient: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => listProjectsByClient(input.clientId)),
 });
 
 // ─── Follow-Ups Router ────────────────────────────────────────────────────────

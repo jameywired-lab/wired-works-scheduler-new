@@ -507,7 +507,7 @@ export async function getDashboardData() {
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const [todayJobs, upcomingJobs, recentJobs, clientCount, crewCount, activeProjectsData] = await Promise.all([
+  const [todayJobs, upcomingJobs, recentJobs, clientCount, crewCount, activeProjectsData, jobTotalData] = await Promise.all([
     db
       .select()
       .from(jobs)
@@ -535,9 +535,13 @@ export async function getDashboardData() {
     db.select({ count: sql<number>`count(*)`, pipelineValue: sql<string>`COALESCE(SUM(projectValue), 0)` })
       .from(projects)
       .where(sql`${projects.status} IN ('active', 'on_hold')`),
+    db.select({ totalJobTotal: sql<string>`COALESCE(SUM(jobTotal), 0)` })
+      .from(projects)
+      .where(sql`${projects.jobTotal} IS NOT NULL`),
   ]);
   const activeProjectCount = activeProjectsData[0]?.count ?? 0;
   const pipelineValue = parseFloat(String(activeProjectsData[0]?.pipelineValue ?? "0"));
+  const totalJobTotal = parseFloat(String(jobTotalData[0]?.totalJobTotal ?? "0"));
   return {
     todayJobs,
     upcomingJobs,
@@ -545,7 +549,8 @@ export async function getDashboardData() {
     totalClients: clientCount[0]?.count ?? 0,
     totalCrew: crewCount[0]?.count ?? 0,
     activeProjectCount,
-     pipelineValue,
+    pipelineValue,
+    totalJobTotal,
   };
 }
 // ─── Projects ─────────────────────────────────────────────────────────────────
@@ -568,6 +573,33 @@ export async function listProjects() {
     })
     .from(projects)
     .leftJoin(clients, eq(projects.clientId, clients.id))
+    .orderBy(desc(projects.updatedAt));
+}
+
+export async function listProjectsByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: projects.id,
+      clientId: projects.clientId,
+      title: projects.title,
+      description: projects.description,
+      status: projects.status,
+      projectType: projects.projectType,
+      startDate: projects.startDate,
+      dueDate: projects.dueDate,
+      projectValue: projects.projectValue,
+      jobTotal: projects.jobTotal,
+      completedAt: projects.completedAt,
+      leadSource: projects.leadSource,
+      referralName: projects.referralName,
+      leadSourceOther: projects.leadSourceOther,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+    })
+    .from(projects)
+    .where(eq(projects.clientId, clientId))
     .orderBy(desc(projects.updatedAt));
 }
 

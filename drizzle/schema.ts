@@ -195,7 +195,11 @@ export const projects = mysqlTable("projects", {
    startDate: bigint("startDate", { mode: "number" }), // UTC ms
   dueDate: bigint("dueDate", { mode: "number" }),     // UTC ms
   projectValue: decimal("projectValue", { precision: 12, scale: 2 }),  // $ value of the project
+  jobTotal: decimal("jobTotal", { precision: 12, scale: 2 }),           // $ total of the job (what was billed)
   completedAt: bigint("completedAt", { mode: "number" }),              // UTC ms when marked completed
+  leadSource: varchar("leadSource", { length: 64 }),                   // how they heard of us
+  referralName: varchar("referralName", { length: 255 }),              // who referred them (if leadSource = referral)
+  leadSourceOther: varchar("leadSourceOther", { length: 255 }),        // free-text for other/unknown lead
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

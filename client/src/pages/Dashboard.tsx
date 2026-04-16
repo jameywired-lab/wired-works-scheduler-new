@@ -32,6 +32,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  DollarSign,
   FolderOpen,
   MessageSquare,
   Phone,
@@ -59,8 +60,10 @@ export default function Dashboard() {
   // Job-type breakdown (all upcoming + today)
   const allJobs = [...todayJobs, ...upcomingJobs];
   const serviceCallsToday = todayJobs.filter((j) => j.jobType === "service_call" || !j.jobType).length;
-  const projectJobsActive = allJobs.filter((j) => j.jobType === "project_job").length;
   const salesCallsToday = todayJobs.filter((j) => j.jobType === "sales_call").length;
+  // Use real project count from dashboard data
+  const projectJobsActive = data?.activeProjectCount ?? 0;
+  const totalJobTotal = data?.totalJobTotal ?? 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -90,7 +93,7 @@ export default function Dashboard() {
       </div>
 
       {/* Job-type breakdown row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Service Calls Today"
           value={isLoading ? null : serviceCallsToday}
@@ -118,6 +121,7 @@ export default function Dashboard() {
           loading={isLoading}
           onClick={() => setLocation("/calendar")}
         />
+        <RevenueCard loading={isLoading} totalJobTotal={totalJobTotal} onClick={() => setLocation("/projects")} />
       </div>
 
       {/* Main 3-column layout */}
@@ -621,6 +625,29 @@ function ProjectMiniCard({
 }
 
 // ─── Shared Components ────────────────────────────────────────────────────────
+function RevenueCard({ loading, totalJobTotal, onClick }: { loading: boolean; totalJobTotal: number; onClick?: () => void }) {
+  const formatted = totalJobTotal > 0
+    ? `$${totalJobTotal.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    : "$0";
+  const inner = (
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] text-muted-foreground font-semibold tracking-wide uppercase">Total Revenue</p>
+        <div className="p-1.5 rounded-lg bg-emerald-500/15"><DollarSign className="h-4 w-4 text-emerald-400" /></div>
+      </div>
+      {loading ? <Skeleton className="h-8 w-20" /> : <p className="text-2xl font-bold">{formatted}</p>}
+    </CardContent>
+  );
+  if (onClick) {
+    return (
+      <Card className="bg-card cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all border-l-[3px] border-l-emerald-500" onClick={onClick}>
+        {inner}
+      </Card>
+    );
+  }
+  return <Card className="bg-card border-l-[3px] border-l-emerald-500">{inner}</Card>;
+}
+
 function StatCard({ label, value, icon, loading, accent, iconBg, onClick }: { label: string; value: number | null; icon: React.ReactNode; loading: boolean; accent?: string; iconBg?: string; onClick?: () => void }) {
   const inner = (
     <CardContent className="p-4">
