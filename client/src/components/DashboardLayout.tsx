@@ -183,17 +183,18 @@ function DashboardLayoutContent({
               <div className="flex items-center gap-3 px-2">
                 <button
                   onClick={toggleSidebar}
-                  className="h-9 w-9 flex items-center justify-center hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
+                  className="h-9 w-9 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors shrink-0"
                   aria-label="Toggle navigation"
                 >
-                  <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                  <PanelLeft className="h-4 w-4 text-white/70" />
                 </button>
                 {!isCollapsed && (
                   <div className="flex items-center gap-2 min-w-0">
                     <img
                       src="https://d2xsxph8kpxj0f.cloudfront.net/310519663534371359/gYJ9uUE9i5ygur2GefRATd/wired-works-logo_d2ca4ec2.png"
                       alt="Wired Works"
-                      className="h-8 w-auto object-contain dark:invert"
+                      className="h-8 w-auto object-contain invert brightness-0 invert"
+                      style={{ filter: "brightness(0) invert(1)" }}
                     />
                   </div>
                 )}
@@ -212,8 +213,8 @@ function DashboardLayoutContent({
                         tooltip={item.label}
                         className="h-10 transition-all font-normal rounded-lg"
                       >
-                        <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={isActive ? "text-foreground font-medium" : "text-sidebar-foreground"}>{item.label}</span>
+                        <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-white" : "text-white/60"}`} />
+                        <span className={isActive ? "text-white font-semibold" : "text-white/75"}>{item.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -223,7 +224,7 @@ function DashboardLayoutContent({
               {/* Admin section */}
               {!isCrew && !isCollapsed && (
                 <div className="px-4 pt-4 pb-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Admin</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">Admin</p>
                 </div>
               )}
               {!isCrew && (
@@ -242,8 +243,8 @@ function DashboardLayoutContent({
                           tooltip={item.label}
                           className="h-10 transition-all font-normal rounded-lg"
                         >
-                          <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                          <span className={isActive ? "text-foreground font-medium" : "text-sidebar-foreground"}>{item.label}</span>
+                          <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-white" : "text-white/60"}`} />
+                          <span className={isActive ? "text-white font-semibold" : "text-white/75"}>{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );
@@ -255,15 +256,15 @@ function DashboardLayoutContent({
             <SidebarFooter className="p-3 border-t border-sidebar-border">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent transition-colors w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/10 transition-colors w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <Avatar className="h-8 w-8 border border-border shrink-0">
-                      <AvatarFallback className="text-xs font-semibold bg-primary/20 text-primary">{initials}</AvatarFallback>
+                      <AvatarFallback className="text-xs font-semibold bg-white/20 text-white">{initials}</AvatarFallback>
                     </Avatar>
                     {!isCollapsed && (
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate leading-none">{user?.name || "User"}</p>
+                        <p className="text-sm font-medium truncate leading-none text-white">{user?.name || "User"}</p>
                         <div className="flex items-center gap-1 mt-1">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">
+                          <Badge className="text-[10px] px-1.5 py-0 h-4 capitalize bg-white/15 text-white/80 border-0 hover:bg-white/15">
                             {user?.role === "admin" ? <><Shield className="w-2.5 h-2.5 mr-0.5" />Admin</> : user?.role}
                           </Badge>
                         </div>

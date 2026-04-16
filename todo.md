@@ -688,3 +688,12 @@
 ## Dashboard Logo Watermark
 
 - [x] Add Wired Works logo as faded watermark background on dashboard main page
+
+## Light Mode Redesign (Jobber-style)
+
+- [x] Retheme CSS variables: white/light-grey background, navy primary, remove dark mode
+- [x] Update DashboardLayout sidebar to navy blue with white text/icons
+- [x] Update top bar to navy blue
+- [x] Update stat cards to white with light borders and navy accents (via CSS variables)
+- [x] Update dashboard schedule, panels, and Follow-Up card to light mode
+- [x] Set ThemeProvider to light only
