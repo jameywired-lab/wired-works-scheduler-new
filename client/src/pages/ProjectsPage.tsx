@@ -50,7 +50,9 @@ import {
   FolderOpen,
   Home,
   KeyRound,
+  MapPin,
   MoreVertical,
+  Phone,
   Plus,
   Trash2,
   User,
@@ -565,8 +567,14 @@ function ProjectDetailPanel({
   const milestones = project.milestones ?? [];
   const reminders = project.reminders ?? [];
   const progress = calcWeightedProgress(milestones);
-  const clientName = clients?.find((c) => c.id === project.clientId)?.name;
+  const client = clients?.find((c) => c.id === project.clientId);
+  const clientName = client?.name;
   const pType = project.projectType as ProjectType | null | undefined;
+
+  // Build a readable address string from the client record
+  const clientAddress = client
+    ? [client.addressLine1, client.city, client.state, client.zip].filter(Boolean).join(", ")
+    : null;
 
   const handleAddMilestone = () => {
     if (!newMilestone.trim()) return;
@@ -623,6 +631,34 @@ function ProjectDetailPanel({
       </div>
 
       <div className="p-6 space-y-6 flex-1">
+        {/* Client Info Card */}
+        {client && (
+          <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="font-semibold text-sm">{client.name}</span>
+            </div>
+            {clientAddress && (
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>{clientAddress}</span>
+              </div>
+            )}
+            {client.phone && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Phone className="h-3.5 w-3.5 shrink-0" />
+                <a
+                  href={`tel:${client.phone}`}
+                  className="hover:text-foreground transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {client.phone}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Description */}
         {project.description && (
           <p className="text-sm text-muted-foreground leading-relaxed">{project.description}</p>

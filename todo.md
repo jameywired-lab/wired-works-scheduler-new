@@ -631,3 +631,8 @@
 
 - [x] Dashboard FollowUpPanel: filter out isFollowedUp=true items so completed/crossed-out follow-ups never show in the dashboard panel
 - [x] Dashboard FollowUpPanel: delete button must work on all remaining items (Jamey Farrell, Van Inventory entries)
+
+## Project Detail Panel — Client Info & Editable Credentials
+
+- [x] Project detail panel: show client name, phone, and address at the top (below project title/status)
+- [x] Project detail panel: credentials section is already inline-editable (Input + Save button per field); confirmed working
