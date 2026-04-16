@@ -684,3 +684,7 @@
 - [x] Remove "Service Calls Today", "Sales Calls Today", and "Completed" stat cards from dashboard
 - [x] Update "Today's Jobs" card to show sub-labels: service call count and project job count
 - [x] Today's Schedule: completed jobs turn green/muted with a "Completed ✓" badge at the bottom
+
+## Dashboard Logo Watermark
+
+- [x] Add Wired Works logo as faded watermark background on dashboard main page

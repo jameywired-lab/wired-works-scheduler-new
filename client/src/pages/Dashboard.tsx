@@ -63,7 +63,20 @@ export default function Dashboard() {
   const totalJobTotal = data?.totalJobTotal ?? 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="relative space-y-6 max-w-7xl mx-auto">
+      {/* Logo watermark */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 flex items-center justify-center z-0"
+        style={{ opacity: 0.04 }}
+      >
+        <img
+          src="https://d2xsxph8kpxj0f.cloudfront.net/310519663534371359/gYJ9uUE9i5ygur2GefRATd/wired-works-logo_8018c711.png"
+          alt=""
+          className="w-[600px] max-w-[70vw] select-none"
+          style={{ filter: "grayscale(100%) brightness(3)" }}
+        />
+      </div>
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
