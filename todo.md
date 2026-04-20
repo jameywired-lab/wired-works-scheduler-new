@@ -719,3 +719,8 @@
 ## Missing Phone Filter
 
 - [x] Clients page: add "Missing Phone" filter toggle button that shows only clients with no phone number, with a count badge
+
+## Neighborhood Tag — Marsh Landing
+
+- [x] Research all streets in Marsh Landing Country Club, Ponte Vedra Beach (source: official HOA "Which is my HOA?" page — all 10 sub-associations)
+- [x] Tag all matching clients with new "Marsh Landing" tag (52 clients tagged, 1 false positive removed)

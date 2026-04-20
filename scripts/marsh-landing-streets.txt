@@ -1,0 +1,97 @@
+# Marsh Landing Country Club - Complete Street List
+# Source: https://www.marshlandinghoa.com/info.php?pnum=46194190748e6c
+# All streets within the Marsh Landing gated community in Ponte Vedra Beach, FL 32082
+
+# HOA I
+Arbor Drive
+Arbor Lake Lane
+Arbor View Court
+Bent Pine Court
+Cypress Lagoon Court
+Deer Trace Drive
+Greencrest Drive
+Heron Lake Way
+Indian Midden Way
+Lagoon Forest Drive
+Marsh Creek Drive
+Misty Lake Drive
+Moss Creek Lane
+Old Still Court
+Royal Lagoon Court
+Marsh Landing Pkwy
+Marsh Landing Parkway
+
+# HOA II
+Alice Way
+Bentgrass Circle
+Cypress Hollow Court
+Fairway Oaks Court
+Founders Way
+Highlands Court
+Linkside Circle
+Marsh Hawk Court
+Merganser Drive
+Oakbrook Court
+Oakmont Court
+Palm Forest Place
+St. Andrews Court
+Troon Point Lane
+Turnberry Pointe Way
+
+# HOA III
+Antler Point Court
+Deer Haven Drive
+Harbour View Drive
+Hidden Cove Lane
+Indian Cove Lane
+Indian Hammock Lane
+Marsh Reed Lane
+Three Island Court
+
+# HOA IV
+Deer Cove Drive
+Deer Lake Drive
+Green Heron Way
+Osprey Cove Lane
+Osprey Nest Court
+
+# HOA V (Marsh Pointe)
+Bridle Way
+Carriage Lamp Way
+
+# HOA VI
+Club Forest Lane
+Coach Lamp Way
+Lamplighter Lane
+Lantern Wick Place
+Marsh View Court
+North Wind Court
+Teal Nest Court
+Teal Pointe Lane
+
+# HOA VII
+Kingfisher Drive
+Osprey Lookout Court
+Royal Tern Court
+Royal Tern Road
+Royal Tern Road N
+Royal Tern Road S
+Snowy Egret Court
+
+# HOA VIII (North Island)
+Great Egret Way
+Hawks Nest Court
+Ibis Cove Place
+
+# Harbour Island
+Admirals Way S
+Annapolis Lane
+Bristol Place
+Cutter Court
+Harbourmaster Court
+Newport Lane
+
+# Clearlake Association
+Clearlake Drive
+Keelers Court
+Turtle Run Court
