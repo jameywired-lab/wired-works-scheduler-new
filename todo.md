@@ -724,3 +724,9 @@
 
 - [x] Research all streets in Marsh Landing Country Club, Ponte Vedra Beach (source: official HOA "Which is my HOA?" page — all 10 sub-associations)
 - [x] Tag all matching clients with new "Marsh Landing" tag (52 clients tagged, 1 false positive removed)
+
+## OpenPhone Contact Phone Number Sync
+
+- [x] Fetch all 4,581 contacts from OpenPhone (Quo) phonebook via API (paginated, with retry)
+- [x] Match against 242 clients missing phone numbers by name (exact + reversed first/last)
+- [x] Updated 168 clients with phone numbers from OpenPhone (74 clients remain unmatched)
