@@ -385,6 +385,14 @@ export default function ClientsPage() {
                 }}
               >
                 {tag.name}
+                {'clientCount' in tag && (
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold"
+                    style={{ backgroundColor: `${tag.color}33`, color: tag.color }}
+                  >
+                    {(tag as any).clientCount}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => deleteTag.mutate({ id: tag.id })}
@@ -451,7 +459,7 @@ export default function ClientsPage() {
             <button
               key={tag.id}
               onClick={() => setActiveTagFilter(activeTagFilter === tag.id ? null : tag.id)}
-              className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all"
               style={
                 activeTagFilter === tag.id
                   ? {
@@ -464,6 +472,17 @@ export default function ClientsPage() {
               data-inactive={activeTagFilter !== tag.id || undefined}
             >
               {tag.name}
+              {'clientCount' in tag && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold"
+                  style={{
+                    backgroundColor: activeTagFilter === tag.id ? `${tag.color}44` : `rgba(0,0,0,0.08)`,
+                    color: activeTagFilter === tag.id ? tag.color : 'inherit',
+                  }}
+                >
+                  {(tag as any).clientCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

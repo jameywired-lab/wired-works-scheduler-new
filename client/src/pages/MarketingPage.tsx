@@ -132,7 +132,12 @@ export default function MarketingPage() {
                     <SelectItem value="all">All Clients</SelectItem>
                     {tags?.map((tag) => (
                       <SelectItem key={tag.id} value={String(tag.id)}>
-                        {tag.name}
+                        <span className="flex items-center gap-2">
+                          {tag.name}
+                          {'clientCount' in tag && (
+                            <span className="ml-1 text-muted-foreground text-xs">({(tag as any).clientCount})</span>
+                          )}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

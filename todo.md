@@ -736,3 +736,8 @@
 - [x] Create server/autoTag.ts helper with neighborhood tag rules (Ponte Vedra, Marsh Landing, The Plantation, Amelia Island)
 - [x] Call autoTag helper in clients.create procedure after inserting the client
 - [x] Call autoTag helper in clients.update procedure after updating the client (re-evaluate all neighborhood tags)
+
+## Tag Client Count Badge
+
+- [x] Update listTags DB helper to include clientCount per tag
+- [x] Update tags UI to show count badge next to each tag name

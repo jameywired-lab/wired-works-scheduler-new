@@ -791,10 +791,22 @@ export async function deleteJobPhoto(id: number) {
 }
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
-export async function listTags(): Promise<Tag[]> {
+export async function listTags(): Promise<(Tag & { clientCount: number })[]> {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(tags).orderBy(tags.name);
+  const rows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      color: tags.color,
+      createdAt: tags.createdAt,
+      clientCount: sql<number>`COUNT(${clientTags.clientId})`,
+    })
+    .from(tags)
+    .leftJoin(clientTags, eq(tags.id, clientTags.tagId))
+    .groupBy(tags.id)
+    .orderBy(tags.name);
+  return rows as (Tag & { clientCount: number })[];
 }
 
 export async function createTag(data: Omit<InsertTag, "id" | "createdAt">) {
