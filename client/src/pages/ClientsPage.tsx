@@ -158,6 +158,7 @@ export default function ClientsPage() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
+  const [showMissingPhone, setShowMissingPhone] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<ClientForm>(emptyForm);
@@ -197,13 +198,15 @@ export default function ClientsPage() {
     ? new Set(tagFilteredClients?.map((c) => c.id) ?? [])
     : null;
 
+  const missingPhoneCount = (clients ?? []).filter((c) => !c.phone || c.phone.trim() === "").length;
   const filtered = (clients ?? []).filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase()) ||
       c.phone?.includes(search);
     const matchesTag = tagFilteredIds === null || tagFilteredIds.has(c.id);
-    return matchesSearch && matchesTag;
+    const matchesMissingPhone = !showMissingPhone || !c.phone || c.phone.trim() === "";
+    return matchesSearch && matchesTag && matchesMissingPhone;
   });
 
   const openCreate = () => {
@@ -465,6 +468,33 @@ export default function ClientsPage() {
           ))}
         </div>
       )}
+
+      {/* Missing Phone filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setShowMissingPhone(!showMissingPhone)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+            showMissingPhone
+              ? "bg-amber-100 text-amber-700 border-amber-400"
+              : "bg-muted text-muted-foreground border-border hover:border-amber-400 hover:text-amber-600"
+          }`}
+        >
+          <Phone className="h-3 w-3" />
+          Missing Phone
+          {missingPhoneCount > 0 && (
+            <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${
+              showMissingPhone ? "bg-amber-500 text-white" : "bg-muted-foreground/20 text-muted-foreground"
+            }`}>
+              {missingPhoneCount}
+            </span>
+          )}
+        </button>
+        {showMissingPhone && (
+          <span className="text-xs text-amber-600 font-medium">
+            Showing {filtered.length} client{filtered.length !== 1 ? "s" : ""} without a phone number — click a client to add their number
+          </span>
+        )}
+      </div>
 
       {/* Search */}
       <div className="relative">

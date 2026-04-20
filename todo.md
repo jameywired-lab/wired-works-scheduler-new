@@ -715,3 +715,7 @@
 - [x] CSV import modal: file picker (click or drag-and-drop), preview table, import button
 - [x] Backend: clients.importCsv procedure — parse CSV rows, create clients (name, phone, email, address), return count of imported/skipped
 - [x] Download sample CSV template link in the import modal
+
+## Missing Phone Filter
+
+- [x] Clients page: add "Missing Phone" filter toggle button that shows only clients with no phone number, with a count badge
