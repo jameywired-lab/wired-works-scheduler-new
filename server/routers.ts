@@ -148,6 +148,49 @@ const clientsRouter = router({
       await deleteClient(input.id);
       return { success: true };
     }),
+
+  importCsv: p
+    .input(
+      z.object({
+        rows: z.array(
+          z.object({
+            name: z.string().min(1),
+            phone: z.string().optional(),
+            email: z.string().optional(),
+            addressLine1: z.string().optional(),
+            addressLine2: z.string().optional(),
+            city: z.string().optional(),
+            state: z.string().optional(),
+            zip: z.string().optional(),
+            notes: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input }) => {
+      let imported = 0;
+      let skipped = 0;
+      for (const row of input.rows) {
+        try {
+          if (!row.name.trim()) { skipped++; continue; }
+          await createClient({
+            name: row.name.trim(),
+            phone: row.phone?.trim() || undefined,
+            email: row.email?.trim() || undefined,
+            addressLine1: row.addressLine1?.trim() || undefined,
+            addressLine2: row.addressLine2?.trim() || undefined,
+            city: row.city?.trim() || undefined,
+            state: row.state?.trim() || undefined,
+            zip: row.zip?.trim() || undefined,
+            notes: row.notes?.trim() || undefined,
+          });
+          imported++;
+        } catch {
+          skipped++;
+        }
+      }
+      return { imported, skipped };
+    }),
 });
 
 // ─── Client Addresses Router ─────────────────────────────────────────────────

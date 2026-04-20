@@ -28,8 +28,9 @@ import {
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { useRef } from "react";
 
 // ─── Preset tag colors ────────────────────────────────────────────────────────
 const PRESET_COLORS = [
@@ -264,6 +265,71 @@ export default function ClientsPage() {
 
   const isPending = createClient.isPending || updateClient.isPending;
 
+  // ─── CSV Import ───────────────────────────────────────────────────────────────
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [csvError, setCsvError] = useState("");
+  const [csvImporting, setCsvImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const importCsvMutation = trpc.clients.importCsv.useMutation();
+
+  const handleCsvFile = (file: File) => {
+    setCsvError("");
+    setCsvPreview([]);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) { setCsvError("CSV must have a header row and at least one data row."); return; }
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+      const rows = lines.slice(1).map((line) => {
+        const vals = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+        const obj: Record<string, string> = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
+        return obj;
+      }).filter((r) => r["name"]?.trim());
+      if (rows.length === 0) { setCsvError("No valid rows found. Make sure there is a 'name' column."); return; }
+      setCsvPreview(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCsvImport = async () => {
+    if (csvPreview.length === 0) return;
+    setCsvImporting(true);
+    try {
+      const rows = csvPreview.map((r) => ({
+        name: r["name"] || r["full name"] || r["client name"] || "",
+        phone: r["phone"] || r["phone number"] || r["mobile"] || "",
+        email: r["email"] || r["email address"] || "",
+        addressLine1: r["addressline1"] || r["address"] || r["address line 1"] || "",
+        addressLine2: r["addressline2"] || r["address line 2"] || "",
+        city: r["city"] || "",
+        state: r["state"] || "",
+        zip: r["zip"] || r["postal code"] || r["zipcode"] || "",
+        notes: r["notes"] || r["note"] || "",
+      })).filter((r) => r.name.trim());
+      const result = await importCsvMutation.mutateAsync({ rows });
+      utils.clients.list.invalidate();
+      toast.success(`Imported ${result.imported} client${result.imported !== 1 ? "s" : ""}${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}.`);
+      setShowCsvModal(false);
+      setCsvPreview([]);
+    } catch {
+      toast.error("Import failed. Please check your CSV and try again.");
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
+  const downloadSampleCsv = () => {
+    const header = "name,phone,email,addressLine1,addressLine2,city,state,zip,notes";
+    const sample = "John Smith,555-123-4567,john@example.com,123 Main St,,Ponte Vedra Beach,FL,32082,";
+    const blob = new Blob([header + "\n" + sample], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "clients-template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
       {/* Header */}
@@ -283,6 +349,10 @@ export default function ClientsPage() {
           >
             <Tag className="h-4 w-4 mr-1.5" />
             Tags
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowCsvModal(true)} className="border-border">
+            <Upload className="h-4 w-4 mr-1.5" />
+            Import CSV
           </Button>
           <Button size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-1.5" />
@@ -538,10 +608,72 @@ export default function ClientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+       {/* CSV Import Modal */}
+      <Dialog open={showCsvModal} onOpenChange={(v) => { if (!v) { setShowCsvModal(false); setCsvPreview([]); setCsvError(""); } }}>
+        <DialogContent className="max-w-2xl bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Import Clients from CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Drop zone */}
+            <div
+              className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCsvFile(f); }}
+            >
+              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm font-medium">Click to select a CSV file or drag and drop</p>
+              <p className="text-xs text-muted-foreground mt-1">Columns: name, phone, email, addressLine1, city, state, zip, notes</p>
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); }} />
+            </div>
+            {/* Sample download */}
+            <button type="button" onClick={downloadSampleCsv} className="text-xs text-primary underline underline-offset-2 hover:opacity-70">
+              Download sample CSV template
+            </button>
+            {/* Error */}
+            {csvError && <p className="text-sm text-destructive">{csvError}</p>}
+            {/* Preview table */}
+            {csvPreview.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{csvPreview.length} client{csvPreview.length !== 1 ? "s" : ""} ready to import</p>
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="text-left p-2 font-medium">Name</th>
+                        <th className="text-left p-2 font-medium">Phone</th>
+                        <th className="text-left p-2 font-medium">Email</th>
+                        <th className="text-left p-2 font-medium">City</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvPreview.map((row, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="p-2">{row["name"] || "—"}</td>
+                          <td className="p-2 text-muted-foreground">{row["phone"] || "—"}</td>
+                          <td className="p-2 text-muted-foreground truncate max-w-[140px]">{row["email"] || "—"}</td>
+                          <td className="p-2 text-muted-foreground">{row["city"] || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCsvModal(false); setCsvPreview([]); setCsvError(""); }}>Cancel</Button>
+            <Button onClick={handleCsvImport} disabled={csvPreview.length === 0 || csvImporting}>
+              {csvImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Import {csvPreview.length > 0 ? `${csvPreview.length} Client${csvPreview.length !== 1 ? "s" : ""}` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
 // ─── Client Card with lazy-loaded tags ───────────────────────────────────────
 function ClientCard({
   client,

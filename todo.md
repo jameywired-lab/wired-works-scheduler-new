@@ -708,3 +708,10 @@
 - [x] Fix client credentials section: make label and value both editable inline, add new credential button, delete per row
 - [x] Mobile crew nav: Van Inventory already in crew bottom nav (confirmed); improved nav colors (navy bg, yellow active state)
 - [x] Mobile top bar: navy background, white logo, current page label, user avatar dropdown
+
+## CSV Client Import
+
+- [x] Clients page: add "Import CSV" button next to "Add Client"
+- [x] CSV import modal: file picker (click or drag-and-drop), preview table, import button
+- [x] Backend: clients.importCsv procedure — parse CSV rows, create clients (name, phone, email, address), return count of imported/skipped
+- [x] Download sample CSV template link in the import modal
