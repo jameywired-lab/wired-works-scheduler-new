@@ -205,6 +205,20 @@ function getApplicableTags(client: ClientAddress): string[] {
     }
   }
 
+  // St. Augustine area
+  const ST_AUG_CITIES = [
+    "st. augustine", "st augustine", "saint augustine",
+    "st. augustine beach", "st augustine beach", "saint augustine beach",
+    "st. augustine shores", "st augustine shores",
+    "st. johns", "st johns", "saint johns",
+    "hastings", "elkton", "nocatee",
+  ];
+  const ST_AUG_ZIPS = ["32080", "32084", "32085", "32086", "32092", "32095", "32033", "32043", "32068"];
+  const zipShort = zip.substring(0, 5);
+  if (ST_AUG_CITIES.some(s => city === s || city.startsWith(s + " ")) || ST_AUG_ZIPS.includes(zipShort)) {
+    applicable.push("St. Augustine");
+  }
+
   return applicable;
 }
 
@@ -226,7 +240,7 @@ export async function autoTagClient(
   if (!db) return;
 
   // All neighborhood tag names we manage
-  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC"];
+  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC", "St. Augustine"];
 
   // Fetch tag IDs for all neighborhood tags (create if missing)
   const tagIds: Record<string, number> = {};
@@ -236,6 +250,7 @@ export async function autoTagClient(
     "The Plantation": "#1a5276",
     "Marsh Landing": "#2e7d32",
     "Sawgrass CC": "#1565c0",
+    "St. Augustine": "#b45309",
   };
 
   for (const tagName of NEIGHBORHOOD_TAG_NAMES) {

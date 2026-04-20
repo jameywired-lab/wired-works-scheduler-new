@@ -747,3 +747,8 @@
 - [x] Research all streets within Sawgrass Country Club, Ponte Vedra Beach (source: sawgrasscommunity.com + geographic.org)
 - [x] Create "Sawgrass CC" tag (color: #1565c0) and tag all 18 matching clients
 - [x] Add Sawgrass CC rules to autoTag.ts for automatic tagging on future client creates/updates
+
+## St. Augustine Neighborhood Tag
+
+- [x] Create "St. Augustine" tag and tag all matching clients (by city name and St. Augustine zip codes) — 152 clients tagged
+- [x] Add St. Augustine rules to autoTag.ts
