@@ -730,3 +730,9 @@
 - [x] Fetch all 4,581 contacts from OpenPhone (Quo) phonebook via API (paginated, with retry)
 - [x] Match against 242 clients missing phone numbers by name (exact + reversed first/last)
 - [x] Updated 168 clients with phone numbers from OpenPhone (74 clients remain unmatched)
+
+## Auto-Tagging on Client Create/Update
+
+- [x] Create server/autoTag.ts helper with neighborhood tag rules (Ponte Vedra, Marsh Landing, The Plantation, Amelia Island)
+- [x] Call autoTag helper in clients.create procedure after inserting the client
+- [x] Call autoTag helper in clients.update procedure after updating the client (re-evaluate all neighborhood tags)

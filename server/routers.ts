@@ -79,6 +79,7 @@ import {
   savePhotoAnnotation,
 } from "./db";
 import { storagePut } from "./storage";
+import { autoTagClient } from "./autoTag";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -117,7 +118,11 @@ const clientsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      await createClient(input);
+      const result = await createClient(input);
+      const newId = (result as any).insertId as number;
+      if (newId) {
+        await autoTagClient(newId, input).catch(() => {});
+      }
       return { success: true };
     }),
 
@@ -139,6 +144,12 @@ const clientsRouter = router({
     .mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateClient(id, data);
+      // Re-evaluate neighborhood tags when address fields change
+      const addressFields = ["addressLine1", "city", "state", "zip"];
+      if (addressFields.some(f => f in data)) {
+        const updated = await getClientById(id);
+        if (updated) await autoTagClient(id, updated, true).catch(() => {});
+      }
       return { success: true };
     }),
 
@@ -173,7 +184,7 @@ const clientsRouter = router({
       for (const row of input.rows) {
         try {
           if (!row.name.trim()) { skipped++; continue; }
-          await createClient({
+          const csvData = {
             name: row.name.trim(),
             phone: row.phone?.trim() || undefined,
             email: row.email?.trim() || undefined,
@@ -183,7 +194,10 @@ const clientsRouter = router({
             state: row.state?.trim() || undefined,
             zip: row.zip?.trim() || undefined,
             notes: row.notes?.trim() || undefined,
-          });
+          };
+          const csvResult = await createClient(csvData);
+          const csvNewId = (csvResult as any).insertId as number;
+          if (csvNewId) await autoTagClient(csvNewId, csvData).catch(() => {});
           imported++;
         } catch {
           skipped++;
