@@ -50,6 +50,68 @@ const PLANTATION_STREETS = [
   "plantation circle south",
 ];
 
+const SAWGRASS_CC_STREETS = [
+  // Main roads
+  "golf club drive",
+  "golf club dr",
+  "country club boulevard",
+  "sawgrass island drive",
+  "sawgrass corners drive",
+  "sawgrass drive s",
+  "sawgrass drive e",
+  "sawgrass drive w",
+  // Single-family neighborhoods
+  "lake kathryn drive",
+  "lighthouse bend drive",
+  "lighthouse cove place",
+  "ocean ridge court",
+  "old barn road",
+  "old barn court",
+  "osprey pt",
+  "osprey point",
+  "osprey court",
+  "osprey cove lane",
+  "osprey nest court",
+  "osprey lookout court",
+  "osprey ridge way",
+  "preston trl e",
+  "preston trl w",
+  "preston trail e",
+  "preston trail w",
+  "nine drive south",
+  "south nine drive",
+  "s nine drive",
+  "nine lake circle",
+  // Zero lot line neighborhoods
+  "lake julia drive",
+  "northgate drive",
+  "sandpiper cove",
+  "sandpiper court",
+  "spy glass lane",
+  "spyglass lane",
+  "village walk circle",
+  "village walk court",
+  "village walk drive",
+  "village walk lane",
+  "walkers ridge drive",
+  "walkers ridge court",
+  "harbour club drive",
+  // Condo neighborhoods
+  "deer run drive",
+  "deer run lane",
+  "fishermans cove road",
+  "little bay harbor drive",
+  "little bay harbour drive",
+  "quail pointe drive",
+  "quail pointe court",
+  "quail pointe lane",
+  "quail cove",
+  "tifton way",
+  "willow pond lane",
+  // Beach Club
+  "spinnakers reach drive",
+];
+
 const MARSH_LANDING_STREETS = [
   // HOA I
   "arbor drive", "arbor lake lane", "arbor view court", "bent pine court",
@@ -136,6 +198,13 @@ function getApplicableTags(client: ClientAddress): string[] {
     }
   }
 
+  // Sawgrass CC (must be in PVB area + street match)
+  if (city.includes("ponte vedra") || zip === "32082") {
+    if (SAWGRASS_CC_STREETS.some(s => addr.includes(s))) {
+      applicable.push("Sawgrass CC");
+    }
+  }
+
   return applicable;
 }
 
@@ -157,7 +226,7 @@ export async function autoTagClient(
   if (!db) return;
 
   // All neighborhood tag names we manage
-  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing"];
+  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC"];
 
   // Fetch tag IDs for all neighborhood tags (create if missing)
   const tagIds: Record<string, number> = {};
@@ -166,6 +235,7 @@ export async function autoTagClient(
     "Amelia Island": "#14b8a6",
     "The Plantation": "#1a5276",
     "Marsh Landing": "#2e7d32",
+    "Sawgrass CC": "#1565c0",
   };
 
   for (const tagName of NEIGHBORHOOD_TAG_NAMES) {

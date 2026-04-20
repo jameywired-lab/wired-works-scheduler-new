@@ -741,3 +741,9 @@
 
 - [x] Update listTags DB helper to include clientCount per tag
 - [x] Update tags UI to show count badge next to each tag name
+
+## Sawgrass CC Neighborhood Tag
+
+- [x] Research all streets within Sawgrass Country Club, Ponte Vedra Beach (source: sawgrasscommunity.com + geographic.org)
+- [x] Create "Sawgrass CC" tag (color: #1565c0) and tag all 18 matching clients
+- [x] Add Sawgrass CC rules to autoTag.ts for automatic tagging on future client creates/updates
