@@ -40,6 +40,14 @@ const PLANTATION_STREETS = [
   "planters row",
   "planters row e",
   "planters row w",
+  "laurel court",
+  "surrey ln",
+  "laurel ln",
+  "retreat pl",
+  "middleton pl",
+  "regents pl",
+  "12 oaks ln",
+  "plantation circle south",
 ];
 
 const MARSH_LANDING_STREETS = [
