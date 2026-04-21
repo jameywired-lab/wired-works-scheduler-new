@@ -821,3 +821,7 @@
 - [x] Wire logging into: client delete, job delete, follow-up complete, follow-up delete, tag delete, crew delete
 - [x] Activity Log page in sidebar with undo buttons per entry (30-day window)
 - [x] Show undo toast notification after successful restore
+
+## Undo Confirmation Modal
+
+- [x] Activity Log: show confirmation modal before executing undo — display entity type, entity label, and action being reversed; user must confirm before restore proceeds

@@ -2,10 +2,18 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { History, Trash2, CheckCircle, Undo2, RefreshCw } from "lucide-react";
+import { History, Trash2, CheckCircle, Undo2, RefreshCw, AlertTriangle } from "lucide-react";
 
 type ActionFilter = "all" | "delete" | "complete";
 
@@ -44,9 +52,13 @@ function groupByDate(entries: LogEntry[]): { dateLabel: string; entries: LogEntr
 
 export default function ActivityLogPage() {
   const [filter, setFilter] = useState<ActionFilter>("all");
+  const [pendingUndo, setPendingUndo] = useState<LogEntry | null>(null);
+
   const { data: entries = [], isLoading, refetch } = trpc.activityLog.list.useQuery();
+
   const undoMutation = trpc.activityLog.undo.useMutation({
     onSuccess: (result) => {
+      setPendingUndo(null);
       if (result.success) {
         toast.success(result.message, { duration: 4000 });
         refetch();
@@ -55,9 +67,24 @@ export default function ActivityLogPage() {
       }
     },
     onError: (err) => {
+      setPendingUndo(null);
       toast.error(`Undo failed: ${err.message}`);
     },
   });
+
+  const handleUndoRequest = (entry: LogEntry) => {
+    setPendingUndo(entry);
+  };
+
+  const handleConfirmUndo = () => {
+    if (pendingUndo) {
+      undoMutation.mutate({ id: pendingUndo.id });
+    }
+  };
+
+  const handleCancelUndo = () => {
+    setPendingUndo(null);
+  };
 
   const filtered = (entries as LogEntry[]).filter((e) => {
     if (filter === "all") return true;
@@ -66,8 +93,11 @@ export default function ActivityLogPage() {
 
   const grouped = groupByDate(filtered);
 
+  const isDelete = pendingUndo?.action === "delete";
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
+      {/* ── Page header ── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <History className="h-6 w-6 text-primary" />
@@ -93,10 +123,12 @@ export default function ActivityLogPage() {
         </div>
       </div>
 
+      {/* ── Loading ── */}
       {isLoading && (
         <div className="text-center py-12 text-muted-foreground">Loading activity log...</div>
       )}
 
+      {/* ── Empty state ── */}
       {!isLoading && filtered.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
@@ -106,6 +138,7 @@ export default function ActivityLogPage() {
         </Card>
       )}
 
+      {/* ── Grouped entries ── */}
       {grouped.map(({ dateLabel, entries: dayEntries }) => (
         <div key={dateLabel} className="mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -118,24 +151,80 @@ export default function ActivityLogPage() {
               <ActivityLogCard
                 key={entry.id}
                 entry={entry}
-                onUndo={() => undoMutation.mutate({ id: entry.id })}
+                onUndoRequest={() => handleUndoRequest(entry)}
                 isUndoing={undoMutation.isPending && undoMutation.variables?.id === entry.id}
               />
             ))}
           </div>
         </div>
       ))}
+
+      {/* ── Confirmation modal ── */}
+      <Dialog open={!!pendingUndo} onOpenChange={(open) => { if (!open) handleCancelUndo(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+                isDelete
+                  ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                  : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+              }`}>
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-lg">Confirm Undo</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-muted-foreground leading-relaxed pt-1">
+              {pendingUndo && (
+                <>
+                  You are about to restore the{" "}
+                  <span className="font-semibold text-foreground">
+                    {formatEntityType(pendingUndo.entityType)}
+                  </span>{" "}
+                  {pendingUndo.action === "delete" ? "that was deleted" : "that was marked complete"}:
+                  <div className="mt-2 px-3 py-2 rounded-md bg-muted border border-border text-foreground font-medium text-sm">
+                    {pendingUndo.entityLabel ?? `#${pendingUndo.entityId}`}
+                  </div>
+                  <div className="mt-3">
+                    {pendingUndo.action === "delete"
+                      ? "This will re-insert the record into the database. Any changes made after the deletion will not be affected."
+                      : "This will mark the item as incomplete and restore it to its previous state."}
+                  </div>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex gap-2 sm:gap-2 mt-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelUndo}
+              disabled={undoMutation.isPending}
+              className="flex-1 sm:flex-none"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmUndo}
+              disabled={undoMutation.isPending}
+              className="flex-1 sm:flex-none gap-1.5"
+            >
+              <Undo2 className="h-4 w-4" />
+              {undoMutation.isPending ? "Restoring..." : "Yes, Undo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function ActivityLogCard({
   entry,
-  onUndo,
+  onUndoRequest,
   isUndoing,
 }: {
   entry: LogEntry;
-  onUndo: () => void;
+  onUndoRequest: () => void;
   isUndoing: boolean;
 }) {
   const isDelete = entry.action === "delete";
@@ -180,12 +269,12 @@ function ActivityLogCard({
           </div>
         </div>
 
-        {/* Undo button */}
+        {/* Undo button — opens confirmation modal */}
         {!isUndone && (
           <Button
             variant="outline"
             size="sm"
-            onClick={onUndo}
+            onClick={onUndoRequest}
             disabled={isUndoing}
             className="shrink-0 gap-1.5"
           >
