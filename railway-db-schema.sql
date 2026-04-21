@@ -376,3 +376,5 @@ CREATE TABLE IF NOT EXISTS `clientPhotos` (
 --> statement-breakpoint
 ALTER TABLE `clientNotes` ADD CONSTRAINT `clientNotes_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `clientPhotos` ADD CONSTRAINT `clientPhotos_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE cascade ON UPDATE no action;
+ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255);--> statement-breakpoint
+ALTER TABLE `users` MODIFY COLUMN `role` enum('user','admin','crew') NOT NULL DEFAULT 'user';
