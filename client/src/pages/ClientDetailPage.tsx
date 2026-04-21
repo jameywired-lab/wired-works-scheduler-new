@@ -48,7 +48,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { KeyRound, Eye, EyeOff, X, Send, Link, MessageSquare } from "lucide-react";
@@ -858,8 +858,21 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
     return "border-l-muted-foreground";
   };
 
+  // Auto-scroll + open SMS composer when navigated from Follow-Ups with ?tab=communications
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "communications") {
+      setTimeout(() => {
+        const el = document.getElementById("communications-section");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (clientPhone) setShowSmsComposer(true);
+      }, 400);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientPhone]);
+
   return (
-    <Card className="bg-card border-border">
+    <Card id="communications-section" className="bg-card border-border">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">

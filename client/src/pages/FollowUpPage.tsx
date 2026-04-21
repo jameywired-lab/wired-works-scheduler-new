@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,7 @@ function isSnoozeActive(remindAt?: number | null) {
 
 function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) {
   const utils = trpc.useUtils();
+  const [, navigate] = useLocation();
 
   const complete = trpc.followUps.completeTask.useMutation({
     onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Follow-up completed"); },
@@ -213,9 +215,20 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
               </Badge>
             )}
             {sourceBadge(f.type)}
-            <span className="font-semibold text-sm text-foreground truncate">
-              {f.contactName || "Unknown Caller"}
-            </span>
+            {/* Clickable client name — navigates to client communications */}
+            {f.clientId ? (
+              <button
+                className="font-semibold text-sm text-foreground truncate hover:text-teal-400 hover:underline transition-colors cursor-pointer"
+                onClick={() => navigate(`/clients/${f.clientId}?tab=communications`)}
+                title="View client communications"
+              >
+                {f.contactName || "Unknown Caller"}
+              </button>
+            ) : (
+              <span className="font-semibold text-sm text-foreground truncate">
+                {f.contactName || "Unknown Caller"}
+              </span>
+            )}
             {f.phone && (
               <span className="text-xs text-muted-foreground">{f.phone}</span>
             )}
@@ -269,15 +282,17 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
             </Button>
           )}
 
-          {/* SMS Reply button — show when follow-up has a phone number */}
+          {/* SMS Reply button — prominent teal button for text follow-ups */}
           {f.phone && (
             <Button
               size="sm"
-              variant="outline"
-              className="h-7 text-xs border-teal-600/50 text-teal-400 hover:bg-teal-950/50"
+              className={showReply
+                ? "h-8 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-3"
+                : "h-8 text-xs bg-teal-600 hover:bg-teal-500 text-white font-semibold px-3 shadow-sm"
+              }
               onClick={() => setShowReply(!showReply)}
             >
-              <MessageSquare className="h-3 w-3 mr-1" />{showReply ? "Cancel" : "Reply"}
+              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />{showReply ? "Cancel Reply" : "Reply via Text"}
             </Button>
           )}
 
