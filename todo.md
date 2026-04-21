@@ -825,3 +825,13 @@
 ## Undo Confirmation Modal
 
 - [x] Activity Log: show confirmation modal before executing undo — display entity type, entity label, and action being reversed; user must confirm before restore proceeds
+
+## Client Notes & Photos (with Author Stamp)
+
+- [x] DB: clientNotes table (clientId, content, authorName, createdAt)
+- [x] DB: clientPhotos table (clientId, s3Key, s3Url, authorName, createdAt)
+- [x] Backend: clientNotes router (list, create, delete) with authorName field
+- [x] Backend: clientPhotos router (list, create/upload, delete) with authorName field
+- [x] Client detail page: Notes section with + button, inline add form (textarea + author selector), timestamped list with author badge and delete
+- [x] Client detail page: Photos section with + button, inline upload (base64 → S3), photo grid with author/date overlay and delete
+- [x] Author selector: dropdown of the 3 team members (Wired Works, Wiredai, Crew Member)

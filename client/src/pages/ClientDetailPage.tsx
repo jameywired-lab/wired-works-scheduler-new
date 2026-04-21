@@ -1127,13 +1127,81 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
 }
 
 // ─── Client Notes & Photos Section ───────────────────────────────────────────
+const TEAM_MEMBERS = ["Wired Works", "Wiredai", "Crew Member"];
+
 function ClientNotesAndPhotos({ clientId }: { clientId: number }) {
   const [activeTab, setActiveTab] = useState<"notes" | "photos">("notes");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
 
+  // Client-level notes state
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteBody, setNoteBody] = useState("");
+  const [noteAuthor, setNoteAuthor] = useState(TEAM_MEMBERS[0]);
+
+  // Client-level photos state
+  const [showPhotoForm, setShowPhotoForm] = useState(false);
+  const [photoAuthor, setPhotoAuthor] = useState(TEAM_MEMBERS[0]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const utils = trpc.useUtils();
+
   const { data: notes, isLoading: notesLoading } = trpc.crewNotes.getByClient.useQuery({ clientId });
   const { data: photos, isLoading: photosLoading } = trpc.jobPhotos.listByClient.useQuery({ clientId });
+  const { data: clientNotesList = [], isLoading: clientNotesLoading } = trpc.clientNotes.list.useQuery({ clientId });
+  const { data: clientPhotosList = [], isLoading: clientPhotosLoading } = trpc.clientPhotos.list.useQuery({ clientId });
+
+  const createNoteMutation = trpc.clientNotes.create.useMutation({
+    onSuccess: () => {
+      utils.clientNotes.list.invalidate({ clientId });
+      setNoteBody("");
+      setShowNoteForm(false);
+    },
+  });
+
+  const deleteNoteMutation = trpc.clientNotes.delete.useMutation({
+    onSuccess: () => utils.clientNotes.list.invalidate({ clientId }),
+  });
+
+  const uploadPhotoMutation = trpc.clientPhotos.upload.useMutation({
+    onSuccess: () => {
+      utils.clientPhotos.list.invalidate({ clientId });
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setShowPhotoForm(false);
+    },
+  });
+
+  const deletePhotoMutation = trpc.clientPhotos.delete.useMutation({
+    onSuccess: () => utils.clientPhotos.list.invalidate({ clientId }),
+  });
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoUpload = async () => {
+    if (!photoFile) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = (ev.target?.result as string).split(",")[1];
+      uploadPhotoMutation.mutate({
+        clientId,
+        uploadedBy: photoAuthor,
+        filename: photoFile.name,
+        mimeType: photoFile.type,
+        sizeBytes: photoFile.size,
+        dataBase64: base64,
+      });
+    };
+    reader.readAsDataURL(photoFile);
+  };
 
   // Group notes by jobId
   const notesByJob = React.useMemo(() => {
@@ -1169,15 +1237,35 @@ function ClientNotesAndPhotos({ clientId }: { clientId: number }) {
     });
   };
 
-  const totalNotes = notes?.length ?? 0;
-  const totalPhotos = photos?.length ?? 0;
+  const totalNotes = (notes?.length ?? 0) + clientNotesList.length;
+  const totalPhotos = (photos?.length ?? 0) + clientPhotosList.length;
 
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Notes &amp; Photos</CardTitle>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            {/* + Add buttons */}
+            {activeTab === "notes" && (
+              <button
+                onClick={() => { setShowNoteForm((v) => !v); setShowPhotoForm(false); }}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                title="Add note"
+              >
+                <Plus className="h-3 w-3" /> Note
+              </button>
+            )}
+            {activeTab === "photos" && (
+              <button
+                onClick={() => { setShowPhotoForm((v) => !v); setShowNoteForm(false); }}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                title="Add photo"
+              >
+                <Plus className="h-3 w-3" /> Photo
+              </button>
+            )}
+            {/* Tab switchers */}
             <button
               onClick={() => setActiveTab("notes")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
@@ -1207,12 +1295,77 @@ function ClientNotesAndPhotos({ clientId }: { clientId: number }) {
         {/* ── Notes Tab ── */}
         {activeTab === "notes" && (
           <>
+            {/* Inline add note form */}
+            {showNoteForm && (
+              <div className="mb-3 p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-foreground shrink-0">Added by</label>
+                  <Select value={noteAuthor} onValueChange={setNoteAuthor}>
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TEAM_MEMBERS.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Textarea
+                  value={noteBody}
+                  onChange={(e) => setNoteBody(e.target.value)}
+                  placeholder="Write a note about this client..."
+                  className="text-xs min-h-[72px] resize-none"
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowNoteForm(false); setNoteBody(""); }}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={!noteBody.trim() || createNoteMutation.isPending}
+                    onClick={() => createNoteMutation.mutate({ clientId, authorName: noteAuthor, body: noteBody.trim() })}
+                  >
+                    {createNoteMutation.isPending ? "Saving..." : "Save Note"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Client-level notes (manually added) */}
+            {clientNotesLoading ? (
+              <div className="space-y-2 mb-2">{[1].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+            ) : clientNotesList.length > 0 ? (
+              <div className="space-y-2 mb-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1">Client Notes</p>
+                {clientNotesList.map((note) => (
+                  <div key={note.id} className="border border-border rounded-lg px-3 py-2.5 space-y-1 bg-card">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-primary">{note.authorName}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {new Date(note.createdAt).toLocaleDateString()} {new Date(note.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <button
+                        onClick={() => deleteNoteMutation.mutate({ id: note.id })}
+                        className="text-muted-foreground hover:text-destructive transition-colors ml-1"
+                        title="Delete note"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-foreground/80 whitespace-pre-wrap">{note.body}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Job crew notes (from field work) */}
             {notesLoading ? (
               <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
-            ) : notesByJob.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-6">No crew notes yet for this client.</p>
-            ) : (
+            ) : notesByJob.length === 0 && clientNotesList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No notes yet. Click + Note to add one.</p>
+            ) : notesByJob.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1">Crew Field Notes</p>
                 {notesByJob.map(([jobId, { jobTitle, jobDate, notes: jobNotes }]) => {
                   const isOpen = expandedJobs.has(jobId) || notesByJob.length === 1;
                   return (
@@ -1254,19 +1407,109 @@ function ClientNotesAndPhotos({ clientId }: { clientId: number }) {
                   );
                 })}
               </div>
-            )}
+            ) : null}
           </>
         )}
 
         {/* ── Photos Tab ── */}
         {activeTab === "photos" && (
           <>
+            {/* Inline add photo form */}
+            {showPhotoForm && (
+              <div className="mb-3 p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-foreground shrink-0">Added by</label>
+                  <Select value={photoAuthor} onValueChange={setPhotoAuthor}>
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TEAM_MEMBERS.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => document.getElementById('client-photo-input')?.click()}
+                >
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Preview" className="mx-auto max-h-32 rounded object-contain" />
+                  ) : (
+                    <div className="space-y-1">
+                      <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto" />
+                      <p className="text-xs text-muted-foreground">Click to select a photo</p>
+                    </div>
+                  )}
+                  <input
+                    id="client-photo-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoFileChange}
+                  />
+                </div>
+                {photoFile && (
+                  <p className="text-xs text-muted-foreground truncate">{photoFile.name} ({(photoFile.size / 1024).toFixed(0)} KB)</p>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowPhotoForm(false); setPhotoFile(null); setPhotoPreview(null); }}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={!photoFile || uploadPhotoMutation.isPending}
+                    onClick={handlePhotoUpload}
+                  >
+                    {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photo"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Client-level photos (manually added) */}
+            {clientPhotosLoading ? (
+              <div className="grid grid-cols-3 gap-2 mb-3">{[1, 2].map((i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}</div>
+            ) : clientPhotosList.length > 0 ? (
+              <div className="mb-3 space-y-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1">Client Photos</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {clientPhotosList.map((photo) => (
+                    <div key={photo.id} className="relative group">
+                      <button
+                        onClick={() => setLightboxUrl(photo.s3Url)}
+                        className="relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors w-full"
+                      >
+                        <img
+                          src={photo.s3Url}
+                          alt={photo.filename ?? "Client photo"}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate">
+                          {photo.uploadedBy}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => deletePhotoMutation.mutate({ id: photo.id })}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                        title="Delete photo"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Job photos (from field work) */}
             {photosLoading ? (
               <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}</div>
-            ) : photosByJob.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-6">No photos uploaded yet for this client.</p>
-            ) : (
+            ) : photosByJob.length === 0 && clientPhotosList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No photos yet. Click + Photo to add one.</p>
+            ) : photosByJob.length > 0 ? (
               <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1">Job Photos</p>
                 {photosByJob.map(([jobId, { jobTitle, jobDate, photos: jobPhotos }]) => (
                   <div key={jobId}>
                     <div className="flex items-center gap-2 mb-2">
@@ -1303,7 +1546,7 @@ function ClientNotesAndPhotos({ clientId }: { clientId: number }) {
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </>
         )}
       </CardContent>

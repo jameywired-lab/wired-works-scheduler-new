@@ -49,6 +49,12 @@ import {
   listSmsTemplates,
   upsertSmsTemplate,
   getSmsTemplate,
+  listClientNotes,
+  createClientNote,
+  deleteClientNote,
+  listClientPhotos,
+  createClientPhoto,
+  deleteClientPhoto,
 } from "./db";
 import { sendSms } from "./sms";
 import {
@@ -1341,7 +1347,74 @@ const activityLogRouter = router({
     .mutation(async ({ input }) => undoActivity(input.id)),
 });
 
-// ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────
+// ─── Client Notes Router ────────────────────────────────────────────────────────────────────────────────────────
+const clientNotesRouter = router({
+  list: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => listClientNotes(input.clientId)),
+
+  create: p
+    .input(z.object({
+      clientId: z.number(),
+      authorName: z.string().min(1),
+      body: z.string().min(1),
+    }))
+    .mutation(async ({ input }) => {
+      await createClientNote(input);
+      return { success: true };
+    }),
+
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteClientNote(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── Client Photos Router ───────────────────────────────────────────────────────────────────────────────────────
+const clientPhotosRouter = router({
+  list: p
+    .input(z.object({ clientId: z.number() }))
+    .query(async ({ input }) => listClientPhotos(input.clientId)),
+
+  upload: p
+    .input(z.object({
+      clientId: z.number(),
+      uploadedBy: z.string().min(1),
+      filename: z.string(),
+      mimeType: z.string(),
+      sizeBytes: z.number().optional(),
+      dataBase64: z.string(), // base64-encoded file content
+    }))
+    .mutation(async ({ input }) => {
+      const { storagePut } = await import('./storage');
+      const buf = Buffer.from(input.dataBase64, 'base64');
+      const suffix = Date.now().toString(36);
+      const ext = input.filename.split('.').pop() ?? 'jpg';
+      const key = `client-${input.clientId}/photos/${suffix}.${ext}`;
+      const { url } = await storagePut(key, buf, input.mimeType);
+      await createClientPhoto({
+        clientId: input.clientId,
+        s3Key: key,
+        s3Url: url,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        uploadedBy: input.uploadedBy,
+      });
+      return { success: true, url };
+    }),
+
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteClientPhoto(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -1376,5 +1449,7 @@ export const appRouter = router({
   projectPhotos: projectPhotosRouter,
   system: systemRouter,
   activityLog: activityLogRouter,
+  clientNotes: clientNotesRouter,
+  clientPhotos: clientPhotosRouter,
 });
 export type AppRouter = typeof appRouter;

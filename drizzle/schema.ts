@@ -428,8 +428,33 @@ export const projectPhotos = mysqlTable("projectPhotos", {
 });
 export type ProjectPhoto = typeof projectPhotos.$inferSelect;
 export type InsertProjectPhoto = typeof projectPhotos.$inferInsert;
+// ─── Client Notes ─────────────────────────────────────────────────────────────────────────────────────────
+export const clientNotes = mysqlTable("clientNotes", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  authorName: varchar("authorName", { length: 255 }).notNull().default("Admin"),
+  body: text("body").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ClientNote = typeof clientNotes.$inferSelect;
+export type InsertClientNote = typeof clientNotes.$inferInsert;
 
-// ─── Activity Log (undo/restore) ─────────────────────────────────────────────
+// ─── Client Photos ───────────────────────────────────────────────────────────────────────────────────────
+export const clientPhotos = mysqlTable("clientPhotos", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  s3Key: varchar("s3Key", { length: 512 }).notNull(),
+  s3Url: text("s3Url").notNull(),
+  filename: varchar("filename", { length: 255 }),
+  mimeType: varchar("mimeType", { length: 64 }),
+  sizeBytes: int("sizeBytes"),
+  uploadedBy: varchar("uploadedBy", { length: 255 }).notNull().default("Admin"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ClientPhoto = typeof clientPhotos.$inferSelect;
+export type InsertClientPhoto = typeof clientPhotos.$inferInsert;
+
+// ─── Activity Log (undo/restore) ─────────────────────────────────────────────────
 export const activityLog = mysqlTable("activityLog", {
   id: int("id").autoincrement().primaryKey(),
   action: mysqlEnum("action", ["delete", "complete", "update"]).notNull(),

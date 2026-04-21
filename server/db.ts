@@ -45,6 +45,12 @@ import {
   ProjectCredential,
   InsertProjectCredential,
   smsTemplates,
+  clientNotes,
+  ClientNote,
+  InsertClientNote,
+  clientPhotos,
+  ClientPhoto,
+  InsertClientPhoto,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1230,4 +1236,62 @@ export async function deleteProjectPhoto(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   await db.delete(projectPhotos).where(eq(projectPhotos.id, id));
+}
+
+// ─── Client Notes ─────────────────────────────────────────────────────────────
+export async function listClientNotes(clientId: number): Promise<ClientNote[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(clientNotes)
+    .where(eq(clientNotes.clientId, clientId))
+    .orderBy(desc(clientNotes.createdAt));
+}
+
+export async function createClientNote(data: {
+  clientId: number;
+  authorName: string;
+  body: string;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(clientNotes).values(data);
+}
+
+export async function deleteClientNote(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(clientNotes).where(eq(clientNotes.id, id));
+}
+
+// ─── Client Photos ────────────────────────────────────────────────────────────
+export async function listClientPhotos(clientId: number): Promise<ClientPhoto[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(clientPhotos)
+    .where(eq(clientPhotos.clientId, clientId))
+    .orderBy(desc(clientPhotos.createdAt));
+}
+
+export async function createClientPhoto(data: {
+  clientId: number;
+  s3Key: string;
+  s3Url: string;
+  filename?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  uploadedBy: string;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(clientPhotos).values(data);
+}
+
+export async function deleteClientPhoto(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(clientPhotos).where(eq(clientPhotos.id, id));
 }
