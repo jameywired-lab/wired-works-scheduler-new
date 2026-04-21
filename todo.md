@@ -752,3 +752,8 @@
 
 - [x] Create "St. Augustine" tag and tag all matching clients (by city name and St. Augustine zip codes) — 152 clients tagged
 - [x] Add St. Augustine rules to autoTag.ts
+
+## Nocatee Neighborhood Tag
+
+- [x] Create "Nocatee" tag and tag all matching clients (city name + zip 32081) — 85 clients tagged
+- [x] Add Nocatee rules to autoTag.ts

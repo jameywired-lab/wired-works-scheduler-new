@@ -211,12 +211,17 @@ function getApplicableTags(client: ClientAddress): string[] {
     "st. augustine beach", "st augustine beach", "saint augustine beach",
     "st. augustine shores", "st augustine shores",
     "st. johns", "st johns", "saint johns",
-    "hastings", "elkton", "nocatee",
+    "hastings", "elkton",
   ];
   const ST_AUG_ZIPS = ["32080", "32084", "32085", "32086", "32092", "32095", "32033", "32043", "32068"];
   const zipShort = zip.substring(0, 5);
   if (ST_AUG_CITIES.some(s => city === s || city.startsWith(s + " ")) || ST_AUG_ZIPS.includes(zipShort)) {
     applicable.push("St. Augustine");
+  }
+
+  // Nocatee (zip 32081 or city name "nocatee")
+  if (city === "nocatee" || zipShort === "32081") {
+    applicable.push("Nocatee");
   }
 
   return applicable;
@@ -240,7 +245,7 @@ export async function autoTagClient(
   if (!db) return;
 
   // All neighborhood tag names we manage
-  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC", "St. Augustine"];
+  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC", "St. Augustine", "Nocatee"];
 
   // Fetch tag IDs for all neighborhood tags (create if missing)
   const tagIds: Record<string, number> = {};
@@ -251,6 +256,7 @@ export async function autoTagClient(
     "Marsh Landing": "#2e7d32",
     "Sawgrass CC": "#1565c0",
     "St. Augustine": "#b45309",
+    "Nocatee": "#0891b2",
   };
 
   for (const tagName of NEIGHBORHOOD_TAG_NAMES) {
