@@ -20,7 +20,6 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   Bell,
@@ -290,7 +289,7 @@ function DashboardLayoutContent({
                       Sign out
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={() => window.location.href = getLoginUrl()}>
+                    <DropdownMenuItem onClick={() => window.location.href = "/login"}>
                       <LogIn className="mr-2 h-4 w-4" />
                       Sign in
                     </DropdownMenuItem>
@@ -345,7 +344,7 @@ function DashboardLayoutContent({
                       Sign out
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={() => window.location.href = getLoginUrl()}>
+                    <DropdownMenuItem onClick={() => window.location.href = "/login"}>
                       <LogIn className="mr-2 h-4 w-4" />
                       Sign in
                     </DropdownMenuItem>

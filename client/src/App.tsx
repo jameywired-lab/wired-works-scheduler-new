@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
+import { useEffect } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
@@ -23,12 +24,34 @@ import VanInventoryPage from "./pages/VanInventoryPage";
 import MarketingPage from "./pages/MarketingPage";
 import RevenueReportPage from "./pages/RevenueReportPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
+import Login from "./pages/Login";
+import { trpc } from "./lib/trpc";
 
-function AppRoutes() {
+function ProtectedRoutes() {
+  const [, navigate] = useLocation();
+  const { data: user, isLoading } = trpc.auth.me.useQuery();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground text-sm">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   return (
     <DashboardLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/clients" component={ClientsPage} />
         <Route path="/clients/:id" component={ClientDetailPage} />
@@ -58,7 +81,10 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster richColors position="top-right" />
-          <AppRoutes />
+          <Switch>
+            <Route path="/login" component={Login} />
+            <Route component={ProtectedRoutes} />
+          </Switch>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

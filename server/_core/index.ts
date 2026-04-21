@@ -2,17 +2,20 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
+import { registerLocalAuthRoutes } from "./localAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleOpenPhoneWebhook } from "../openphoneWebhook";
 import { handleProposalAcceptedWebhook, handleWebhookInfo } from "../proposalAcceptedWebhook";
 import { runMigrations } from "../migrate";
+import { seedAdminUser } from "../seedAdmin";
 
 async function startServer() {
   // Run DB migrations before accepting any traffic — safe to re-run on every boot
   await runMigrations();
+  // Seed the admin user if ADMIN_EMAIL + ADMIN_PASSWORD env vars are set
+  await seedAdminUser();
 
   const app = express();
   const server = createServer(app);
@@ -26,8 +29,8 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // Local username/password auth routes (/api/auth/login, /api/auth/logout)
+  registerLocalAuthRoutes(app);
   // OpenPhone inbound webhook — auto-creates follow-ups for inbound SMS and missed calls/voicemails
   app.post("/api/openphone/webhook", handleOpenPhoneWebhook);
   // Portal.io → Zapier → Wired Works: auto-create project when proposal is accepted

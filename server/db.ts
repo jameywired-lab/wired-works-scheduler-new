@@ -112,6 +112,19 @@ export async function getUserByOpenId(openId: string) {
   return result[0];
 }
 
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase())).limit(1);
+  return result[0];
+}
+
+export async function setUserPassword(openId: string, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(users).set({ passwordHash }).where(eq(users.openId, openId));
+}
+
 export async function listUsers() {
   const db = await getDb();
   if (!db) return [];

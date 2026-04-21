@@ -162,6 +162,13 @@
       "when": 1776790057961,
       "tag": "0022_orange_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1776807631289,
+      "tag": "0023_hard_meteorite",
+      "breakpoints": true
     }
   ]
 }

@@ -835,3 +835,16 @@
 - [x] Client detail page: Notes section with + button, inline add form (textarea + author selector), timestamped list with author badge and delete
 - [x] Client detail page: Photos section with + button, inline upload (base64 → S3), photo grid with author/date overlay and delete
 - [x] Author selector: dropdown of the 3 team members (Wired Works, Wiredai, Crew Member)
+
+## Railway Deployment — Local Auth Replacement
+- [x] Replace Manus OAuth with username/password login (bcrypt + JWT session cookie)
+- [x] Add /api/auth/login and /api/auth/logout Express endpoints (localAuth.ts)
+- [x] Update tRPC context to use localAuth.authenticateRequest instead of sdk
+- [x] Update useAuth hook to redirect to /login instead of Manus OAuth URL
+- [x] Create Login page (client/src/pages/Login.tsx) with email/password form
+- [x] Protect all routes in App.tsx — redirect to /login if unauthenticated
+- [x] Add seedAdmin.ts — auto-creates admin user from ADMIN_EMAIL + ADMIN_PASSWORD env vars on startup
+- [x] Add passwordHash column to users table (schema + railway-db-schema.sql)
+- [x] Add getUserByEmail and setUserPassword helpers to db.ts
+- [x] All 80 tests passing (0 TypeScript errors)
+- [ ] Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway Variables (user action required)
