@@ -76,8 +76,9 @@ export function registerLocalAuthRoutes(app: Express) {
       res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       res.json({ ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
     } catch (err) {
+      const e = err as { message?: string; code?: string };
       console.error("[localAuth] login error", err);
-      res.status(500).json({ error: "Login failed" });
+      res.status(500).json({ error: "Login failed", detail: e?.message ?? String(err) });
     }
   });
 
