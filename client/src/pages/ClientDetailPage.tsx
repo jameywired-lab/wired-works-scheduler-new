@@ -51,7 +51,7 @@ import {
 import React, { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
-import { KeyRound, Eye, EyeOff, X } from "lucide-react";
+import { KeyRound, Eye, EyeOff, X, Send, Link, MessageSquare } from "lucide-react";
 import JobFormModal from "@/components/JobFormModal";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -769,6 +769,13 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [showForm, setShowForm] = useState(false);
+  // New outbound SMS composer
+  const [showSmsComposer, setShowSmsComposer] = useState(false);
+  const [smsText, setSmsText] = useState("");
+  const [smsMediaUrls, setSmsMediaUrls] = useState<string[]>([]);
+  const [smsLinkInput, setSmsLinkInput] = useState("");
+  const [showSmsLinkInput, setShowSmsLinkInput] = useState(false);
+  const [uploadingSmsMedia, setUploadingSmsMedia] = useState(false);
 
   const addNote = trpc.communications.addNote.useMutation({
     onSuccess: () => {
@@ -787,15 +794,54 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
 
   const [replyToId, setReplyToId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [replyMediaUrls, setReplyMediaUrls] = useState<string[]>([]);
+  const [replyLinkInput, setReplyLinkInput] = useState("");
+  const [showReplyLinkInput, setShowReplyLinkInput] = useState(false);
+  const [uploadingReplyMedia, setUploadingReplyMedia] = useState(false);
+
+  const uploadMedia = trpc.communications.uploadMedia.useMutation();
+
   const sendSms = trpc.communications.sendSms.useMutation({
     onSuccess: () => {
       utils.communications.list.invalidate({ clientId });
       toast.success("Message sent");
       setReplyText("");
+      setReplyMediaUrls([]);
       setReplyToId(null);
+      setSmsText("");
+      setSmsMediaUrls([]);
+      setShowSmsComposer(false);
     },
     onError: (err) => toast.error(err.message ?? "Failed to send"),
   });
+
+  async function handleSmsMediaUpload(e: React.ChangeEvent<HTMLInputElement>, target: "reply" | "new") {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("File too large (max 5 MB)"); return; }
+    if (target === "reply") setUploadingReplyMedia(true); else setUploadingSmsMedia(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const result = await uploadMedia.mutateAsync({ fileBase64: base64, mimeType: file.type, fileName: file.name });
+        if (target === "reply") setReplyMediaUrls(prev => [...prev, result.url]);
+        else setSmsMediaUrls(prev => [...prev, result.url]);
+        toast.success("Photo attached");
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      if (target === "reply") setUploadingReplyMedia(false); else setUploadingSmsMedia(false);
+    }
+  }
+
+  function handleAddLink(target: "reply" | "new") {
+    const raw = target === "reply" ? replyLinkInput : smsLinkInput;
+    if (!raw.trim()) return;
+    const url = raw.trim().startsWith("http") ? raw.trim() : `https://${raw.trim()}`;
+    if (target === "reply") { setReplyMediaUrls(prev => [...prev, url]); setReplyLinkInput(""); setShowReplyLinkInput(false); }
+    else { setSmsMediaUrls(prev => [...prev, url]); setSmsLinkInput(""); setShowSmsLinkInput(false); }
+  }
 
   const channelIcon = (ch: string) => {
     if (ch === "sms") return "💬";
@@ -819,12 +865,79 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Communications
           </CardTitle>
-          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowForm(!showForm)}>
-            <Plus className="h-3 w-3" /> Log
-          </Button>
+          <div className="flex gap-1">
+            {clientPhone && (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-teal-600/50 text-teal-400 hover:bg-teal-950/50" onClick={() => { setShowSmsComposer(!showSmsComposer); setShowForm(false); }}>
+                <MessageSquare className="h-3 w-3" /> Text
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setShowForm(!showForm); setShowSmsComposer(false); }}>
+              <Plus className="h-3 w-3" /> Log
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* New outbound SMS composer */}
+        {showSmsComposer && clientPhone && (
+          <div className="space-y-2 p-3 rounded-lg border border-teal-600/30 bg-teal-950/20">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-teal-400 font-medium">Send text to {clientName}</span>
+              <button onClick={() => { setShowSmsComposer(false); setSmsMediaUrls([]); }} className="text-zinc-500 hover:text-zinc-300"><X className="h-3.5 w-3.5" /></button>
+            </div>
+            <Textarea
+              placeholder="Type your message…"
+              value={smsText}
+              onChange={(e) => setSmsText(e.target.value)}
+              className="min-h-[70px] text-sm bg-zinc-900/60 border-zinc-700 resize-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (smsText.trim() || smsMediaUrls.length > 0)) {
+                  sendSms.mutate({ to: clientPhone, body: smsText.trim() || " ", clientId, mediaUrls: smsMediaUrls.length > 0 ? smsMediaUrls : undefined });
+                }
+              }}
+            />
+            {smsMediaUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {smsMediaUrls.map((url, i) => (
+                  <div key={i} className="flex items-center gap-1 bg-zinc-800 rounded px-2 py-1 text-xs text-zinc-300">
+                    {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? <img src={url} alt="" className="h-8 w-8 object-cover rounded" /> : <Link className="h-3 w-3 text-blue-400" />}
+                    <span className="max-w-[120px] truncate">{url.split("/").pop()}</span>
+                    <button onClick={() => setSmsMediaUrls(prev => prev.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-red-400 ml-1"><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showSmsLinkInput && (
+              <div className="flex gap-2">
+                <Input placeholder="Paste a URL…" value={smsLinkInput} onChange={(e) => setSmsLinkInput(e.target.value)} className="h-7 text-xs bg-zinc-900/60 border-zinc-700" onKeyDown={(e) => { if (e.key === "Enter") handleAddLink("new"); }} />
+                <Button size="sm" className="h-7 text-xs" onClick={() => handleAddLink("new")}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowSmsLinkInput(false)}>Cancel</Button>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1">
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleSmsMediaUpload(e, "new")} disabled={uploadingSmsMedia} />
+                  <span className="inline-flex items-center gap-1 h-7 px-2 text-xs rounded border border-zinc-600/50 text-zinc-400 hover:bg-zinc-800 cursor-pointer">
+                    <ImageIcon className="h-3 w-3" />{uploadingSmsMedia ? "Uploading…" : "Photo"}
+                  </span>
+                </label>
+                <Button size="sm" variant="outline" className="h-7 text-xs border-zinc-600/50 text-zinc-400" onClick={() => setShowSmsLinkInput(!showSmsLinkInput)}>
+                  <Link className="h-3 w-3 mr-1" />Link
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                disabled={(!smsText.trim() && smsMediaUrls.length === 0) || sendSms.isPending}
+                onClick={() => sendSms.mutate({ to: clientPhone, body: smsText.trim() || " ", clientId, mediaUrls: smsMediaUrls.length > 0 ? smsMediaUrls : undefined })}
+              >
+                <Send className="h-3 w-3 mr-1" />{sendSms.isPending ? "Sending…" : "Send"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {showForm && (
           <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/20">
             <div className="grid grid-cols-2 gap-2">
@@ -914,7 +1027,7 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{c.body}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0 mt-0.5">
-                  {c.direction === "inbound" && c.channel === "sms" && clientPhone && (
+                  {c.channel === "sms" && clientPhone && (
                     <button
                       type="button"
                       onClick={() => { setReplyToId(replyToId === c.id ? null : c.id); setReplyText(""); }}
@@ -942,21 +1055,52 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
                     onChange={(e) => setReplyText(e.target.value)}
                     className="min-h-[60px] text-xs bg-zinc-900/60 border-zinc-700 resize-none"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && replyText.trim()) {
-                        sendSms.mutate({ to: clientPhone, body: replyText.trim(), clientId });
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (replyText.trim() || replyMediaUrls.length > 0)) {
+                        sendSms.mutate({ to: clientPhone, body: replyText.trim() || " ", clientId, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined });
                       }
                     }}
                   />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setReplyToId(null)}>Cancel</Button>
-                    <Button
-                      size="sm"
-                      className="h-6 text-xs bg-teal-600 hover:bg-teal-700 text-white"
-                      disabled={!replyText.trim() || sendSms.isPending}
-                      onClick={() => sendSms.mutate({ to: clientPhone, body: replyText.trim(), clientId })}
-                    >
-                      {sendSms.isPending ? "Sending…" : "Send"}
-                    </Button>
+                  {replyMediaUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {replyMediaUrls.map((url, i) => (
+                        <div key={i} className="flex items-center gap-1 bg-zinc-800 rounded px-2 py-1 text-xs text-zinc-300">
+                          {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? <img src={url} alt="" className="h-8 w-8 object-cover rounded" /> : <Link className="h-3 w-3 text-blue-400" />}
+                          <span className="max-w-[100px] truncate">{url.split("/").pop()}</span>
+                          <button onClick={() => setReplyMediaUrls(prev => prev.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-red-400 ml-1"><X className="h-3 w-3" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {showReplyLinkInput && (
+                    <div className="flex gap-2">
+                      <Input placeholder="Paste a URL…" value={replyLinkInput} onChange={(e) => setReplyLinkInput(e.target.value)} className="h-7 text-xs bg-zinc-900/60 border-zinc-700" onKeyDown={(e) => { if (e.key === "Enter") handleAddLink("reply"); }} />
+                      <Button size="sm" className="h-7 text-xs" onClick={() => handleAddLink("reply")}>Add</Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowReplyLinkInput(false)}>Cancel</Button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-1">
+                      <label className="cursor-pointer">
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleSmsMediaUpload(e, "reply")} disabled={uploadingReplyMedia} />
+                        <span className="inline-flex items-center gap-1 h-6 px-2 text-xs rounded border border-zinc-600/50 text-zinc-400 hover:bg-zinc-800 cursor-pointer">
+                          <ImageIcon className="h-3 w-3" />{uploadingReplyMedia ? "Uploading…" : "Photo"}
+                        </span>
+                      </label>
+                      <Button size="sm" variant="outline" className="h-6 text-xs border-zinc-600/50 text-zinc-400" onClick={() => setShowReplyLinkInput(!showReplyLinkInput)}>
+                        <Link className="h-3 w-3 mr-1" />Link
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => { setReplyToId(null); setReplyMediaUrls([]); }}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        className="h-6 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                        disabled={(!replyText.trim() && replyMediaUrls.length === 0) || sendSms.isPending}
+                        onClick={() => sendSms.mutate({ to: clientPhone, body: replyText.trim() || " ", clientId, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined })}
+                      >
+                        <Send className="h-3 w-3 mr-1" />{sendSms.isPending ? "Sending…" : "Send"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

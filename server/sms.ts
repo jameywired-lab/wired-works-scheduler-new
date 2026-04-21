@@ -35,7 +35,7 @@ function toE164(phone: string): string {
   return phone.startsWith("+") ? phone : `+${digits}`;
 }
 
-export async function sendSms(to: string, body: string): Promise<SmsResult> {
+export async function sendSms(to: string, body: string, mediaUrls?: string[]): Promise<SmsResult> {
   if (!OPENPHONE_API_KEY || !OPENPHONE_FROM_NUMBER) {
     console.warn("[SMS] OpenPhone credentials not configured — skipping SMS to", to);
     return { success: false, error: "OpenPhone credentials not configured" };
@@ -55,6 +55,7 @@ export async function sendSms(to: string, body: string): Promise<SmsResult> {
         content: body,
         from: fromFormatted,
         to: [toFormatted],
+        ...(mediaUrls && mediaUrls.length > 0 ? { mediaUrls } : {}),
       }),
     });
 

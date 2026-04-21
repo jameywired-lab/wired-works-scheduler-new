@@ -1196,12 +1196,13 @@ const communicationsRouter = router({
   // Send an outbound SMS reply via OpenPhone and log it
   sendSms: p
     .input(z.object({
-      to: z.string().min(7),          // recipient phone number
-      body: z.string().min(1),        // message text
-      clientId: z.number().optional(), // if known, log against client
+      to: z.string().min(7),                       // recipient phone number
+      body: z.string().min(1),                     // message text
+      clientId: z.number().optional(),             // if known, log against client
+      mediaUrls: z.array(z.string().url()).optional(), // MMS attachments
     }))
     .mutation(async ({ input }) => {
-      const result = await sendSms(input.to, input.body);
+      const result = await sendSms(input.to, input.body, input.mediaUrls);
       if (!result.success) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error ?? "Failed to send SMS" });
       }
@@ -1209,16 +1210,35 @@ const communicationsRouter = router({
       if (input.clientId) {
         const db = await getDb();
         if (db) {
+          const mediaNote = input.mediaUrls && input.mediaUrls.length > 0
+            ? `\n[Media: ${input.mediaUrls.join(", ")}]`
+            : "";
           await db.insert(clientCommunications).values({
             clientId: input.clientId,
             direction: "outbound",
             channel: "sms",
-            body: input.body,
+            body: input.body + mediaNote,
             toAddress: input.to,
           });
         }
       }
       return { success: true, messageId: result.messageId };
+    }),
+
+  // Upload a media file for MMS attachment and return a public URL
+  uploadMedia: p
+    .input(z.object({
+      fileBase64: z.string(),   // base64-encoded file content
+      mimeType: z.string(),     // e.g. "image/jpeg"
+      fileName: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const { storagePut } = await import("./storage");
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      const suffix = Date.now().toString(36);
+      const key = `sms-media/${suffix}-${input.fileName}`;
+      const { url } = await storagePut(key, buffer, input.mimeType);
+      return { url };
     }),
 });// ─── SMS Templates Router ───────────────────────────────────────────────────────────────────────────────
 const smsTemplatesRouter = router({

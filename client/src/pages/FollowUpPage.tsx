@@ -25,6 +25,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Image,
+  Link,
   MessageSquare,
   Phone,
   Plus,
@@ -130,14 +132,49 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
   // SMS Reply
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [replyMediaUrls, setReplyMediaUrls] = useState<string[]>([]);
+  const [linkInput, setLinkInput] = useState("");
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const uploadMedia = trpc.communications.uploadMedia.useMutation();
   const sendSms = trpc.communications.sendSms.useMutation({
     onSuccess: () => {
       toast.success("Message sent");
       setReplyText("");
+      setReplyMediaUrls([]);
+      setLinkInput("");
+      setShowLinkInput(false);
       setShowReply(false);
     },
     onError: (err) => toast.error(err.message ?? "Failed to send"),
   });
+
+  async function handleMediaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("File too large (max 5 MB)"); return; }
+    setUploadingMedia(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const result = await uploadMedia.mutateAsync({ fileBase64: base64, mimeType: file.type, fileName: file.name });
+        setReplyMediaUrls(prev => [...prev, result.url]);
+        toast.success("Photo attached");
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
+
+  function handleAddLink() {
+    if (!linkInput.trim()) return;
+    const url = linkInput.trim().startsWith("http") ? linkInput.trim() : `https://${linkInput.trim()}`;
+    setReplyMediaUrls(prev => [...prev, url]);
+    setLinkInput("");
+    setShowLinkInput(false);
+  }
 
   const snoozed = isSnoozeActive(f.remindAt);
   const isProposal = f.type === "proposal" || f.proposalStatus !== "none";
@@ -233,7 +270,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
           )}
 
           {/* SMS Reply button — show when follow-up has a phone number */}
-          {f.phone && (f.type === "text" || f.type === "call") && (
+          {f.phone && (
             <Button
               size="sm"
               variant="outline"
@@ -285,7 +322,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
           <div className="mt-3 border border-teal-600/30 rounded-md p-3 bg-teal-950/20 space-y-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-teal-400 font-medium">Reply to {f.contactName || f.phone}</span>
-              <button onClick={() => setShowReply(false)} className="text-zinc-500 hover:text-zinc-300">
+              <button onClick={() => { setShowReply(false); setReplyMediaUrls([]); setShowLinkInput(false); }} className="text-zinc-500 hover:text-zinc-300">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -295,17 +332,64 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
               onChange={(e) => setReplyText(e.target.value)}
               className="min-h-[70px] text-sm bg-zinc-900/60 border-zinc-700 resize-none"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && replyText.trim()) {
-                  sendSms.mutate({ to: f.phone!, body: replyText.trim(), clientId: f.clientId ?? undefined });
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (replyText.trim() || replyMediaUrls.length > 0)) {
+                  sendSms.mutate({ to: f.phone!, body: replyText.trim() || " ", clientId: f.clientId ?? undefined, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined });
                 }
               }}
             />
-            <div className="flex justify-end">
+
+            {/* Attached media / links preview */}
+            {replyMediaUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {replyMediaUrls.map((url, i) => (
+                  <div key={i} className="flex items-center gap-1 bg-zinc-800 rounded px-2 py-1 text-xs text-zinc-300">
+                    {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                      <img src={url} alt="attachment" className="h-8 w-8 object-cover rounded" />
+                    ) : (
+                      <Link className="h-3 w-3 text-blue-400" />
+                    )}
+                    <span className="max-w-[120px] truncate">{url.split("/").pop()}</span>
+                    <button onClick={() => setReplyMediaUrls(prev => prev.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-red-400 ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Link input */}
+            {showLinkInput && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Paste a URL…"
+                  value={linkInput}
+                  onChange={(e) => setLinkInput(e.target.value)}
+                  className="h-7 text-xs bg-zinc-900/60 border-zinc-700"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAddLink(); }}
+                />
+                <Button size="sm" className="h-7 text-xs" onClick={handleAddLink}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowLinkInput(false)}>Cancel</Button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              {/* Attachment buttons */}
+              <div className="flex gap-1">
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} disabled={uploadingMedia} />
+                  <span className="inline-flex items-center gap-1 h-7 px-2 text-xs rounded border border-zinc-600/50 text-zinc-400 hover:bg-zinc-800 cursor-pointer">
+                    <Image className="h-3 w-3" />{uploadingMedia ? "Uploading…" : "Photo"}
+                  </span>
+                </label>
+                <Button size="sm" variant="outline" className="h-7 text-xs border-zinc-600/50 text-zinc-400" onClick={() => setShowLinkInput(!showLinkInput)}>
+                  <Link className="h-3 w-3 mr-1" />Link
+                </Button>
+              </div>
               <Button
                 size="sm"
                 className="h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white"
-                disabled={!replyText.trim() || sendSms.isPending}
-                onClick={() => sendSms.mutate({ to: f.phone!, body: replyText.trim(), clientId: f.clientId ?? undefined })}
+                disabled={(!replyText.trim() && replyMediaUrls.length === 0) || sendSms.isPending}
+                onClick={() => sendSms.mutate({ to: f.phone!, body: replyText.trim() || " ", clientId: f.clientId ?? undefined, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined })}
               >
                 <Send className="h-3 w-3 mr-1" />{sendSms.isPending ? "Sending…" : "Send"}
               </Button>

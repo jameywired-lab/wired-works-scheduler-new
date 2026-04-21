@@ -16,10 +16,12 @@ import { getInitials } from "@/lib/utils";
 import {
   Mail,
   MapPin,
+  MessageSquare,
   Pencil,
   Phone,
   Plus,
   Search,
+  Send,
   Tag,
   Trash2,
   UserCircle2,
@@ -736,6 +738,12 @@ function ClientCard({
   onClick: () => void;
 }) {
   const { data: tags } = trpc.tags.getForClient.useQuery({ clientId: client.id });
+  const [showQuickText, setShowQuickText] = useState(false);
+  const [quickTextMsg, setQuickTextMsg] = useState("");
+  const sendSms = trpc.communications.sendSms.useMutation({
+    onSuccess: () => { toast.success("Message sent"); setQuickTextMsg(""); setShowQuickText(false); },
+    onError: (err) => toast.error(err.message ?? "Failed to send"),
+  });
 
   return (
     <div
@@ -754,6 +762,15 @@ function ClientCard({
               {client.name}
             </p>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              {client.phone && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowQuickText(!showQuickText); }}
+                  className="p-1.5 rounded-lg hover:bg-teal-500/15 transition-colors"
+                  title="Send text"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-teal-500" />
+                </button>
+              )}
               <button
                 onClick={onEdit}
                 className="p-1.5 rounded-lg hover:bg-muted transition-colors"
@@ -800,6 +817,44 @@ function ClientCard({
           )}
         </div>
       </div>
+
+      {/* Quick-text composer — shown on hover click of the message icon */}
+      {showQuickText && client.phone && (
+        <div
+          className="mt-3 border border-teal-600/30 rounded-md p-3 bg-teal-950/20 space-y-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-teal-400 font-medium">Text {client.name}</span>
+            <button onClick={(e) => { e.stopPropagation(); setShowQuickText(false); }} className="text-zinc-500 hover:text-zinc-300">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <Textarea
+            placeholder="Type your message…"
+            value={quickTextMsg}
+            onChange={(e) => setQuickTextMsg(e.target.value)}
+            className="min-h-[60px] text-sm bg-zinc-900/60 border-zinc-700 resize-none"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && quickTextMsg.trim()) {
+                sendSms.mutate({ to: client.phone!, body: quickTextMsg.trim(), clientId: client.id });
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); setShowQuickText(false); }}>Cancel</Button>
+            <Button
+              size="sm"
+              className="h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+              disabled={!quickTextMsg.trim() || sendSms.isPending}
+              onClick={(e) => { e.stopPropagation(); sendSms.mutate({ to: client.phone!, body: quickTextMsg.trim(), clientId: client.id }); }}
+            >
+              <Send className="h-3 w-3 mr-1" />{sendSms.isPending ? "Sending…" : "Send"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

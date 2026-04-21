@@ -762,3 +762,12 @@
 
 - [x] Create "Atlantic Beach" tag and tag all matching clients (city name + zip 32233) — 50 clients tagged
 - [x] Add Atlantic Beach rules to autoTag.ts
+
+## Two-Way SMS via OpenPhone (Quo)
+
+- [x] Audit and verify inbound SMS webhook → Follow-Up creation pipeline (already active at /api/openphone/webhook)
+- [x] Extend sendSms helper to support mediaUrls (MMS) and add communications.uploadMedia procedure
+- [x] Build outbound SMS reply in Follow-Ups (text + photo/link attachment, reply button on all phone follow-ups)
+- [x] Build outbound SMS in Client Communications (+ Text button, reply on all SMS items, photo/link attachment)
+- [x] Add quick-text hover button on client cards in Clients page
+- [x] 12 new vitest tests for two-way SMS features (68 total passing)
