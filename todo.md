@@ -757,3 +757,8 @@
 
 - [x] Create "Nocatee" tag and tag all matching clients (city name + zip 32081) — 85 clients tagged
 - [x] Add Nocatee rules to autoTag.ts
+
+## Atlantic Beach Neighborhood Tag
+
+- [x] Create "Atlantic Beach" tag and tag all matching clients (city name + zip 32233) — 50 clients tagged
+- [x] Add Atlantic Beach rules to autoTag.ts

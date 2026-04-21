@@ -224,6 +224,11 @@ function getApplicableTags(client: ClientAddress): string[] {
     applicable.push("Nocatee");
   }
 
+  // Atlantic Beach
+  if (city === "atlantic beach" || zipShort === "32233") {
+    applicable.push("Atlantic Beach");
+  }
+
   return applicable;
 }
 
@@ -245,7 +250,7 @@ export async function autoTagClient(
   if (!db) return;
 
   // All neighborhood tag names we manage
-  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC", "St. Augustine", "Nocatee"];
+  const NEIGHBORHOOD_TAG_NAMES = ["Ponte Vedra", "Amelia Island", "The Plantation", "Marsh Landing", "Sawgrass CC", "St. Augustine", "Nocatee", "Atlantic Beach"];
 
   // Fetch tag IDs for all neighborhood tags (create if missing)
   const tagIds: Record<string, number> = {};
@@ -257,6 +262,7 @@ export async function autoTagClient(
     "Sawgrass CC": "#1565c0",
     "St. Augustine": "#b45309",
     "Nocatee": "#0891b2",
+    "Atlantic Beach": "#0369a1",
   };
 
   for (const tagName of NEIGHBORHOOD_TAG_NAMES) {
