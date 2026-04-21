@@ -428,3 +428,17 @@ export const projectPhotos = mysqlTable("projectPhotos", {
 });
 export type ProjectPhoto = typeof projectPhotos.$inferSelect;
 export type InsertProjectPhoto = typeof projectPhotos.$inferInsert;
+
+// ─── Activity Log (undo/restore) ─────────────────────────────────────────────
+export const activityLog = mysqlTable("activityLog", {
+  id: int("id").autoincrement().primaryKey(),
+  action: mysqlEnum("action", ["delete", "complete", "update"]).notNull(),
+  entityType: varchar("entityType", { length: 64 }).notNull(), // "client" | "job" | "followUp" | "crewMember" | "tag" | "clientTag"
+  entityId: int("entityId").notNull(),
+  entityLabel: varchar("entityLabel", { length: 512 }), // human-readable name for display
+  snapshotJson: text("snapshotJson").notNull(), // full JSON of the row before the action
+  performedAt: timestamp("performedAt").defaultNow().notNull(),
+  undoneAt: timestamp("undoneAt"), // null = not undone yet
+});
+export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type InsertActivityLogEntry = typeof activityLog.$inferInsert;

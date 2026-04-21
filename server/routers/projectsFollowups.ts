@@ -30,6 +30,7 @@ import {
   updateReminder,
 } from "../db";
 import { publicProcedure, router } from "../_core/trpc";
+import { logActivity } from "../activityLog";
 
 const p = publicProcedure;
 
@@ -305,6 +306,12 @@ export const followUpsRouter = router({
   toggle: p
     .input(z.object({ id: z.number(), isFollowedUp: z.boolean() }))
     .mutation(async ({ input }) => {
+      if (input.isFollowedUp) {
+        const fu = await getFollowUpById(input.id);
+        if (fu) {
+          await logActivity({ action: 'complete', entityType: 'followUp', entityId: input.id, entityLabel: fu.contactName ?? `Follow-up #${input.id}`, snapshot: fu as Record<string, unknown> }).catch(() => {});
+        }
+      }
       await updateFollowUp(input.id, { isFollowedUp: input.isFollowedUp });
       return { success: true };
     }),
@@ -328,6 +335,10 @@ export const followUpsRouter = router({
   delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
+      const fuToDelete = await getFollowUpById(input.id);
+      if (fuToDelete) {
+        await logActivity({ action: 'delete', entityType: 'followUp', entityId: input.id, entityLabel: fuToDelete.contactName ?? `Follow-up #${input.id}`, snapshot: fuToDelete as Record<string, unknown> }).catch(() => {});
+      }
       await deleteFollowUp(input.id);
       return { success: true };
     }),

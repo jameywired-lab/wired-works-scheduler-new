@@ -80,6 +80,8 @@ import {
 } from "./db";
 import { storagePut } from "./storage";
 import { autoTagClient } from "./autoTag";
+import { logActivity, listActivityLog, undoActivity } from "./activityLog";
+import { getTagById } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -156,6 +158,10 @@ const clientsRouter = router({
   delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
+      const clientToDelete = await getClientById(input.id);
+      if (clientToDelete) {
+        await logActivity({ action: 'delete', entityType: 'client', entityId: input.id, entityLabel: clientToDelete.name, snapshot: clientToDelete as Record<string, unknown> }).catch(() => {});
+      }
       await deleteClient(input.id);
       return { success: true };
     }),
@@ -308,6 +314,10 @@ const crewRouter = router({
   delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
+      const memberToDelete = await getCrewMemberById(input.id);
+      if (memberToDelete) {
+        await logActivity({ action: 'delete', entityType: 'crewMember', entityId: input.id, entityLabel: memberToDelete.name, snapshot: memberToDelete as Record<string, unknown> }).catch(() => {});
+      }
       await deleteCrewMember(input.id);
       return { success: true };
     }),
@@ -490,6 +500,9 @@ const jobsRouter = router({
       const job = await getJobById(input.id);
       if (job?.googleCalendarEventId && ctx.user) {
         await deleteCalendarEvent(ctx.user.id, job.googleCalendarEventId);
+      }
+      if (job) {
+        await logActivity({ action: 'delete', entityType: 'job', entityId: input.id, entityLabel: job.title ?? `Job #${input.id}`, snapshot: job as Record<string, unknown> }).catch(() => {});
       }
       await deleteJob(input.id);
       return { success: true };
@@ -690,6 +703,10 @@ const tagsRouter = router({
   delete: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
+      const tagToDelete = await getTagById(input.id);
+      if (tagToDelete) {
+        await logActivity({ action: 'delete', entityType: 'tag', entityId: input.id, entityLabel: tagToDelete.name, snapshot: tagToDelete as Record<string, unknown> }).catch(() => {});
+      }
       await deleteTag(input.id);
       return { success: true };
     }),
@@ -1316,6 +1333,14 @@ const projectPhotosRouter = router({
     }),
 });
 
+// ─── Activity Log Router ─────────────────────────────────────────────────────
+const activityLogRouter = router({
+  list: p.query(async () => listActivityLog()),
+  undo: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => undoActivity(input.id)),
+});
+
 // ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
@@ -1350,5 +1375,6 @@ export const appRouter = router({
   projectNotes: projectNotesRouter,
   projectPhotos: projectPhotosRouter,
   system: systemRouter,
+  activityLog: activityLogRouter,
 });
 export type AppRouter = typeof appRouter;

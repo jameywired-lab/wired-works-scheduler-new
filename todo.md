@@ -813,3 +813,11 @@
 ## Bug Fix — Dashboard Follow-Up Card Background
 
 - [x] Revert Dashboard follow-up card backgrounds back to white — all cards now bg-white, text-gray-900, preview panel bg-gray-50, delete button text-gray-400
+
+## Global Activity Log & Undo
+
+- [x] DB: activityLog table (id, action, entityType, entityId, entityLabel, snapshotJson, performedAt, undoneAt)
+- [x] Backend: logActivity helper, listActivityLog procedure, undoActivity procedure (restores from snapshotJson)
+- [x] Wire logging into: client delete, job delete, follow-up complete, follow-up delete, tag delete, crew delete
+- [x] Activity Log page in sidebar with undo buttons per entry (30-day window)
+- [x] Show undo toast notification after successful restore

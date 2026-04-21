@@ -816,6 +816,12 @@ export async function createTag(data: Omit<InsertTag, "id" | "createdAt">) {
   return result[0];
 }
 
+export async function getTagById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(tags).where(eq(tags.id, id)).limit(1);
+  return rows[0];
+}
 export async function deleteTag(id: number) {
   const db = await getDb();
   if (!db) return;

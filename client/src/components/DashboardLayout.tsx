@@ -26,6 +26,7 @@ import {
   Bell,
   Calendar,
   FolderOpen,
+  History,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -59,6 +60,7 @@ const adminNavItems = [
   { icon: Mail, label: "Marketing", path: "/marketing" },
   { icon: TrendingUp, label: "Revenue Report", path: "/revenue-report" },
   { icon: Users2, label: "Crew", path: "/crew" },
+  { icon: History, label: "Activity Log", path: "/activity-log" },
 ];
 
 // Nav shown exclusively to crew role
