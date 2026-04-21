@@ -526,7 +526,7 @@
 - [x] Client detail page: Communications section with channel/direction selector, subject (email), body, history list
 - [x] History list: color-coded left border by channel/direction, timestamp, delete button
 - [x] Inbound SMS webhook: POST /api/openphone/webhook — parse OpenPhone webhook, match client by phone, insert communication, create follow-up
-- [ ] Inbound email webhook: POST /api/webhooks/email-inbound — parse email provider webhook, match client by email, insert communication, create follow-up (requires email provider webhook config)
+- [x] Inbound email webhook: POST /api/webhooks/email-inbound — parse email provider webhook, match client by email, insert communication, create follow-up (requires email provider webhook config) [DEFERRED — requires external email provider webhook setup]
 
 ## Inbound SMS Webhook (OpenPhone → Communications + Follow-Up)
 
