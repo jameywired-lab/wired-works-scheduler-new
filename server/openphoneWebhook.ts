@@ -15,7 +15,8 @@
 
 import type { Request, Response } from "express";
 import { createFollowUp, getClientByPhone, getDb } from "./db";
-import { clientCommunications } from "../drizzle/schema";
+import { clientCommunications, followUps } from "../drizzle/schema";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 // ─── Type stubs for OpenPhone webhook payloads ────────────────────────────────
 
@@ -106,19 +107,67 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
         }
       }
 
-      await createFollowUp({
-        contactName: contactName ?? (phone || "Unknown"),
-        phone: phone || undefined,
-        type: "text",
-        note: `📱 Inbound SMS: ${body}`,
-        isFollowedUp: false,
-        contactedAt: now,
-        clientId: matchedClient?.id ?? undefined,
-        proposalStatus: "none",
-        isUrgent: false,
-        clientContacted: false,
-      });
-      console.log(`[Webhook] Inbound SMS from ${phone} → follow-up + comm log created`);
+      // Check for an existing active (non-completed) text follow-up from this phone number
+      const db = await getDb();
+      let grouped = false;
+      if (db && phone) {
+        const existing = await db
+          .select()
+          .from(followUps)
+          .where(
+            and(
+              eq(followUps.type, "text"),
+              eq(followUps.isFollowedUp, false),
+              or(
+                eq(followUps.phone, phone),
+                matchedClient?.id ? eq(followUps.clientId, matchedClient.id) : isNull(followUps.clientId)
+              )
+            )
+          )
+          .limit(1);
+
+        if (existing.length > 0) {
+          const ex = existing[0];
+          // Parse existing messages array
+          let msgs: { body: string; receivedAt: number }[] = [];
+          try { msgs = ex.messages ? JSON.parse(ex.messages) : []; } catch { msgs = []; }
+          // If no messages yet, seed with the original note
+          if (msgs.length === 0 && ex.note) {
+            const origBody = ex.note.replace(/^📱 Inbound SMS: /, "");
+            msgs = [{ body: origBody, receivedAt: ex.contactedAt ?? ex.createdAt.getTime() }];
+          }
+          msgs.push({ body, receivedAt: now });
+
+          await db
+            .update(followUps)
+            .set({
+              note: `📱 Inbound SMS (${msgs.length} messages): ${body}`,
+              messageCount: msgs.length,
+              messages: JSON.stringify(msgs),
+              contactedAt: now, // update to latest message time
+            })
+            .where(eq(followUps.id, ex.id));
+
+          console.log(`[Webhook] Inbound SMS from ${phone} → grouped into follow-up #${ex.id} (${msgs.length} messages)`);
+          grouped = true;
+        }
+      }
+
+      if (!grouped) {
+        await createFollowUp({
+          contactName: contactName ?? (phone || "Unknown"),
+          phone: phone || undefined,
+          type: "text",
+          note: `📱 Inbound SMS: ${body}`,
+          isFollowedUp: false,
+          contactedAt: now,
+          clientId: matchedClient?.id ?? undefined,
+          proposalStatus: "none",
+          isUrgent: false,
+          clientContacted: false,
+        });
+        console.log(`[Webhook] Inbound SMS from ${phone} → new follow-up created`);
+      }
     } else if (type === "call.completed") {
       // ── Missed call or voicemail ─────────────────────────────────────────────
       const status = obj.status ?? "";

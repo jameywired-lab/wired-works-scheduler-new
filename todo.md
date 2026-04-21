@@ -789,3 +789,8 @@
 ## Follow-Up Page Visual Redesign
 
 - [x] Redesign FollowUpPage to match app dark navy color scheme and improve readability — cards now use bg-card/border-border tokens, rounded-xl, shadow-sm
+
+## SMS Follow-Up Fixes
+
+- [x] Fix text color in SMS reply composers — text input now uses text-white bg-zinc-900 in both Dashboard and Follow-Ups page
+- [x] Group multiple inbound texts from the same client into one follow-up card with a message count badge — webhook now upserts into existing active follow-up; cards show all messages with timestamps and a "N msgs" badge

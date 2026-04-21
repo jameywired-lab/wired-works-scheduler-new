@@ -253,6 +253,8 @@ export const followUps = mysqlTable("followUps", {
   urgentAt: bigint("urgentAt", { mode: "number" }), // UTC ms — when it became urgent
   remindAt: bigint("remindAt", { mode: "number" }), // UTC ms — snooze until this time
   clientContacted: boolean("clientContacted").default(false).notNull(), // pinned to top when true
+  messageCount: int("messageCount").default(1).notNull(), // number of grouped inbound texts
+  messages: text("messages"), // JSON array of { body, receivedAt } for grouped texts
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

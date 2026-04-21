@@ -57,6 +57,8 @@ type FollowUp = {
   urgentAt?: number | null;
   remindAt?: number | null;
   clientContacted: boolean;
+  messageCount: number;
+  messages?: string | null;
   createdAt: Date;
 };
 
@@ -232,16 +234,39 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
             {f.phone && (
               <span className="text-xs text-muted-foreground">{f.phone}</span>
             )}
+            {/* Message count badge for grouped texts */}
+            {f.type === "text" && f.messageCount > 1 && (
+              <span className="inline-flex items-center gap-1 bg-teal-600/20 text-teal-400 border border-teal-600/30 rounded-full px-2 py-0.5 text-[10px] font-semibold">
+                <MessageSquare className="h-2.5 w-2.5" />{f.messageCount} messages
+              </span>
+            )}
           </div>
           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
             {timeAgo(new Date(f.createdAt).getTime())}
           </span>
         </div>
-
-        {/* Note */}
-        {f.note && (
-          <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{f.note}</p>
-        )}
+        {/* Grouped messages display for texts */}
+        {f.type === "text" && f.messages ? (
+          <div className="mb-3 space-y-1.5">
+            {(() => {
+              try {
+                const msgs: { body: string; receivedAt: number }[] = JSON.parse(f.messages);
+                return msgs.map((m, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5 shrink-0">
+                      {new Date(m.receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <p className="text-sm text-foreground leading-snug">{m.body}</p>
+                  </div>
+                ));
+              } catch { return null; }
+            })()}
+          </div>
+        ) : f.note ? (
+          <p className="text-sm text-foreground mb-3 leading-relaxed">
+            {f.note.replace(/^📱 Inbound SMS(?: \(\d+ messages\))?: /, "")}
+          </p>
+        ) : null}
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
@@ -345,7 +370,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
               placeholder="Type your message…"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              className="min-h-[70px] text-sm bg-zinc-900/60 border-zinc-700 resize-none"
+              className="min-h-[70px] text-sm text-white bg-zinc-900 border-zinc-600 resize-none placeholder:text-zinc-500"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (replyText.trim() || replyMediaUrls.length > 0)) {
                   sendSms.mutate({ to: f.phone!, body: replyText.trim() || " ", clientId: f.clientId ?? undefined, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined });

@@ -430,12 +430,35 @@ function FollowUpPanel() {
                         {proposalPending && (
                           <Badge className="bg-violet-500/15 text-violet-400 text-[10px] h-4 px-1.5">Proposal Sent</Badge>
                         )}
+                        {/* Message count badge */}
+                        {f.type === "text" && (f as any).messageCount > 1 && (
+                          <span className="inline-flex items-center gap-0.5 bg-teal-600/20 text-teal-400 border border-teal-600/30 rounded-full px-1.5 py-0.5 text-[9px] font-semibold">
+                            {(f as any).messageCount} msgs
+                          </span>
+                        )}
                       </div>
-                      {f.note && (
+                      {/* Grouped messages or single note */}
+                      {f.type === "text" && (f as any).messages ? (
+                        <div className="mt-1 space-y-0.5">
+                          {(() => {
+                            try {
+                              const msgs: { body: string; receivedAt: number }[] = JSON.parse((f as any).messages);
+                              return msgs.slice(-2).map((m, i) => (
+                                <p key={i} className="text-[10px] text-white leading-snug">
+                                  <span className="text-muted-foreground mr-1">
+                                    {new Date(m.receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:
+                                  </span>
+                                  {m.body}
+                                </p>
+                              ));
+                            } catch { return null; }
+                          })()}
+                        </div>
+                      ) : f.note ? (
                         <p className={`text-[10px] mt-0.5 line-clamp-2 ${
-                          isUrgent ? "text-destructive/80" : "text-muted-foreground"
-                        }`}>{f.note}</p>
-                      )}
+                          isUrgent ? "text-destructive/80" : "text-white"
+                        }`}>{f.note.replace(/^📱 Inbound SMS(?: \(\d+ messages\))?: /, "")}</p>
+                      ) : null}
                     </div>
                     <button
                       onClick={() => deleteFollowUp.mutate({ id: f.id })}
@@ -530,7 +553,7 @@ function FollowUpPanel() {
                     <div className="mt-2 border border-teal-600/30 rounded-md p-2 bg-teal-950/20 space-y-2">
                       <p className="text-[10px] text-teal-400 font-medium">Reply to {f.contactName || f.phone}</p>
                       <textarea
-                        className="w-full min-h-[60px] text-xs bg-zinc-900/60 border border-zinc-700 rounded p-2 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
+                        className="w-full min-h-[60px] text-xs bg-zinc-900 border border-zinc-600 rounded p-2 text-white placeholder:text-zinc-500 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
                         placeholder="Type your message…"
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
