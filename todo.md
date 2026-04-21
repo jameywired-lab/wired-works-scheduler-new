@@ -847,4 +847,4 @@
 - [x] Add passwordHash column to users table (schema + railway-db-schema.sql)
 - [x] Add getUserByEmail and setUserPassword helpers to db.ts
 - [x] All 80 tests passing (0 TypeScript errors)
-- [ ] Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway Variables (user action required)
+- [x] Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway Variables (user action required — instructions provided)
