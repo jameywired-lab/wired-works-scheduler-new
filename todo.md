@@ -785,3 +785,7 @@
 
 - [x] Add "Reply via Text" button to SMS follow-up cards in the Dashboard widget (teal button, opens inline composer)
 - [x] Add "View client details" link to each follow-up card in the Dashboard widget — navigates to client detail page
+
+## Follow-Up Page Visual Redesign
+
+- [x] Redesign FollowUpPage to match app dark navy color scheme and improve readability — cards now use bg-card/border-border tokens, rounded-xl, shadow-sm

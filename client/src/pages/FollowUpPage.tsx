@@ -183,14 +183,14 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
   const proposalPending = f.proposalStatus === "pending";
 
   const cardClass = [
-    "border rounded-lg p-4 transition-all",
+    "border rounded-xl p-4 transition-all shadow-sm",
     f.clientContacted
-      ? "border-cyan-500/60 bg-cyan-950/30"
+      ? "border-cyan-500/40 bg-card"
       : f.isUrgent
-      ? "border-red-500/60 bg-red-950/30"
+      ? "border-red-500/40 bg-card"
       : snoozed
-      ? "border-zinc-700/40 bg-zinc-900/40 opacity-60"
-      : "border-zinc-700/50 bg-zinc-900/50",
+      ? "border-border/40 bg-card opacity-60"
+      : "border-border bg-card",
   ].join(" ");
 
   return (
@@ -334,7 +334,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
 
         {/* Inline SMS reply composer */}
         {showReply && f.phone && (
-          <div className="mt-3 border border-teal-600/30 rounded-md p-3 bg-teal-950/20 space-y-2">
+          <div className="mt-3 border border-teal-600/30 rounded-xl p-3 bg-teal-950/10 space-y-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-teal-400 font-medium">Reply to {f.contactName || f.phone}</span>
               <button onClick={() => { setShowReply(false); setReplyMediaUrls([]); setShowLinkInput(false); }} className="text-zinc-500 hover:text-zinc-300">
@@ -598,7 +598,7 @@ export default function FollowUpPage() {
   const done = allFollowUps.filter((f) => f.isFollowedUp);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -620,14 +620,14 @@ export default function FollowUpPage() {
           ))}
         </div>
       ) : active.length === 0 ? (
-        <Card className="border-zinc-700/50">
+        <Card className="border-border">
           <CardContent className="py-12 text-center text-muted-foreground">
             <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No active follow-ups</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {active.map((f) => (
             <FollowUpCard key={f.id} f={f as FollowUp} onRefresh={() => utils.followUps.list.invalidate()} />
           ))}
@@ -640,7 +640,7 @@ export default function FollowUpPage() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />Snoozed ({snoozed.length})
           </h2>
-          <div className="space-y-2">
+          <div className="space-y-4">
             {snoozed.map((f) => (
               <FollowUpCard key={f.id} f={f as FollowUp} onRefresh={() => utils.followUps.list.invalidate()} />
             ))}
@@ -661,7 +661,7 @@ export default function FollowUpPage() {
           {showDone && (
             <div className="space-y-2">
               {done.slice(0, 20).map((f) => (
-                <div key={f.id} className="border border-zinc-800/50 rounded-lg p-3 opacity-50">
+                <div key={f.id} className="border border-border/50 rounded-xl p-3 bg-card opacity-60">
                   <div className="flex items-center gap-2">
                     {sourceBadge(f.type)}
                     <span className="text-sm text-muted-foreground">{f.contactName || "Unknown"}</span>
