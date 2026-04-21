@@ -23,8 +23,8 @@ COPY . .
 # Build: Vite (frontend → dist/public) + esbuild (server → dist/index.js)
 RUN pnpm run build
 
-# Expose the port Railway will assign via $PORT
-EXPOSE 3000
+# Railway routes traffic to $PORT (default 8080). The app reads process.env.PORT at runtime.
+EXPOSE 8080
 
 # Start the production server
 CMD ["node", "dist/index.js"]
