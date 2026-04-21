@@ -8,6 +8,9 @@ import { createPool } from "mysql2/promise";
  *   - CREATE TABLE uses IF NOT EXISTS
  *   - ALTER TABLE ADD COLUMN uses IF NOT EXISTS (MySQL 8.0+)
  *   - ADD CONSTRAINT / MODIFY COLUMN errors are caught and ignored (already applied)
+ *
+ * After the SQL file runs, critical patches are applied directly to ensure
+ * columns that were added after initial deploy always exist.
  */
 export async function runMigrations(): Promise<void> {
   const dbUrl = process.env.DATABASE_URL;
@@ -21,10 +24,8 @@ export async function runMigrations(): Promise<void> {
   // In development: tsx runs from the project root, so we use process.cwd().
   let sqlPath: string;
   try {
-    // import.meta.dirname is available in ESM (esbuild --format=esm)
     const dir = (import.meta as { dirname?: string }).dirname;
     if (dir) {
-      // production: dist/index.js → /app/dist → go up to /app
       sqlPath = resolve(dir, "..", "railway-db-schema.sql");
     } else {
       sqlPath = resolve(process.cwd(), "railway-db-schema.sql");
@@ -43,9 +44,6 @@ export async function runMigrations(): Promise<void> {
 
   console.log("[migrate] Starting database migration…");
 
-  // Split on semicolons. Each Drizzle migration file uses "--> statement-breakpoint"
-  // as a separator but also terminates every statement with ";".
-  // We strip the breakpoint markers and split on ";" to get individual statements.
   const raw = sql
     .replace(/--> statement-breakpoint/g, "")
     .split(";")
@@ -64,12 +62,6 @@ export async function runMigrations(): Promise<void> {
       ok++;
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string };
-      // These error codes mean the object already exists — safe to ignore:
-      //   ER_TABLE_EXISTS_ERROR   (1050) — CREATE TABLE already exists
-      //   ER_DUP_FIELDNAME        (1060) — ADD COLUMN already exists
-      //   ER_DUP_KEYNAME          (1061) — ADD CONSTRAINT / index already exists
-      //   ER_CANT_DROP_FIELD_OR_KEY (1091) — DROP COLUMN/KEY that doesn't exist
-      //   ER_FK_DUP_NAME          (1826) — duplicate foreign key name
       const ignorable = [
         "ER_TABLE_EXISTS_ERROR",
         "ER_DUP_FIELDNAME",
@@ -86,6 +78,32 @@ export async function runMigrations(): Promise<void> {
       }
     }
   }
+
+  // ── Critical patches ────────────────────────────────────────────────────────
+  // These run unconditionally after the SQL file to ensure columns added after
+  // initial deploy always exist, even if CREATE TABLE IF NOT EXISTS skipped them.
+  const patches = [
+    // passwordHash: required for local username/password login
+    "ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255)",
+    // crew role: required for crew member access
+    "ALTER TABLE `users` MODIFY COLUMN `role` enum('user','admin','crew') NOT NULL DEFAULT 'user'",
+  ];
+
+  for (const patch of patches) {
+    try {
+      await pool.query(patch);
+      console.log(`[migrate] Patch applied: ${patch.slice(0, 80)}…`);
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string };
+      // ER_DUP_FIELDNAME = column already exists (fine)
+      if (e.code === "ER_DUP_FIELDNAME") {
+        console.log(`[migrate] Patch already applied (skipped): ${patch.slice(0, 80)}…`);
+      } else {
+        console.warn(`[migrate] Patch failed (${e.code ?? "unknown"}): ${e.message}`);
+      }
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────────
 
   await pool.end();
 
