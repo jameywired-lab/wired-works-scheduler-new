@@ -9,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy dependency manifests first (better layer caching)
 COPY package.json pnpm-lock.yaml ./
 
-# Install all dependencies (including devDependencies needed for build)
+# Install ALL dependencies (dev + prod needed for build)
 RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the source
@@ -18,25 +18,25 @@ COPY . .
 # Build: Vite (frontend → dist/public) + esbuild (server → dist/index.js)
 RUN pnpm run build
 
+# Prune dev dependencies after build — leaves only production node_modules
+RUN pnpm prune --prod
+
 # ── Stage 2: Production image ────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-# Install pnpm for production install
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Copy pruned node_modules from builder (no reinstall needed)
+COPY --from=builder /app/node_modules ./node_modules
 
-# Copy dependency manifests
-COPY package.json pnpm-lock.yaml ./
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built artifacts from builder stage
+# Copy built artifacts
 COPY --from=builder /app/dist ./dist
 
 # Copy drizzle migration files (needed for schema reference at runtime)
 COPY --from=builder /app/drizzle ./drizzle
+
+# Copy package.json (needed by Node.js ESM runtime)
+COPY --from=builder /app/package.json ./package.json
 
 # Expose the port Railway will assign via $PORT
 EXPOSE 3000
