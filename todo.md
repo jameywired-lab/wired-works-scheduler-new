@@ -798,3 +798,7 @@
 ## Bug Fix — SMS Compose Textarea Color
 
 - [x] Fix all SMS compose textareas across the app (Dashboard, Follow-Ups, Client Communications, Client Card hover) — all now use text-white bg-zinc-900 border-zinc-600 with placeholder:text-zinc-500
+
+## SMS Compose White Background
+
+- [x] Change all SMS compose textareas and panels to white background with dark text — bg-white, text-gray-900, border-gray-300 across Dashboard, Follow-Ups, Client Communications, Client Card

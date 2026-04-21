@@ -893,16 +893,16 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
       <CardContent className="space-y-3">
         {/* New outbound SMS composer */}
         {showSmsComposer && clientPhone && (
-          <div className="space-y-2 p-3 rounded-lg border border-teal-600/30 bg-teal-950/20">
+          <div className="space-y-2 p-3 rounded-lg border border-teal-500/40 bg-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-teal-400 font-medium">Send text to {clientName}</span>
+              <span className="text-xs text-teal-700 font-medium">Send text to {clientName}</span>
               <button onClick={() => { setShowSmsComposer(false); setSmsMediaUrls([]); }} className="text-zinc-500 hover:text-zinc-300"><X className="h-3.5 w-3.5" /></button>
             </div>
             <Textarea
               placeholder="Type your message…"
               value={smsText}
               onChange={(e) => setSmsText(e.target.value)}
-              className="min-h-[70px] text-sm text-white bg-zinc-900 border-zinc-600 resize-none placeholder:text-zinc-500"
+              className="min-h-[70px] text-sm text-gray-900 bg-white border-gray-300 resize-none placeholder:text-gray-400"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (smsText.trim() || smsMediaUrls.length > 0)) {
                   sendSms.mutate({ to: clientPhone, body: smsText.trim() || " ", clientId, mediaUrls: smsMediaUrls.length > 0 ? smsMediaUrls : undefined });
@@ -922,7 +922,7 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
             )}
             {showSmsLinkInput && (
               <div className="flex gap-2">
-                <Input placeholder="Paste a URL…" value={smsLinkInput} onChange={(e) => setSmsLinkInput(e.target.value)} className="h-7 text-xs text-white bg-zinc-900 border-zinc-600 placeholder:text-zinc-500" onKeyDown={(e) => { if (e.key === "Enter") handleAddLink("new"); }} />
+                <Input placeholder="Paste a URL…" value={smsLinkInput} onChange={(e) => setSmsLinkInput(e.target.value)} className="h-7 text-xs text-gray-900 bg-white border-gray-300 placeholder:text-gray-400" onKeyDown={(e) => { if (e.key === "Enter") handleAddLink("new"); }} />
                 <Button size="sm" className="h-7 text-xs" onClick={() => handleAddLink("new")}>Add</Button>
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowSmsLinkInput(false)}>Cancel</Button>
               </div>
@@ -1061,12 +1061,12 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
               </div>
               {/* Inline reply composer for this message */}
               {replyToId === c.id && clientPhone && (
-                <div className="mt-2 ml-7 border border-teal-600/30 rounded-md p-2.5 bg-teal-950/20 space-y-2">
+                <div className="mt-2 ml-7 border border-teal-500/40 rounded-md p-2.5 bg-white space-y-2">
                   <Textarea
                     placeholder={`Reply to ${clientName}…`}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    className="min-h-[60px] text-xs text-white bg-zinc-900 border-zinc-600 resize-none placeholder:text-zinc-500"
+                    className="min-h-[60px] text-xs text-gray-900 bg-white border-gray-300 resize-none placeholder:text-gray-400"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (replyText.trim() || replyMediaUrls.length > 0)) {
                         sendSms.mutate({ to: clientPhone, body: replyText.trim() || " ", clientId, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined });
@@ -1086,7 +1086,7 @@ function ClientCommunicationsSection({ clientId, clientName, clientPhone }: { cl
                   )}
                   {showReplyLinkInput && (
                     <div className="flex gap-2">
-                      <Input placeholder="Paste a URL…" value={replyLinkInput} onChange={(e) => setReplyLinkInput(e.target.value)} className="h-7 text-xs text-white bg-zinc-900 border-zinc-600 placeholder:text-zinc-500" onKeyDown={(e) => { if (e.key === "Enter") handleAddLink("reply"); }} />
+                      <Input placeholder="Paste a URL…" value={replyLinkInput} onChange={(e) => setReplyLinkInput(e.target.value)} className="h-7 text-xs text-gray-900 bg-white border-gray-300 placeholder:text-gray-400" onKeyDown={(e) => { if (e.key === "Enter") handleAddLink("reply"); }} />
                       <Button size="sm" className="h-7 text-xs" onClick={() => handleAddLink("reply")}>Add</Button>
                       <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowReplyLinkInput(false)}>Cancel</Button>
                     </div>

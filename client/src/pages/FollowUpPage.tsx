@@ -359,9 +359,9 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
 
         {/* Inline SMS reply composer */}
         {showReply && f.phone && (
-          <div className="mt-3 border border-teal-600/30 rounded-xl p-3 bg-teal-950/10 space-y-2">
+          <div className="mt-3 border border-teal-600/30 rounded-xl p-3 bg-white space-y-2">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-teal-400 font-medium">Reply to {f.contactName || f.phone}</span>
+              <span className="text-xs text-teal-700 font-medium">Reply to {f.contactName || f.phone}</span>
               <button onClick={() => { setShowReply(false); setReplyMediaUrls([]); setShowLinkInput(false); }} className="text-zinc-500 hover:text-zinc-300">
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -370,7 +370,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
               placeholder="Type your message…"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              className="min-h-[70px] text-sm text-white bg-zinc-900 border-zinc-600 resize-none placeholder:text-zinc-500"
+              className="min-h-[70px] text-sm text-gray-900 bg-white border-gray-300 resize-none placeholder:text-gray-400"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && (replyText.trim() || replyMediaUrls.length > 0)) {
                   sendSms.mutate({ to: f.phone!, body: replyText.trim() || " ", clientId: f.clientId ?? undefined, mediaUrls: replyMediaUrls.length > 0 ? replyMediaUrls : undefined });
@@ -404,7 +404,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
                   placeholder="Paste a URL…"
                   value={linkInput}
                   onChange={(e) => setLinkInput(e.target.value)}
-                  className="h-7 text-xs text-white bg-zinc-900 border-zinc-600 placeholder:text-zinc-500"
+                  className="h-7 text-xs text-gray-900 bg-white border-gray-300 placeholder:text-gray-400"
                   onKeyDown={(e) => { if (e.key === "Enter") handleAddLink(); }}
                 />
                 <Button size="sm" className="h-7 text-xs" onClick={handleAddLink}>Add</Button>

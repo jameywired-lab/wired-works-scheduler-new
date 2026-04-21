@@ -550,10 +550,10 @@ function FollowUpPanel() {
 
                   {/* Inline SMS reply composer */}
                   {replyingToId === f.id && f.phone && (
-                    <div className="mt-2 border border-teal-600/30 rounded-md p-2 bg-teal-950/20 space-y-2">
-                      <p className="text-[10px] text-teal-400 font-medium">Reply to {f.contactName || f.phone}</p>
+                    <div className="mt-2 border border-teal-600/30 rounded-md p-2 bg-white space-y-2">
+                      <p className="text-[10px] text-teal-700 font-medium">Reply to {f.contactName || f.phone}</p>
                       <textarea
-                        className="w-full min-h-[60px] text-xs bg-zinc-900 border border-zinc-600 rounded p-2 text-white placeholder:text-zinc-500 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
+                        className="w-full min-h-[60px] text-xs bg-white border border-gray-300 rounded p-2 text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-1 focus:ring-teal-500"
                         placeholder="Type your message…"
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
