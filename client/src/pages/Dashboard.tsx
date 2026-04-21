@@ -210,6 +210,17 @@ function FollowUpPanel() {
   const [newType, setNewType] = useState<"call" | "text" | "manual">("manual");
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
   const [acceptTitle, setAcceptTitle] = useState("");
+  // SMS reply state
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const sendSms = trpc.communications.sendSms.useMutation({
+    onSuccess: () => {
+      toast.success("Message sent");
+      setReplyingToId(null);
+      setReplyText("");
+    },
+    onError: (e) => toast.error(e.message ?? "Failed to send"),
+  });
 
   // All active (not followed-up) follow-ups
   const { data: allFollowUps = [], isLoading } = trpc.followUps.list.useQuery();
@@ -437,6 +448,23 @@ function FollowUpPanel() {
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-1.5 mt-2">
+                    {/* Reply via Text — prominent for SMS/phone follow-ups */}
+                    {f.phone && (
+                      <Button
+                        size="sm"
+                        className={replyingToId === f.id
+                          ? "h-6 text-[10px] px-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300"
+                          : "h-6 text-[10px] px-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold"
+                        }
+                        onClick={() => {
+                          if (replyingToId === f.id) { setReplyingToId(null); setReplyText(""); }
+                          else { setReplyingToId(f.id); setReplyText(""); }
+                        }}
+                      >
+                        <MessageSquare className="h-3 w-3 mr-1" />
+                        {replyingToId === f.id ? "Cancel" : "Reply via Text"}
+                      </Button>
+                    )}
                     {/* Complete Task — always available */}
                     <Button
                       size="sm"
@@ -496,6 +524,45 @@ function FollowUpPanel() {
                       </>
                     )}
                   </div>
+
+                  {/* Inline SMS reply composer */}
+                  {replyingToId === f.id && f.phone && (
+                    <div className="mt-2 border border-teal-600/30 rounded-md p-2 bg-teal-950/20 space-y-2">
+                      <p className="text-[10px] text-teal-400 font-medium">Reply to {f.contactName || f.phone}</p>
+                      <textarea
+                        className="w-full min-h-[60px] text-xs bg-zinc-900/60 border border-zinc-700 rounded p-2 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
+                        placeholder="Type your message…"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && replyText.trim()) {
+                            sendSms.mutate({ to: f.phone!, body: replyText.trim(), clientId: f.clientId ?? undefined });
+                          }
+                        }}
+                      />
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-muted-foreground">Cmd+Enter to send</span>
+                        <Button
+                          size="sm"
+                          className="h-6 text-[10px] px-3 bg-teal-600 hover:bg-teal-500 text-white"
+                          disabled={!replyText.trim() || sendSms.isPending}
+                          onClick={() => sendSms.mutate({ to: f.phone!, body: replyText.trim(), clientId: f.clientId ?? undefined })}
+                        >
+                          {sendSms.isPending ? "Sending…" : "Send"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* View client link */}
+                  {f.clientId && (
+                    <button
+                      className="mt-1.5 text-[10px] text-muted-foreground hover:text-teal-400 transition-colors flex items-center gap-1"
+                      onClick={() => setLocation(`/clients/${f.clientId}`)}
+                    >
+                      <ArrowRight className="h-2.5 w-2.5" /> View client details
+                    </button>
+                  )}
                 </div>
               );
             })}

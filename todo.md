@@ -780,3 +780,8 @@
 
 - [x] Make Reply button more prominent on SMS follow-up cards — now a solid teal "Reply via Text" button
 - [x] Make the follow-up card client name clickable — navigates to client's Communications section with SMS composer auto-opened
+
+## Dashboard Follow-Up Widget Fix
+
+- [x] Add "Reply via Text" button to SMS follow-up cards in the Dashboard widget (teal button, opens inline composer)
+- [x] Add "View client details" link to each follow-up card in the Dashboard widget — navigates to client detail page
