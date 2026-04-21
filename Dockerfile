@@ -6,8 +6,9 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy dependency manifests first (better layer caching)
+# Copy dependency manifests AND patches folder (pnpm needs patches before install)
 COPY package.json pnpm-lock.yaml ./
+COPY patches/ ./patches/
 
 # Install ALL dependencies (dev + prod needed for build)
 RUN pnpm install --frozen-lockfile
