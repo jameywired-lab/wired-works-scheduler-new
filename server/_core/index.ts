@@ -10,6 +10,7 @@ import { handleOpenPhoneWebhook } from "../openphoneWebhook";
 import { handleProposalAcceptedWebhook, handleWebhookInfo } from "../proposalAcceptedWebhook";
 import { runMigrations } from "../migrate";
 import { seedAdminUser } from "../seedAdmin";
+import { runDailyBackup } from "../backup";
 
 async function startServer() {
   // Run DB migrations before accepting any traffic — safe to re-run on every boot
@@ -57,6 +58,23 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  // Schedule daily backup at 2:00 AM UTC
+  const scheduleBackup = () => {
+    const now = new Date();
+    const next2am = new Date();
+    next2am.setUTCHours(2, 0, 0, 0);
+    if (next2am <= now) next2am.setUTCDate(next2am.getUTCDate() + 1);
+    const msUntilNext = next2am.getTime() - now.getTime();
+    setTimeout(async () => {
+      try { await runDailyBackup(); } catch (e) { console.error('[backup] Failed:', e); }
+      setInterval(async () => {
+        try { await runDailyBackup(); } catch (e) { console.error('[backup] Failed:', e); }
+      }, 24 * 60 * 60 * 1000);
+    }, msUntilNext);
+    console.log(`[backup] Next backup scheduled in ${Math.round(msUntilNext / 3600000)}h`);
+  };
+  scheduleBackup();
 }
 
 startServer().catch(console.error);
