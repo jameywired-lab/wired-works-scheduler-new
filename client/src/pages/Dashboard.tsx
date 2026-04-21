@@ -304,6 +304,13 @@ function FollowUpPanel() {
     closeout: <CheckCircle2 className="h-3 w-3 text-emerald-400" />,
     proposal: <Briefcase className="h-3 w-3 text-violet-400" />,
   };
+  const TYPE_LABEL: Record<string, string> = {
+    call: "Missed Call / Voicemail",
+    text: "Inbound Text",
+    manual: "Follow-Up",
+    closeout: "Close-Out",
+    proposal: "Proposal",
+  };
 
   const urgentCount = pending.filter((f) => f.isUrgent).length;
 
@@ -411,6 +418,10 @@ function FollowUpPanel() {
                       ? "border-destructive/50 bg-destructive/5 ring-1 ring-destructive/20"
                       : isProposal
                       ? "border-violet-500/30 bg-violet-500/5"
+                      : f.type === "call"
+                      ? "border-blue-500/40 bg-blue-950/30"
+                      : f.type === "text"
+                      ? "border-emerald-500/30 bg-emerald-950/20"
                       : "border-border bg-card"
                   }`}
                 >
@@ -423,6 +434,7 @@ function FollowUpPanel() {
                           {f.contactName || "Unknown"}
                         </span>
                         {TYPE_ICON[f.type]}
+                        <span className="text-[10px] font-medium text-muted-foreground">{TYPE_LABEL[f.type] ?? f.type}</span>
                         {f.phone && <span className="text-[10px] text-muted-foreground">{f.phone}</span>}
                         {isUrgent && (
                           <Badge className="bg-destructive/15 text-destructive text-[10px] h-4 px-1.5">URGENT</Badge>
@@ -439,13 +451,13 @@ function FollowUpPanel() {
                       </div>
                       {/* Grouped messages or single note */}
                       {f.type === "text" && (f as any).messages ? (
-                        <div className="mt-1 space-y-0.5">
+                        <div className="mt-1.5 space-y-1 bg-black/20 rounded p-1.5">
                           {(() => {
                             try {
                               const msgs: { body: string; receivedAt: number }[] = JSON.parse((f as any).messages);
                               return msgs.slice(-2).map((m, i) => (
-                                <p key={i} className="text-[10px] text-white leading-snug">
-                                  <span className="text-muted-foreground mr-1">
+                                <p key={i} className="text-xs text-foreground leading-snug">
+                                  <span className="text-muted-foreground text-[10px] mr-1">
                                     {new Date(m.receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:
                                   </span>
                                   {m.body}
@@ -455,9 +467,9 @@ function FollowUpPanel() {
                           })()}
                         </div>
                       ) : f.note ? (
-                        <p className={`text-[10px] mt-0.5 line-clamp-2 ${
-                          isUrgent ? "text-destructive/80" : "text-white"
-                        }`}>{f.note.replace(/^📱 Inbound SMS(?: \(\d+ messages\))?: /, "")}</p>
+                        <p className={`text-xs mt-1 line-clamp-2 leading-snug ${
+                          isUrgent ? "text-destructive/80" : "text-foreground"
+                        }`}>{f.note.replace(/^(?:📱 Inbound SMS(?:\s*\(\d+ messages\))?:|📞 (?:Missed call|Voicemail received):?)\s*/, "")}</p>
                       ) : null}
                     </div>
                     <button

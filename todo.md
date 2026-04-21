@@ -802,3 +802,10 @@
 ## SMS Compose White Background
 
 - [x] Change all SMS compose textareas and panels to white background with dark text — bg-white, text-gray-900, border-gray-300 across Dashboard, Follow-Ups, Client Communications, Client Card
+
+## Dashboard Follow-Up Card Improvements
+
+- [x] Restore text message preview on Dashboard follow-up cards — now uses text-foreground (readable), text-xs size, bg-black/20 preview panel
+- [x] Missed call / voicemail webhook already handled (call.completed with status=missed or voicemailUrl)
+- [x] Show missed call and voicemail cards distinctly — blue border/bg-blue-950 with "Missed Call / Voicemail" label
+- [x] Add type label to all follow-up cards ("Inbound Text", "Missed Call / Voicemail", "Follow-Up", etc.)
