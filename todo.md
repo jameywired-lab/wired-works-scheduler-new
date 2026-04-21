@@ -809,3 +809,7 @@
 - [x] Missed call / voicemail webhook already handled (call.completed with status=missed or voicemailUrl)
 - [x] Show missed call and voicemail cards distinctly — blue border/bg-blue-950 with "Missed Call / Voicemail" label
 - [x] Add type label to all follow-up cards ("Inbound Text", "Missed Call / Voicemail", "Follow-Up", etc.)
+
+## Bug Fix — Dashboard Follow-Up Card Background
+
+- [x] Revert Dashboard follow-up card backgrounds back to white — all cards now bg-white, text-gray-900, preview panel bg-gray-50, delete button text-gray-400

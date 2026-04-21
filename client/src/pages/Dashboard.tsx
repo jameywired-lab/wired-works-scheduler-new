@@ -415,14 +415,14 @@ function FollowUpPanel() {
                   key={f.id}
                   className={`rounded-lg border p-3 transition-all group ${
                     isUrgent
-                      ? "border-destructive/50 bg-destructive/5 ring-1 ring-destructive/20"
+                      ? "border-destructive/50 bg-white ring-1 ring-destructive/20"
                       : isProposal
-                      ? "border-violet-500/30 bg-violet-500/5"
+                      ? "border-violet-500/30 bg-white"
                       : f.type === "call"
-                      ? "border-blue-500/40 bg-blue-950/30"
+                      ? "border-blue-500/40 bg-white"
                       : f.type === "text"
-                      ? "border-emerald-500/30 bg-emerald-950/20"
-                      : "border-border bg-card"
+                      ? "border-emerald-500/30 bg-white"
+                      : "border-border bg-white"
                   }`}
                 >
                   {/* Header row */}
@@ -430,12 +430,12 @@ function FollowUpPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {isUrgent && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
-                        <span className={`text-xs font-semibold truncate ${isUrgent ? "text-destructive" : ""}`}>
+                        <span className={`text-xs font-semibold truncate ${isUrgent ? "text-destructive" : "text-gray-900"}`}>
                           {f.contactName || "Unknown"}
                         </span>
                         {TYPE_ICON[f.type]}
-                        <span className="text-[10px] font-medium text-muted-foreground">{TYPE_LABEL[f.type] ?? f.type}</span>
-                        {f.phone && <span className="text-[10px] text-muted-foreground">{f.phone}</span>}
+                        <span className="text-[10px] font-medium text-gray-500">{TYPE_LABEL[f.type] ?? f.type}</span>
+                        {f.phone && <span className="text-[10px] text-gray-500">{f.phone}</span>}
                         {isUrgent && (
                           <Badge className="bg-destructive/15 text-destructive text-[10px] h-4 px-1.5">URGENT</Badge>
                         )}
@@ -444,20 +444,20 @@ function FollowUpPanel() {
                         )}
                         {/* Message count badge */}
                         {f.type === "text" && (f as any).messageCount > 1 && (
-                          <span className="inline-flex items-center gap-0.5 bg-teal-600/20 text-teal-400 border border-teal-600/30 rounded-full px-1.5 py-0.5 text-[9px] font-semibold">
+                          <span className="inline-flex items-center gap-0.5 bg-teal-100 text-teal-700 border border-teal-300 rounded-full px-1.5 py-0.5 text-[9px] font-semibold">
                             {(f as any).messageCount} msgs
                           </span>
                         )}
                       </div>
                       {/* Grouped messages or single note */}
                       {f.type === "text" && (f as any).messages ? (
-                        <div className="mt-1.5 space-y-1 bg-black/20 rounded p-1.5">
+                        <div className="mt-1.5 space-y-1 bg-gray-50 border border-gray-200 rounded p-1.5">
                           {(() => {
                             try {
                               const msgs: { body: string; receivedAt: number }[] = JSON.parse((f as any).messages);
                               return msgs.slice(-2).map((m, i) => (
-                                <p key={i} className="text-xs text-foreground leading-snug">
-                                  <span className="text-muted-foreground text-[10px] mr-1">
+                                <p key={i} className="text-xs text-gray-800 leading-snug">
+                                  <span className="text-gray-400 text-[10px] mr-1">
                                     {new Date(m.receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:
                                   </span>
                                   {m.body}
@@ -468,13 +468,13 @@ function FollowUpPanel() {
                         </div>
                       ) : f.note ? (
                         <p className={`text-xs mt-1 line-clamp-2 leading-snug ${
-                          isUrgent ? "text-destructive/80" : "text-foreground"
+                          isUrgent ? "text-destructive/80" : "text-gray-700"
                         }`}>{f.note.replace(/^(?:📱 Inbound SMS(?:\s*\(\d+ messages\))?:|📞 (?:Missed call|Voicemail received):?)\s*/, "")}</p>
                       ) : null}
                     </div>
                     <button
                       onClick={() => deleteFollowUp.mutate({ id: f.id })}
-                      className="text-white/60 hover:text-white transition-colors text-xs shrink-0 mt-0.5 p-0.5 rounded hover:bg-white/20"
+                      className="text-gray-400 hover:text-gray-700 transition-colors text-xs shrink-0 mt-0.5 p-0.5 rounded hover:bg-gray-100"
                       title="Delete"
                     >
                       ✕
