@@ -113,10 +113,28 @@ export async function getUserByOpenId(openId: string) {
 }
 
 export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase())).limit(1);
-  return result[0];
+  // Use raw mysql2 query so we can handle the case where passwordHash column
+  // doesn't exist yet (e.g. first deploy on an existing Railway DB).
+  // We add the column on-the-fly if missing, then retry.
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) return undefined;
+  const { createPool } = await import("mysql2/promise");
+  const pool = createPool({ uri: dbUrl });
+  try {
+    // Ensure passwordHash column exists before querying
+    try {
+      await pool.query("ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255)");
+    } catch {
+      // ignore — column already exists or DB doesn't support IF NOT EXISTS
+    }
+    const [rows] = await pool.query(
+      "SELECT id, openId, name, email, loginMethod, role, passwordHash, createdAt, updatedAt, lastSignedIn FROM users WHERE email = ? LIMIT 1",
+      [email.trim().toLowerCase()]
+    ) as [Record<string, unknown>[], unknown];
+    return (rows as Record<string, unknown>[])[0] as typeof users.$inferSelect | undefined;
+  } finally {
+    await pool.end();
+  }
 }
 
 export async function setUserPassword(openId: string, passwordHash: string) {
