@@ -794,3 +794,7 @@
 
 - [x] Fix text color in SMS reply composers — text input now uses text-white bg-zinc-900 in both Dashboard and Follow-Ups page
 - [x] Group multiple inbound texts from the same client into one follow-up card with a message count badge — webhook now upserts into existing active follow-up; cards show all messages with timestamps and a "N msgs" badge
+
+## Bug Fix — SMS Compose Textarea Color
+
+- [x] Fix all SMS compose textareas across the app (Dashboard, Follow-Ups, Client Communications, Client Card hover) — all now use text-white bg-zinc-900 border-zinc-600 with placeholder:text-zinc-500

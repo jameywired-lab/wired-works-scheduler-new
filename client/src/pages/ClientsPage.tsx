@@ -834,7 +834,7 @@ function ClientCard({
             placeholder="Type your message…"
             value={quickTextMsg}
             onChange={(e) => setQuickTextMsg(e.target.value)}
-            className="min-h-[60px] text-sm bg-zinc-900/60 border-zinc-700 resize-none"
+            className="min-h-[60px] text-sm text-white bg-zinc-900 border-zinc-600 resize-none placeholder:text-zinc-500"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && quickTextMsg.trim()) {

@@ -404,7 +404,7 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
                   placeholder="Paste a URL…"
                   value={linkInput}
                   onChange={(e) => setLinkInput(e.target.value)}
-                  className="h-7 text-xs bg-zinc-900/60 border-zinc-700"
+                  className="h-7 text-xs text-white bg-zinc-900 border-zinc-600 placeholder:text-zinc-500"
                   onKeyDown={(e) => { if (e.key === "Enter") handleAddLink(); }}
                 />
                 <Button size="sm" className="h-7 text-xs" onClick={handleAddLink}>Add</Button>
