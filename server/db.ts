@@ -113,19 +113,23 @@ export async function getUserByOpenId(openId: string) {
 }
 
 export async function getUserByEmail(email: string) {
-  // Use raw mysql2 query so we can handle the case where passwordHash column
-  // doesn't exist yet (e.g. first deploy on an existing Railway DB).
-  // We add the column on-the-fly if missing, then retry.
+  // Use raw mysql2 so we can handle the case where passwordHash column
+  // doesn't exist yet on an existing Railway DB.
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) return undefined;
   const { createPool } = await import("mysql2/promise");
   const pool = createPool({ uri: dbUrl });
   try {
-    // Ensure passwordHash column exists before querying
-    try {
-      await pool.query("ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255)");
-    } catch {
-      // ignore — column already exists or DB doesn't support IF NOT EXISTS
+    // Check if passwordHash column exists via INFORMATION_SCHEMA
+    const dbName = new URL(dbUrl.replace(/^mysql:\/\//, "http://")).pathname.slice(1).split("?")[0];
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'passwordHash'",
+      [dbName]
+    ) as [Record<string, unknown>[], unknown];
+    const hasCol = (cols as Record<string, unknown>[]).length > 0;
+    if (!hasCol) {
+      // Add the column — no IF NOT EXISTS needed since we already checked
+      await pool.query("ALTER TABLE `users` ADD `passwordHash` varchar(255)");
     }
     const [rows] = await pool.query(
       "SELECT id, openId, name, email, loginMethod, role, passwordHash, createdAt, updatedAt, lastSignedIn FROM users WHERE email = ? LIMIT 1",
