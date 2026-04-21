@@ -26,7 +26,7 @@ async function startServer() {
 
   // Simple health check — Railway uses this to confirm the app is up
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true });
+    res.json({ ok: true, v: "9129d3d" });
   });
 
   // Local username/password auth routes (/api/auth/login, /api/auth/logout)
