@@ -1,14 +1,19 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
+# Cache bust label — increment this to force Railway to rebuild from scratch
+LABEL cache-bust="v4"
+
 WORKDIR /app
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy dependency manifests AND patches folder (pnpm needs patches before install)
-COPY package.json pnpm-lock.yaml ./
+# Copy patches FIRST — pnpm needs them before install
 COPY patches/ ./patches/
+
+# Copy dependency manifests
+COPY package.json pnpm-lock.yaml ./
 
 # Install ALL dependencies (dev + prod needed for build)
 RUN pnpm install --frozen-lockfile
