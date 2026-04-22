@@ -32,6 +32,12 @@ async function startServer() {
 
   // Local username/password auth routes (/api/auth/login, /api/auth/logout)
   registerLocalAuthRoutes(app);
+  // Debug endpoint — logs the raw payload OpenPhone sends (remove after confirming format)
+  app.post("/api/openphone/debug", (req, res) => {
+    console.log("[OpenPhone DEBUG] Headers:", JSON.stringify(req.headers));
+    console.log("[OpenPhone DEBUG] Body:", JSON.stringify(req.body));
+    res.status(200).json({ received: true });
+  });
   // OpenPhone inbound webhook — auto-creates follow-ups for inbound SMS and missed calls/voicemails
   app.post("/api/openphone/webhook", handleOpenPhoneWebhook);
   // Portal.io → Zapier → Wired Works: auto-create project when proposal is accepted
