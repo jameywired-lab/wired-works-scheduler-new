@@ -878,3 +878,13 @@
 - [x] Frontend: Voicemail cards — caller, timestamp, audio player, transcription if available
 - [x] Frontend: Auto-refresh every 30 seconds on Communications page
 - [x] Sidebar nav: add Communications (phone icon) for admin users
+
+## Follow-Up Next Steps & Reminders
+- [ ] DB: add nextStepsNote (text) and remindAt (bigint timestamp) columns to followUps table
+- [ ] Backend: followUps.saveNextSteps procedure (save note + optional remindAt timestamp)
+- [ ] Backend: followUps.listDueReminders procedure (return follow-ups where remindAt <= now and not dismissed)
+- [ ] Frontend: "Next Steps" button on each follow-up card opens an inline panel
+- [ ] Frontend: Next Steps panel has a notes textarea (pre-filled with existing note if any)
+- [ ] Frontend: "Remind me this afternoon" button sets remindAt to today at 4:00 PM
+- [ ] Frontend: "Remind me tomorrow" button sets remindAt to tomorrow at 8:00 AM
+- [ ] Frontend: Due reminders show as a banner/badge on the Dashboard Follow-Up section

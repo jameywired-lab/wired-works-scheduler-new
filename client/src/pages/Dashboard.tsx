@@ -213,6 +213,9 @@ function FollowUpPanel() {
   // SMS reply state
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
+  // Next Steps state
+  const [nextStepsId, setNextStepsId] = useState<number | null>(null);
+  const [nextStepsText, setNextStepsText] = useState("");
   const sendSms = trpc.communications.sendSms.useMutation({
     onSuccess: () => {
       toast.success("Message sent");
@@ -264,6 +267,18 @@ function FollowUpPanel() {
 
   const markUrgent = trpc.followUps.markUrgent.useMutation({
     onSuccess: () => utils.followUps.list.invalidate(),
+  });
+  const saveNextSteps = trpc.followUps.saveNextSteps.useMutation({
+    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Next steps saved"); setNextStepsId(null); setNextStepsText(""); },
+    onError: (e) => toast.error(e.message),
+  });
+  const remindThisAfternoon = trpc.followUps.remindThisAfternoon.useMutation({
+    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Reminder set for 4 PM today"); setNextStepsId(null); setNextStepsText(""); },
+    onError: (e) => toast.error(e.message),
+  });
+  const remindTomorrow = trpc.followUps.remindTomorrow.useMutation({
+    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Reminder set for tomorrow"); setNextStepsId(null); setNextStepsText(""); },
+    onError: (e) => toast.error(e.message),
   });
 
   const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
@@ -487,8 +502,80 @@ function FollowUpPanel() {
                     </button>
                   </div>
 
+                  {/* Next Steps panel */}
+                  {nextStepsId === f.id && (
+                    <div className="mt-2 border border-amber-400/40 rounded-md p-3 bg-amber-50/60 space-y-2">
+                      <p className="text-[10px] font-semibold text-amber-700">📝 Next Steps</p>
+                      <textarea
+                        className="w-full min-h-[60px] text-xs bg-white border border-gray-300 rounded p-2 text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        placeholder="What needs to happen next?"
+                        value={nextStepsText}
+                        onChange={(e) => setNextStepsText(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-6 text-[10px] px-2 bg-amber-500 hover:bg-amber-600 text-white"
+                          disabled={saveNextSteps.isPending}
+                          onClick={() => saveNextSteps.mutate({ id: f.id, nextStepsNote: nextStepsText })}
+                        >
+                          Save Note
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+                          disabled={remindThisAfternoon.isPending}
+                          onClick={() => remindThisAfternoon.mutate({ id: f.id })}
+                        >
+                          ⏰ Remind me this afternoon (4 PM)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 border-blue-400 text-blue-700 hover:bg-blue-50"
+                          disabled={remindTomorrow.isPending}
+                          onClick={() => remindTomorrow.mutate({ id: f.id })}
+                        >
+                          📅 Remind me tomorrow
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-[10px] px-2 text-muted-foreground"
+                          onClick={() => { setNextStepsId(null); setNextStepsText(""); }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      {(f as any).nextStepsNote && nextStepsText !== (f as any).nextStepsNote && (
+                        <p className="text-[10px] text-amber-800 bg-amber-100 rounded px-2 py-1">
+                          📌 Saved: {(f as any).nextStepsNote}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-1.5 mt-2">
+                    {/* Next Steps button */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`h-6 text-[10px] px-2 ${
+                        nextStepsId === f.id
+                          ? "border-amber-400 bg-amber-50 text-amber-700"
+                          : (f as any).nextStepsNote
+                          ? "border-amber-400/60 text-amber-600"
+                          : "border-border text-muted-foreground"
+                      }`}
+                      onClick={() => {
+                        if (nextStepsId === f.id) { setNextStepsId(null); setNextStepsText(""); }
+                        else { setNextStepsId(f.id); setNextStepsText((f as any).nextStepsNote ?? ""); }
+                      }}
+                    >
+                      📝 {nextStepsId === f.id ? "Close" : (f as any).nextStepsNote ? "Edit Next Steps" : "Next Steps"}
+                    </Button>
                     {/* Reply via Text — prominent for SMS/phone follow-ups */}
                     {f.phone && (
                       <Button

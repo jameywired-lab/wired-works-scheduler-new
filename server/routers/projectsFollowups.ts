@@ -485,11 +485,45 @@ export const followUpsRouter = router({
       return { success: true };
     }),
 
-  // ── Mark client as contacted — pins to top of list ───────────────────────────────
+  // ── Mark client as contacted — pins to top of list ───────────────────────────────────────────
   markClientContacted: p
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await updateFollowUp(input.id, { clientContacted: true });
       return { success: true };
+    }),
+  // ── Save next steps note + optional reminder ───────────────────────────────────────
+  saveNextSteps: p
+    .input(
+      z.object({
+        id: z.number(),
+        nextStepsNote: z.string(),
+        remindAt: z.number().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await updateFollowUp(input.id, {
+        nextStepsNote: input.nextStepsNote,
+        ...(input.remindAt !== undefined ? { remindAt: input.remindAt } : {}),
+      });
+      return { success: true };
+    }),
+  // ── Remind this afternoon (4 PM) ────────────────────────────────────────────────────
+  remindThisAfternoon: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const now = new Date();
+      const afternoon = new Date(now);
+      afternoon.setHours(16, 0, 0, 0); // 4:00 PM
+      if (now >= afternoon) afternoon.setDate(afternoon.getDate() + 1);
+      await updateFollowUp(input.id, { remindAt: afternoon.getTime() });
+      return { success: true };
+    }),
+  // ── List follow-ups with due reminders ───────────────────────────────────────────────
+  listDueReminders: p
+    .query(async () => {
+      const now = Date.now();
+      const all = await listFollowUps({});
+      return all.filter((f) => f.remindAt && f.remindAt <= now && !f.isFollowedUp);
     }),
 });
