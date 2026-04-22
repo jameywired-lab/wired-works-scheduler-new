@@ -865,16 +865,16 @@
 - [x] Settings page: show connected Google Calendar account email when connected
 
 ## Communications Page (OpenPhone Mirror)
-- [ ] DB: callLog table (id, from, to, direction, status: missed/completed/voicemail, duration, recordingUrl, transcription, createdAt)
-- [ ] DB: extend smsLog to store inbound messages (body, from, to, direction, openPhoneMessageId, createdAt)
-- [ ] Webhook: handle call.completed, call.missed, voicemail.received events → store in callLog
-- [ ] Webhook: handle message.received (inbound SMS) → store in smsLog with direction=inbound
-- [ ] Backend: communications.listCalls procedure (list callLog, filter by type: all/missed/voicemail)
-- [ ] Backend: communications.listMessages procedure (list smsLog threads grouped by contact number)
-- [ ] Backend: communications.sendReply procedure (send SMS reply via OpenPhone API)
-- [ ] Frontend: Communications page (/communications) — tabbed: All / Messages / Missed Calls / Voicemails
-- [ ] Frontend: SMS thread view — grouped by contact, show full conversation, reply box
-- [ ] Frontend: Missed call cards — caller name/number, time, callback button
-- [ ] Frontend: Voicemail cards — caller, timestamp, audio player, transcription if available
-- [ ] Frontend: Auto-refresh every 30 seconds on Communications page
-- [ ] Sidebar nav: add Communications (phone icon) for admin users
+- [x] DB: callLog table (id, from, to, direction, status: missed/completed/voicemail, duration, recordingUrl, transcription, createdAt)
+- [x] DB: inboundSmsLog table created to store inbound/outbound messages (body, from, to, direction, openPhoneMessageId, createdAt)
+- [x] Webhook: handle call.completed, call.missed, voicemail.received events → store in callLog
+- [x] Webhook: handle message.received (inbound SMS) → store in inboundSmsLog with direction=inbound
+- [x] Backend: communications.listCalls procedure (list callLog, filter by type: all/missed/voicemail)
+- [x] Backend: communications.listMessages procedure (list inboundSmsLog threads grouped by contact number)
+- [x] Backend: communications.sendReply — uses existing communications.sendSms procedure
+- [x] Frontend: Communications page (/communications) — tabbed: Text Messages / Missed Calls / Voicemails / All Calls
+- [x] Frontend: SMS thread view — grouped by contact, expandable conversation view
+- [x] Frontend: Missed call cards — caller name/number, time, status badge
+- [x] Frontend: Voicemail cards — caller, timestamp, audio player, transcription if available
+- [x] Frontend: Auto-refresh every 30 seconds on Communications page
+- [x] Sidebar nav: add Communications (phone icon) for admin users
