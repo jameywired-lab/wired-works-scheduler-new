@@ -317,7 +317,9 @@ export async function updateCrewMember(id: number, data: Partial<InsertCrewMembe
 export async function deleteCrewMember(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.update(crewMembers).set({ isActive: false }).where(eq(crewMembers.id, id));
+  // Remove job assignments first to avoid FK constraint errors
+  await db.delete(jobAssignments).where(eq(jobAssignments.crewMemberId, id));
+  await db.delete(crewMembers).where(eq(crewMembers.id, id));
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────

@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { KeyRound, Loader2, MessageSquare, Pencil, Plus, Shield, Trash2, Users2, Check, X } from "lucide-react";
+import { Check, KeyRound, Loader2, MessageSquare, Pencil, Plus, Shield, Trash2, Users2, X } from "lucide-react";
 import { toast } from "sonner";
 
 type NewUserForm = {
@@ -33,7 +33,7 @@ type NewUserForm = {
   phone: string;
   sendInviteSms: boolean;
 };
-const emptyForm: NewUserForm = { name: "", email: "", role: "user", password: "", phone: "", sendInviteSms: false };
+const emptyForm: NewUserForm = { name: "", email: "", role: "crew", password: "", phone: "", sendInviteSms: false };
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -43,9 +43,7 @@ export default function UsersPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [resetTarget, setResetTarget] = useState<{ id: number; openId: string; name: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
-  // Resend invite SMS state
   const [smsTarget, setSmsTarget] = useState<{ id: number; name: string; phone: string } | null>(null);
-  // Inline phone edit state: userId -> draft value
   const [editingPhone, setEditingPhone] = useState<{ userId: number; draft: string } | null>(null);
 
   const { data: users, isLoading } = trpc.users.list.useQuery();
@@ -90,7 +88,7 @@ export default function UsersPage() {
 
   const sendInviteSmsMutation = trpc.users.sendInviteSms.useMutation({
     onSuccess: (data) => {
-      utils.users.list.invalidate(); // refresh so stored phone shows
+      utils.users.list.invalidate();
       setSmsTarget(null);
       if (data.success) {
         toast.success("Login SMS sent successfully!");
@@ -103,6 +101,8 @@ export default function UsersPage() {
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error("Name is required."); return; }
+    if (!form.email.trim()) { toast.error("Email is required — crew members use it to log in."); return; }
+    if (!form.password.trim() || form.password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
     if (form.sendInviteSms && !form.phone.trim()) {
       toast.error("Phone number is required to send an invite SMS.");
       return;
@@ -111,7 +111,7 @@ export default function UsersPage() {
       name: form.name,
       email: form.email,
       role: form.role,
-      password: form.password || undefined,
+      password: form.password,
       phone: form.phone || undefined,
       sendInviteSms: form.sendInviteSms,
       appUrl: form.sendInviteSms ? window.location.origin : undefined,
@@ -149,9 +149,9 @@ export default function UsersPage() {
             Manage team members and their access levels
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowAddForm(true)}>
+        <Button size="sm" onClick={() => { setForm(emptyForm); setShowAddForm(true); }}>
           <Plus className="h-4 w-4 mr-1.5" />
-          Add User
+          Add Crew / User
         </Button>
       </div>
 
@@ -173,14 +173,14 @@ export default function UsersPage() {
       {/* User list */}
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
       ) : (users ?? []).length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Users2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
           <p className="font-medium text-muted-foreground">No users yet</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> Add your first user
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => { setForm(emptyForm); setShowAddForm(true); }}>
+            <Plus className="h-4 w-4 mr-1.5" /> Add your first crew member
           </Button>
         </div>
       ) : (
@@ -191,10 +191,8 @@ export default function UsersPage() {
             const isCrew = u.role === "crew";
             const isEditingThisPhone = editingPhone?.userId === u.id;
             return (
-              <div
-                key={u.id}
-                className="bg-card border border-border rounded-xl p-4 group"
-              >
+              <div key={u.id} className="bg-card border border-border rounded-xl p-4">
+                {/* Top row: avatar + name + role selector + delete */}
                 <div className="flex items-center gap-3">
                   <Avatar className="h-9 w-9 border border-border shrink-0">
                     <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
@@ -228,46 +226,30 @@ export default function UsersPage() {
                         </SelectContent>
                       </Select>
                     )}
-                    {/* Send Login SMS — always visible for crew users */}
-                    {isCrew && (
-                      <button
-                        onClick={() => setSmsTarget({ id: u.id, name: u.name ?? "User", phone: (u as any).phone ?? "" })}
-                        className="p-1.5 rounded-lg hover:bg-amber-500/15 transition-all"
-                        title="Send login SMS"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5 text-amber-500" />
-                      </button>
-                    )}
-                    {/* Reset password button — visible on hover */}
-                    <button
-                      onClick={() => { setResetTarget({ id: u.id, openId: u.openId, name: u.name ?? "User" }); setNewPassword(""); }}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-primary/10 transition-all"
-                      title="Set / reset password"
-                    >
-                      <KeyRound className="h-3.5 w-3.5 text-primary" />
-                    </button>
                     {!isSelf && (
                       <button
                         onClick={() => setDeleteConfirm(u.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/15 transition-all"
+                        className="p-1.5 rounded-lg hover:bg-destructive/15 transition-all text-muted-foreground hover:text-destructive"
+                        title="Remove user"
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Inline phone row for crew members */}
+                {/* Action row for crew: phone + Set Password + Send Login SMS */}
                 {isCrew && (
-                  <div className="mt-2.5 ml-12 flex items-center gap-2">
+                  <div className="mt-3 ml-12 flex flex-wrap items-center gap-2">
+                    {/* Inline phone edit */}
                     {isEditingThisPhone ? (
-                      <>
+                      <div className="flex items-center gap-1.5">
                         <Input
                           type="tel"
                           value={editingPhone.draft}
                           onChange={(e) => setEditingPhone({ userId: u.id, draft: e.target.value })}
                           placeholder="(904) 555-1234"
-                          className="h-7 text-xs bg-input border-border w-40"
+                          className="h-7 text-xs bg-input border-border w-36"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") handleSavePhone();
                             if (e.key === "Escape") setEditingPhone(null);
@@ -289,21 +271,58 @@ export default function UsersPage() {
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <button
                         onClick={() => setEditingPhone({ userId: u.id, draft: (u as any).phone ?? "" })}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/phone"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border border-dashed border-border rounded-lg px-2 py-1"
                         title="Edit phone number"
                       >
-                        <Pencil className="h-3 w-3 opacity-0 group-hover/phone:opacity-100 transition-opacity" />
+                        <Pencil className="h-3 w-3" />
                         {(u as any).phone ? (
                           <span className="font-mono">{(u as any).phone}</span>
                         ) : (
-                          <span className="italic opacity-60">Add phone number</span>
+                          <span className="italic">Add phone</span>
                         )}
                       </button>
                     )}
+
+                    {/* Set Password — always visible */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => { setResetTarget({ id: u.id, openId: u.openId, name: u.name ?? "User" }); setNewPassword(""); }}
+                    >
+                      <KeyRound className="h-3 w-3" />
+                      Set Password
+                    </Button>
+
+                    {/* Send Login SMS — always visible for crew */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                      onClick={() => setSmsTarget({ id: u.id, name: u.name ?? "User", phone: (u as any).phone ?? "" })}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Send Login SMS
+                    </Button>
+                  </div>
+                )}
+
+                {/* Set Password button for non-crew (admin/user) — visible but subtle */}
+                {!isCrew && !isSelf && (
+                  <div className="mt-2 ml-12">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                      onClick={() => { setResetTarget({ id: u.id, openId: u.openId, name: u.name ?? "User" }); setNewPassword(""); }}
+                    >
+                      <KeyRound className="h-3 w-3" />
+                      Set Password
+                    </Button>
                   </div>
                 )}
               </div>
@@ -312,13 +331,32 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Add User Dialog */}
+      {/* ── Add User Dialog ────────────────────────────────────────────────── */}
       <Dialog open={showAddForm} onOpenChange={(v) => !v && setShowAddForm(false)}>
         <DialogContent className="max-w-md bg-card border-border">
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+
+            {/* Role first — drives what fields show below */}
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Select
+                value={form.role}
+                onValueChange={(v) => setForm((f) => ({ ...f, role: v as "user" | "admin" | "crew", sendInviteSms: v === "crew" ? f.sendInviteSms : false }))}
+              >
+                <SelectTrigger className="bg-input border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="crew">Crew — Assigned jobs only</SelectItem>
+                  <SelectItem value="user">User — View clients &amp; jobs</SelectItem>
+                  <SelectItem value="admin">Admin — Full access</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Full Name *</Label>
               <Input
@@ -328,8 +366,9 @@ export default function UsersPage() {
                 className="bg-input border-border"
               />
             </div>
+
             <div className="space-y-1.5">
-              <Label>Email <span className="text-muted-foreground text-xs">(used to log in)</span></Label>
+              <Label>Email * <span className="text-muted-foreground text-xs">(used to log in)</span></Label>
               <Input
                 type="email"
                 value={form.email}
@@ -338,8 +377,9 @@ export default function UsersPage() {
                 className="bg-input border-border"
               />
             </div>
+
             <div className="space-y-1.5">
-              <Label>Password *</Label>
+              <Label>Password * <span className="text-muted-foreground text-xs">(min 6 characters)</span></Label>
               <Input
                 type="password"
                 value={form.password}
@@ -348,23 +388,14 @@ export default function UsersPage() {
                 className="bg-input border-border"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Role</Label>
-              <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as "user" | "admin" | "crew", sendInviteSms: v === "crew" ? f.sendInviteSms : false }))}>
-                <SelectTrigger className="bg-input border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin — Full access</SelectItem>
-                  <SelectItem value="user">User — View clients &amp; jobs</SelectItem>
-                  <SelectItem value="crew">Crew — Assigned jobs only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            {/* Phone + SMS invite — only shown for crew role */}
+            {/* Crew-only: phone + SMS invite */}
             {form.role === "crew" && (
-              <div className="space-y-3 border border-border rounded-xl p-3 bg-muted/20">
+              <div className="space-y-3 border border-amber-500/30 rounded-xl p-3 bg-amber-500/5">
+                <p className="text-xs font-medium text-amber-400 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Crew Invite Options
+                </p>
                 <div className="space-y-1.5">
                   <Label>Phone Number <span className="text-muted-foreground text-xs">(saved to profile)</span></Label>
                   <Input
@@ -382,21 +413,18 @@ export default function UsersPage() {
                     onChange={(e) => setForm((f) => ({ ...f, sendInviteSms: e.target.checked }))}
                     className="h-4 w-4 rounded border-border accent-amber-500"
                   />
-                  <span className="text-sm flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-amber-400" />
-                    Send invite SMS with login link &amp; password
-                  </span>
+                  <span className="text-sm">Send invite SMS with login link &amp; password</span>
                 </label>
                 {form.sendInviteSms && (
                   <p className="text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-                    A text message will be sent to the crew member with the app URL, their username, and password.
+                    A text will be sent with the app URL, their email, and password so they can log in immediately.
                   </p>
                 )}
               </div>
             )}
 
             <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-              The crew member will log in with their email and this password. You can change their password anytime using the key icon on their row.
+              The crew member logs in with their email and password at the app URL. You can update their password anytime using the <strong>Set Password</strong> button on their row.
             </p>
           </div>
           <DialogFooter>
@@ -411,7 +439,7 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Send Login SMS Dialog */}
+      {/* ── Send Login SMS Dialog ─────────────────────────────────────────── */}
       <Dialog open={smsTarget !== null} onOpenChange={(v) => !v && setSmsTarget(null)}>
         <DialogContent className="max-w-sm bg-card border-border">
           <DialogHeader>
@@ -436,14 +464,18 @@ export default function UsersPage() {
               />
             </div>
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-muted-foreground">
-              The SMS will include the app URL, their username, and a reminder to go to Settings → Change Password to update their password.
+              The SMS will include the app URL, their email (username), and a reminder to go to <strong>Settings → Change Password</strong> to update their password.
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSmsTarget(null)} disabled={sendInviteSmsMutation.isPending}>
               Cancel
             </Button>
-            <Button onClick={handleSendInviteSms} disabled={sendInviteSmsMutation.isPending} className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Button
+              onClick={handleSendInviteSms}
+              disabled={sendInviteSmsMutation.isPending}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
               {sendInviteSmsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Send SMS
             </Button>
@@ -451,7 +483,7 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset Password Dialog */}
+      {/* ── Set / Reset Password Dialog ───────────────────────────────────── */}
       <Dialog open={resetTarget !== null} onOpenChange={(v) => !v && setResetTarget(null)}>
         <DialogContent className="max-w-sm bg-card border-border">
           <DialogHeader>
@@ -459,7 +491,7 @@ export default function UsersPage() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Enter a new password for this user. They will use it to log in.
+              Enter a new password for this user. They will use it to log in at the app URL.
             </p>
             <div className="space-y-1.5">
               <Label>New Password</Label>
@@ -483,14 +515,14 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
+      {/* ── Delete Confirm Dialog ─────────────────────────────────────────── */}
       <Dialog open={deleteConfirm !== null} onOpenChange={(v) => !v && setDeleteConfirm(null)}>
         <DialogContent className="max-w-sm bg-card border-border">
           <DialogHeader>
             <DialogTitle>Remove User?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This will permanently remove the user from the system. They can sign back in to create a new account.
+            This will permanently remove the user from the system. This cannot be undone.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
@@ -500,7 +532,7 @@ export default function UsersPage() {
               disabled={deleteUser.isPending}
             >
               {deleteUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Remove
+              Remove Permanently
             </Button>
           </DialogFooter>
         </DialogContent>

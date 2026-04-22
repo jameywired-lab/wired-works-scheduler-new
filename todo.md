@@ -926,3 +926,10 @@
 - [x] Backend users.sendInviteSms: use stored phone as default, allow override
 - [x] UsersPage: SMS dialog pre-fills phone from stored user.phone
 - [x] UsersPage: inline edit phone on crew row (pencil icon or editable field next to SMS button)
+
+## Crew Onboarding & Delete Fixes
+
+- [x] Users page: make "Set Password" and "Send Login SMS" actions clearly visible on every crew row (not hidden behind icons)
+- [x] Users page: Add User form for crew role — show password field, phone field, and send SMS checkbox prominently
+- [x] Crew delete: fully remove the user record from the DB instead of marking inactive (also clears job assignments first)
+- [x] Crew page: deleteCrewMember now does a real DELETE instead of isActive = false
