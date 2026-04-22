@@ -378,3 +378,6 @@ ALTER TABLE `clientNotes` ADD CONSTRAINT `clientNotes_clientId_clients_id_fk` FO
 ALTER TABLE `clientPhotos` ADD CONSTRAINT `clientPhotos_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE cascade ON UPDATE no action;
 ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255);--> statement-breakpoint
 ALTER TABLE `users` MODIFY COLUMN `role` enum('user','admin','crew') NOT NULL DEFAULT 'user';
+
+ALTER TABLE `users` ADD IF NOT EXISTS `phone` varchar(32);
+ALTER TABLE `followUps` ADD IF NOT EXISTS `nextStepsNote` text;

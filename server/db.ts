@@ -169,7 +169,7 @@ export async function updateUserRole(userId: number, role: "user" | "admin" | "c
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
-export async function createManualUser(data: { name: string; email?: string; role: "user" | "admin" | "crew" }) {
+export async function createManualUser(data: { name: string; email?: string; role: "user" | "admin" | "crew"; phone?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   // Generate a unique synthetic openId for manually-created users
@@ -180,9 +180,16 @@ export async function createManualUser(data: { name: string; email?: string; rol
     email: data.email ?? null,
     loginMethod: "manual",
     role: data.role,
+    phone: data.phone ?? null,
     lastSignedIn: new Date(),
   });
   return { openId };
+}
+
+export async function updateUserPhone(userId: number, phone: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(users).set({ phone }).where(eq(users.id, userId));
 }
 
 export async function deleteUser(userId: number) {

@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { KeyRound, Loader2, MessageSquare, Plus, Shield, Trash2, Users2 } from "lucide-react";
+import { KeyRound, Loader2, MessageSquare, Pencil, Plus, Shield, Trash2, Users2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 type NewUserForm = {
@@ -45,6 +45,8 @@ export default function UsersPage() {
   const [newPassword, setNewPassword] = useState("");
   // Resend invite SMS state
   const [smsTarget, setSmsTarget] = useState<{ id: number; name: string; phone: string } | null>(null);
+  // Inline phone edit state: userId -> draft value
+  const [editingPhone, setEditingPhone] = useState<{ userId: number; draft: string } | null>(null);
 
   const { data: users, isLoading } = trpc.users.list.useQuery();
 
@@ -72,6 +74,15 @@ export default function UsersPage() {
     onError: () => toast.error("Failed to update role."),
   });
 
+  const updatePhone = trpc.users.updatePhone.useMutation({
+    onSuccess: () => {
+      utils.users.list.invalidate();
+      setEditingPhone(null);
+      toast.success("Phone number saved.");
+    },
+    onError: () => toast.error("Failed to save phone number."),
+  });
+
   const deleteUser = trpc.users.delete.useMutation({
     onSuccess: () => { utils.users.list.invalidate(); setDeleteConfirm(null); toast.success("User removed."); },
     onError: () => toast.error("Failed to remove user."),
@@ -79,6 +90,7 @@ export default function UsersPage() {
 
   const sendInviteSmsMutation = trpc.users.sendInviteSms.useMutation({
     onSuccess: (data) => {
+      utils.users.list.invalidate(); // refresh so stored phone shows
       setSmsTarget(null);
       if (data.success) {
         toast.success("Login SMS sent successfully!");
@@ -118,8 +130,14 @@ export default function UsersPage() {
     sendInviteSmsMutation.mutate({
       userId: smsTarget.id,
       phone: smsTarget.phone,
+      savePhone: true,
       appUrl: window.location.origin,
     });
+  };
+
+  const handleSavePhone = () => {
+    if (!editingPhone) return;
+    updatePhone.mutate({ userId: editingPhone.userId, phone: editingPhone.draft || undefined });
   };
 
   return (
@@ -171,70 +189,123 @@ export default function UsersPage() {
             const isSelf = u.id === currentUser?.id;
             const isManual = u.openId?.startsWith("manual-");
             const isCrew = u.role === "crew";
+            const isEditingThisPhone = editingPhone?.userId === u.id;
             return (
               <div
                 key={u.id}
-                className="bg-card border border-border rounded-xl p-4 flex items-center gap-3 group"
+                className="bg-card border border-border rounded-xl p-4 group"
               >
-                <Avatar className="h-9 w-9 border border-border shrink-0">
-                  <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
-                    {getInitials(u.name ?? "?")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium truncate">{u.name ?? "Unknown"}</p>
-                    {isSelf && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">You</Badge>}
-                    {isManual && <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Manual</Badge>}
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9 border border-border shrink-0">
+                    <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
+                      {getInitials(u.name ?? "?")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium truncate">{u.name ?? "Unknown"}</p>
+                      {isSelf && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">You</Badge>}
+                      {isManual && <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Manual</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{u.email ?? (isManual ? "No email" : u.openId)}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{u.email ?? (isManual ? "No email" : u.openId)}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {isSelf ? (
-                    <Badge variant="secondary" className="capitalize">{u.role}</Badge>
-                  ) : (
-                    <Select
-                      value={u.role}
-                      onValueChange={(v) => updateRole.mutate({ userId: u.id, role: v as "user" | "admin" | "crew" })}
-                      disabled={updateRole.isPending}
-                    >
-                      <SelectTrigger className="w-28 h-8 text-xs bg-input border-border">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="crew">Crew</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {/* Send Login SMS — always visible for crew users */}
-                  {isCrew && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isSelf ? (
+                      <Badge variant="secondary" className="capitalize">{u.role}</Badge>
+                    ) : (
+                      <Select
+                        value={u.role}
+                        onValueChange={(v) => updateRole.mutate({ userId: u.id, role: v as "user" | "admin" | "crew" })}
+                        disabled={updateRole.isPending}
+                      >
+                        <SelectTrigger className="w-28 h-8 text-xs bg-input border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="crew">Crew</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {/* Send Login SMS — always visible for crew users */}
+                    {isCrew && (
+                      <button
+                        onClick={() => setSmsTarget({ id: u.id, name: u.name ?? "User", phone: (u as any).phone ?? "" })}
+                        className="p-1.5 rounded-lg hover:bg-amber-500/15 transition-all"
+                        title="Send login SMS"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 text-amber-500" />
+                      </button>
+                    )}
+                    {/* Reset password button — visible on hover */}
                     <button
-                      onClick={() => setSmsTarget({ id: u.id, name: u.name ?? "User", phone: "" })}
-                      className="p-1.5 rounded-lg hover:bg-amber-500/15 transition-all"
-                      title="Send login SMS"
+                      onClick={() => { setResetTarget({ id: u.id, openId: u.openId, name: u.name ?? "User" }); setNewPassword(""); }}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-primary/10 transition-all"
+                      title="Set / reset password"
                     >
-                      <MessageSquare className="h-3.5 w-3.5 text-amber-500" />
+                      <KeyRound className="h-3.5 w-3.5 text-primary" />
                     </button>
-                  )}
-                  {/* Reset password button — visible on hover for all users */}
-                  <button
-                    onClick={() => { setResetTarget({ id: u.id, openId: u.openId, name: u.name ?? "User" }); setNewPassword(""); }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-primary/10 transition-all"
-                    title="Set / reset password"
-                  >
-                    <KeyRound className="h-3.5 w-3.5 text-primary" />
-                  </button>
-                  {!isSelf && (
-                    <button
-                      onClick={() => setDeleteConfirm(u.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/15 transition-all"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </button>
-                  )}
+                    {!isSelf && (
+                      <button
+                        onClick={() => setDeleteConfirm(u.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/15 transition-all"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Inline phone row for crew members */}
+                {isCrew && (
+                  <div className="mt-2.5 ml-12 flex items-center gap-2">
+                    {isEditingThisPhone ? (
+                      <>
+                        <Input
+                          type="tel"
+                          value={editingPhone.draft}
+                          onChange={(e) => setEditingPhone({ userId: u.id, draft: e.target.value })}
+                          placeholder="(904) 555-1234"
+                          className="h-7 text-xs bg-input border-border w-40"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSavePhone();
+                            if (e.key === "Escape") setEditingPhone(null);
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSavePhone}
+                          disabled={updatePhone.isPending}
+                          className="p-1 rounded hover:bg-green-500/15 text-green-500"
+                          title="Save"
+                        >
+                          {updatePhone.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                        </button>
+                        <button
+                          onClick={() => setEditingPhone(null)}
+                          className="p-1 rounded hover:bg-destructive/15 text-muted-foreground"
+                          title="Cancel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setEditingPhone({ userId: u.id, draft: (u as any).phone ?? "" })}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/phone"
+                        title="Edit phone number"
+                      >
+                        <Pencil className="h-3 w-3 opacity-0 group-hover/phone:opacity-100 transition-opacity" />
+                        {(u as any).phone ? (
+                          <span className="font-mono">{(u as any).phone}</span>
+                        ) : (
+                          <span className="italic opacity-60">Add phone number</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -295,7 +366,7 @@ export default function UsersPage() {
             {form.role === "crew" && (
               <div className="space-y-3 border border-border rounded-xl p-3 bg-muted/20">
                 <div className="space-y-1.5">
-                  <Label>Phone Number <span className="text-muted-foreground text-xs">(for SMS invite)</span></Label>
+                  <Label>Phone Number <span className="text-muted-foreground text-xs">(saved to profile)</span></Label>
                   <Input
                     type="tel"
                     value={form.phone}
@@ -351,7 +422,7 @@ export default function UsersPage() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Enter the crew member's phone number. They'll receive a text with the app login link and their username.
+              Confirm or update the phone number. The number will be saved to their profile.
             </p>
             <div className="space-y-1.5">
               <Label>Phone Number</Label>

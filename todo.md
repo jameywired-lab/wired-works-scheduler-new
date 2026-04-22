@@ -915,3 +915,14 @@
 - [x] UsersPage: "Send Login SMS" button (message icon) on each crew user row — opens a small dialog to enter/confirm phone number, then fires the invite SMS
 - [x] Verify crew members can change their own password from Settings page (Change Password section)
 - [x] Settings nav added to crew sidebar and crew mobile bottom nav so crew can reach Change Password
+
+## Phone Number on Crew Profile
+
+- [x] DB schema: add phone column (varchar, nullable) to users table
+- [x] DB migration: generate and apply ALTER TABLE users ADD COLUMN phone
+- [x] Backend db.ts: update listUsers to return phone field
+- [x] Backend users.create: save phone to DB when creating crew user
+- [x] Backend users.updatePhone procedure: update phone for existing user
+- [x] Backend users.sendInviteSms: use stored phone as default, allow override
+- [x] UsersPage: SMS dialog pre-fills phone from stored user.phone
+- [x] UsersPage: inline edit phone on crew row (pencil icon or editable field next to SMS button)

@@ -183,6 +183,13 @@
       "when": 1776873821125,
       "tag": "0025_tiny_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1776887889599,
+      "tag": "0026_misty_kate_bishop",
+      "breakpoints": true
     }
   ]
 }
