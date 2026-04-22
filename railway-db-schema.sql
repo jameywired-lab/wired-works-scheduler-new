@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `googleTokens` (
 	CONSTRAINT `googleTokens_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-ALTER TABLE `jobs` ADD IF NOT EXISTS `googleCalendarEventId` varchar(255);--> statement-breakpoint
+ALTER TABLE `jobs` ADD `googleCalendarEventId` varchar(255);--> statement-breakpoint
 ALTER TABLE `clientAddresses` ADD CONSTRAINT `clientAddresses_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `googleTokens` ADD CONSTRAINT `googleTokens_userId_users_id_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;CREATE TABLE IF NOT EXISTS `followUps` (
 	`id` int AUTO_INCREMENT NOT NULL,
@@ -210,19 +210,19 @@ CREATE TABLE IF NOT EXISTS `tags` (
 --> statement-breakpoint
 ALTER TABLE `clientTags` ADD CONSTRAINT `clientTags_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `clientTags` ADD CONSTRAINT `clientTags_tagId_tags_id_fk` FOREIGN KEY (`tagId`) REFERENCES `tags`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal') NOT NULL DEFAULT 'manual';--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `linkedJobId` int;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `clientId` int;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `proposalStatus` enum('none','pending','accepted','declined','not_ready') DEFAULT 'none' NOT NULL;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `proposalSentAt` bigint;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `isUrgent` boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `urgentAt` bigint;--> statement-breakpoint
-ALTER TABLE `jobs` ADD IF NOT EXISTS `jobType` enum('service_call','project_job','sales_call') DEFAULT 'service_call' NOT NULL;--> statement-breakpoint
-ALTER TABLE `jobs` ADD IF NOT EXISTS `closeoutNotes` text;--> statement-breakpoint
-ALTER TABLE `jobs` ADD IF NOT EXISTS `closeoutOutcome` enum('client_happy_bill','client_issue_urgent','proposal_needed','bill_service_call');--> statement-breakpoint
-ALTER TABLE `jobs` ADD IF NOT EXISTS `closedAt` bigint;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `linkedJobId` int;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `clientId` int;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `proposalStatus` enum('none','pending','accepted','declined','not_ready') DEFAULT 'none' NOT NULL;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `proposalSentAt` bigint;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `isUrgent` boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `urgentAt` bigint;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `jobType` enum('service_call','project_job','sales_call') DEFAULT 'service_call' NOT NULL;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `closeoutNotes` text;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `closeoutOutcome` enum('client_happy_bill','client_issue_urgent','proposal_needed','bill_service_call');--> statement-breakpoint
+ALTER TABLE `jobs` ADD `closedAt` bigint;--> statement-breakpoint
 ALTER TABLE `followUps` ADD CONSTRAINT `followUps_linkedJobId_jobs_id_fk` FOREIGN KEY (`linkedJobId`) REFERENCES `jobs`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `followUps` ADD CONSTRAINT `followUps_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` ADD IF NOT EXISTS `remindAt` bigint;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `clientContacted` boolean DEFAULT false NOT NULL;CREATE TABLE IF NOT EXISTS `jobDocuments` (
+ALTER TABLE `followUps` ADD CONSTRAINT `followUps_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` ADD `remindAt` bigint;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `clientContacted` boolean DEFAULT false NOT NULL;CREATE TABLE IF NOT EXISTS `jobDocuments` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`jobId` int NOT NULL,
 	`s3Key` varchar(512) NOT NULL,
@@ -235,8 +235,8 @@ ALTER TABLE `followUps` ADD IF NOT EXISTS `clientContacted` boolean DEFAULT fals
 	CONSTRAINT `jobDocuments_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-ALTER TABLE `jobPhotos` ADD IF NOT EXISTS `annotatedS3Key` varchar(512);--> statement-breakpoint
-ALTER TABLE `jobPhotos` ADD IF NOT EXISTS `annotatedS3Url` text;--> statement-breakpoint
+ALTER TABLE `jobPhotos` ADD `annotatedS3Key` varchar(512);--> statement-breakpoint
+ALTER TABLE `jobPhotos` ADD `annotatedS3Url` text;--> statement-breakpoint
 ALTER TABLE `jobDocuments` ADD CONSTRAINT `jobDocuments_jobId_jobs_id_fk` FOREIGN KEY (`jobId`) REFERENCES `jobs`(`id`) ON DELETE no action ON UPDATE no action;CREATE TABLE IF NOT EXISTS `projectCredentials` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`projectId` int NOT NULL,
@@ -264,9 +264,9 @@ CREATE TABLE IF NOT EXISTS `partsRequests` (
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	CONSTRAINT `partsRequests_id` PRIMARY KEY(`id`)
 );
-ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal','inventory') NOT NULL DEFAULT 'manual';ALTER TABLE `projectMilestones` ADD IF NOT EXISTS `weight` int DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `projects` ADD IF NOT EXISTS `projectType` enum('new_construction','commercial','retrofit');ALTER TABLE `projectCredentials` MODIFY COLUMN `projectId` int;--> statement-breakpoint
-ALTER TABLE `projectCredentials` ADD IF NOT EXISTS `clientId` int;--> statement-breakpoint
+ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal','inventory') NOT NULL DEFAULT 'manual';ALTER TABLE `projectMilestones` ADD `weight` int DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `projects` ADD `projectType` enum('new_construction','commercial','retrofit');ALTER TABLE `projectCredentials` MODIFY COLUMN `projectId` int;--> statement-breakpoint
+ALTER TABLE `projectCredentials` ADD `clientId` int;--> statement-breakpoint
 ALTER TABLE `projectCredentials` ADD CONSTRAINT `projectCredentials_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;CREATE TABLE IF NOT EXISTS `clientCommunications` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`clientId` int,
@@ -312,11 +312,11 @@ ALTER TABLE `emailCampaignRecipients` ADD CONSTRAINT `emailCampaignRecipients_cl
 	CONSTRAINT `smsTemplates_id` PRIMARY KEY(`id`),
 	CONSTRAINT `smsTemplates_key_unique` UNIQUE(`key`)
 );
-ALTER TABLE `projects` ADD IF NOT EXISTS `projectValue` decimal(12,2);--> statement-breakpoint
-ALTER TABLE `projects` ADD IF NOT EXISTS `completedAt` bigint;ALTER TABLE `projects` ADD IF NOT EXISTS `jobTotal` decimal(12,2);--> statement-breakpoint
-ALTER TABLE `projects` ADD IF NOT EXISTS `leadSource` varchar(64);--> statement-breakpoint
-ALTER TABLE `projects` ADD IF NOT EXISTS `referralName` varchar(255);--> statement-breakpoint
-ALTER TABLE `projects` ADD IF NOT EXISTS `leadSourceOther` varchar(255);CREATE TABLE IF NOT EXISTS `projectNotes` (
+ALTER TABLE `projects` ADD `projectValue` decimal(12,2);--> statement-breakpoint
+ALTER TABLE `projects` ADD `completedAt` bigint;ALTER TABLE `projects` ADD `jobTotal` decimal(12,2);--> statement-breakpoint
+ALTER TABLE `projects` ADD `leadSource` varchar(64);--> statement-breakpoint
+ALTER TABLE `projects` ADD `referralName` varchar(255);--> statement-breakpoint
+ALTER TABLE `projects` ADD `leadSourceOther` varchar(255);CREATE TABLE IF NOT EXISTS `projectNotes` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`projectId` int NOT NULL,
 	`authorName` varchar(255) DEFAULT 'Admin',
@@ -340,8 +340,8 @@ CREATE TABLE IF NOT EXISTS `projectPhotos` (
 );
 --> statement-breakpoint
 ALTER TABLE `projectNotes` ADD CONSTRAINT `projectNotes_projectId_projects_id_fk` FOREIGN KEY (`projectId`) REFERENCES `projects`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `projectPhotos` ADD CONSTRAINT `projectPhotos_projectId_projects_id_fk` FOREIGN KEY (`projectId`) REFERENCES `projects`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` ADD IF NOT EXISTS `messageCount` int DEFAULT 1 NOT NULL;--> statement-breakpoint
-ALTER TABLE `followUps` ADD IF NOT EXISTS `messages` text;CREATE TABLE IF NOT EXISTS `activityLog` (
+ALTER TABLE `projectPhotos` ADD CONSTRAINT `projectPhotos_projectId_projects_id_fk` FOREIGN KEY (`projectId`) REFERENCES `projects`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` ADD `messageCount` int DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `messages` text;CREATE TABLE IF NOT EXISTS `activityLog` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`action` enum('delete','complete','update') NOT NULL,
 	`entityType` varchar(64) NOT NULL,
@@ -376,8 +376,8 @@ CREATE TABLE IF NOT EXISTS `clientPhotos` (
 --> statement-breakpoint
 ALTER TABLE `clientNotes` ADD CONSTRAINT `clientNotes_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `clientPhotos` ADD CONSTRAINT `clientPhotos_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE cascade ON UPDATE no action;
-ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255);--> statement-breakpoint
+ALTER TABLE `users` ADD `passwordHash` varchar(255);--> statement-breakpoint
 ALTER TABLE `users` MODIFY COLUMN `role` enum('user','admin','crew') NOT NULL DEFAULT 'user';
 
-ALTER TABLE `users` ADD IF NOT EXISTS `phone` varchar(32);
-ALTER TABLE `followUps` ADD IF NOT EXISTS `nextStepsNote` text;
+ALTER TABLE `users` ADD `phone` varchar(32);
+ALTER TABLE `followUps` ADD `nextStepsNote` text;
