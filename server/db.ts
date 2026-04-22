@@ -116,10 +116,21 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 }
 
 export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  // Use raw SQL with explicit column list so this never crashes if a new
+  // column (e.g. `phone`) hasn't been migrated yet on the production DB.
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) return undefined;
+  const { createPool } = await import("mysql2/promise");
+  const pool = createPool({ uri: dbUrl });
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, openId, name, email, loginMethod, role, passwordHash, createdAt, updatedAt, lastSignedIn FROM users WHERE openId = ? LIMIT 1",
+      [openId]
+    ) as [Record<string, unknown>[], unknown];
+    return (rows as Record<string, unknown>[])[0] as typeof users.$inferSelect | undefined;
+  } finally {
+    await pool.end();
+  }
 }
 
 export async function getUserByEmail(email: string) {

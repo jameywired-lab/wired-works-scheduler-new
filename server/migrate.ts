@@ -87,6 +87,10 @@ export async function runMigrations(): Promise<void> {
     "ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255)",
     // crew role: required for crew member access
     "ALTER TABLE `users` MODIFY COLUMN `role` enum('user','admin','crew') NOT NULL DEFAULT 'user'",
+    // phone: crew member contact number for SMS invites
+    "ALTER TABLE `users` ADD IF NOT EXISTS `phone` varchar(32)",
+    // nextStepsNote: follow-up next steps field
+    "ALTER TABLE `followUps` ADD IF NOT EXISTS `nextStepsNote` text",
   ];
 
   for (const patch of patches) {
