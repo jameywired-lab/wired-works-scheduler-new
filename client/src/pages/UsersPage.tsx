@@ -22,11 +22,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { KeyRound, Loader2, Plus, Shield, Trash2, Users2 } from "lucide-react";
+import { KeyRound, Loader2, MessageSquare, Plus, Shield, Trash2, Users2 } from "lucide-react";
 import { toast } from "sonner";
 
-type NewUserForm = { name: string; email: string; role: "user" | "admin" | "crew"; password: string };
-const emptyForm: NewUserForm = { name: "", email: "", role: "user", password: "" };
+type NewUserForm = {
+  name: string;
+  email: string;
+  role: "user" | "admin" | "crew";
+  password: string;
+  phone: string;
+  sendInviteSms: boolean;
+};
+const emptyForm: NewUserForm = { name: "", email: "", role: "user", password: "", phone: "", sendInviteSms: false };
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -70,7 +77,19 @@ export default function UsersPage() {
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error("Name is required."); return; }
-    createUser.mutate({ name: form.name, email: form.email, role: form.role, password: form.password || undefined });
+    if (form.sendInviteSms && !form.phone.trim()) {
+      toast.error("Phone number is required to send an invite SMS.");
+      return;
+    }
+    createUser.mutate({
+      name: form.name,
+      email: form.email,
+      role: form.role,
+      password: form.password || undefined,
+      phone: form.phone || undefined,
+      sendInviteSms: form.sendInviteSms,
+      appUrl: form.sendInviteSms ? window.location.origin : undefined,
+    });
   };
 
   const handleResetPassword = () => {
@@ -225,7 +244,7 @@ export default function UsersPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Role</Label>
-              <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as "user" | "admin" | "crew" }))}>
+              <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as "user" | "admin" | "crew", sendInviteSms: v === "crew" ? f.sendInviteSms : false }))}>
                 <SelectTrigger className="bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
@@ -236,6 +255,40 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Phone + SMS invite — only shown for crew role */}
+            {form.role === "crew" && (
+              <div className="space-y-3 border border-border rounded-xl p-3 bg-muted/20">
+                <div className="space-y-1.5">
+                  <Label>Phone Number <span className="text-muted-foreground text-xs">(for SMS invite)</span></Label>
+                  <Input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="(904) 555-1234"
+                    className="bg-input border-border"
+                  />
+                </div>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.sendInviteSms}
+                    onChange={(e) => setForm((f) => ({ ...f, sendInviteSms: e.target.checked }))}
+                    className="h-4 w-4 rounded border-border accent-amber-500"
+                  />
+                  <span className="text-sm flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-amber-400" />
+                    Send invite SMS with login link &amp; password
+                  </span>
+                </label>
+                {form.sendInviteSms && (
+                  <p className="text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                    A text message will be sent to the crew member with the app URL, their username, and password.
+                  </p>
+                )}
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
               The crew member will log in with their email and this password. You can change their password anytime using the key icon on their row.
             </p>

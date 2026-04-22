@@ -673,6 +673,9 @@ const usersRouter = router({
       email: z.string().email().optional().or(z.literal("")),
       role: z.enum(["user", "admin", "crew"]).default("user"),
       password: z.string().min(6).optional(),
+      phone: z.string().optional(),
+      sendInviteSms: z.boolean().optional().default(false),
+      appUrl: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
       const result = await createManualUser({
@@ -684,6 +687,13 @@ const usersRouter = router({
         const bcrypt = await import("bcryptjs");
         const hash = await bcrypt.hash(input.password, 10);
         await setUserPassword(result.openId, hash);
+      }
+      // Send SMS invite to crew members if phone + password provided
+      if (input.sendInviteSms && input.phone && input.password && input.role === "crew") {
+        const appUrl = input.appUrl || "https://wired-works-scheduler-new-production.up.railway.app";
+        const loginId = input.email || input.name;
+        const smsBody = `Hi ${input.name}! You've been added to the Wired Works Scheduler.\n\nLogin: ${appUrl}\nUsername: ${loginId}\nPassword: ${input.password}\n\nTip: Open in Safari/Chrome and tap "Add to Home Screen" to install the app.`;
+        try { await sendSms(input.phone, smsBody); } catch (e) { /* non-fatal */ }
       }
       return { success: true, openId: result.openId };
     }),

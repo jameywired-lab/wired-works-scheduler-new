@@ -888,3 +888,23 @@
 - [x] Frontend: "Remind me this afternoon" button sets remindAt to today at 4:00 PM
 - [x] Frontend: "Remind me tomorrow" button sets remindAt to tomorrow at 8:00 AM
 - [x] Frontend: Due reminders surface automatically when remindAt <= now via the existing filter (cards reappear at the set time)
+
+## PWA & Crew Onboarding
+- [ ] PWA: manifest.json with app name, icons, theme color, display: standalone
+- [ ] PWA: service worker for offline support and installability
+- [ ] PWA: iOS meta tags (apple-mobile-web-app-capable, apple-touch-icon, status bar style)
+- [ ] PWA: Android theme-color meta tag
+- [ ] Crew onboarding: when admin creates a crew user, auto-send SMS via OpenPhone with login URL and their temporary password
+- [ ] Users page: show "Send Login SMS" button for existing crew users who haven't logged in yet
+- [ ] Settings page: crew members can change their own password after first login
+
+## PWA (Add to Home Screen) & Crew Onboarding SMS
+
+- [x] manifest.json: name, short_name, icons (192+512), theme_color amber, display standalone, start_url /crew-home
+- [x] sw.js: service worker for PWA installability (cache-first for offline shell)
+- [x] apple-touch-icon.png, icon-192.png, icon-512.png: PWA icons
+- [x] index.html: manifest link, apple-mobile-web-app meta tags, service worker registration script
+- [x] users.create backend: add phone, sendInviteSms, appUrl fields to z.input schema
+- [x] users.create backend: send SMS invite via sendSms() when sendInviteSms=true and role=crew
+- [x] UsersPage.tsx: phone number field and "Send invite SMS" checkbox in Add User form (crew role only)
+- [x] SMS invite body: app URL, username (email or name), password, tip to add to home screen
