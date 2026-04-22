@@ -51,6 +51,8 @@ import {
   clientPhotos,
   ClientPhoto,
   InsertClientPhoto,
+  crewTasks,
+  crewPermissions,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -263,6 +265,13 @@ export async function getCrewMemberById(id: number): Promise<CrewMember | undefi
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(crewMembers).where(eq(crewMembers.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getCrewMemberByUserId(userId: number): Promise<CrewMember | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(crewMembers).where(eq(crewMembers.userId, userId)).limit(1);
   return result[0];
 }
 
@@ -1329,4 +1338,77 @@ export async function deleteClientPhoto(id: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   await db.delete(clientPhotos).where(eq(clientPhotos.id, id));
+}
+
+// ─── Crew Tasks ───────────────────────────────────────────────────────────────
+export async function listCrewTasksForMember(crewMemberId: number): Promise<typeof crewTasks.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crewTasks)
+    .where(and(eq(crewTasks.assignedToCrewMemberId, crewMemberId), eq(crewTasks.isComplete, false)))
+    .orderBy(crewTasks.dueDate, crewTasks.createdAt);
+}
+
+export async function listAllCrewTasks(): Promise<typeof crewTasks.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crewTasks).orderBy(crewTasks.createdAt);
+}
+
+export async function createCrewTask(data: {
+  assignedToCrewMemberId: number;
+  title: string;
+  description?: string;
+  dueDate?: number;
+  createdBy?: string;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(crewTasks).values({
+    assignedToCrewMemberId: data.assignedToCrewMemberId,
+    title: data.title,
+    description: data.description,
+    dueDate: data.dueDate,
+    createdBy: data.createdBy ?? "Admin",
+    isComplete: false,
+  });
+}
+
+export async function completeCrewTask(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(crewTasks).set({ isComplete: true, completedAt: Date.now() }).where(eq(crewTasks.id, id));
+}
+
+export async function deleteCrewTask(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(crewTasks).where(eq(crewTasks.id, id));
+}
+
+// ─── Crew Permissions ─────────────────────────────────────────────────────────
+export async function getCrewPermissions(crewMemberId: number): Promise<typeof crewPermissions.$inferSelect | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(crewPermissions).where(eq(crewPermissions.crewMemberId, crewMemberId)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function upsertCrewPermissions(crewMemberId: number, perms: {
+  canViewCalendar?: boolean;
+  canViewClients?: boolean;
+  canCloseOutJobs?: boolean;
+  canAddNotes?: boolean;
+  canAddPhotos?: boolean;
+  canViewProjects?: boolean;
+  canViewVanInventory?: boolean;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const existing = await getCrewPermissions(crewMemberId);
+  if (existing) {
+    await db.update(crewPermissions).set(perms).where(eq(crewPermissions.crewMemberId, crewMemberId));
+  } else {
+    await db.insert(crewPermissions).values({ crewMemberId, ...perms });
+  }
 }

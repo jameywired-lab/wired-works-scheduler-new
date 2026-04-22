@@ -468,3 +468,34 @@ export const activityLog = mysqlTable("activityLog", {
 });
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
 export type InsertActivityLogEntry = typeof activityLog.$inferInsert;
+
+// ─── Crew Tasks (owner-assigned errands/tasks for crew) ───────────────────────
+export const crewTasks = mysqlTable("crewTasks", {
+  id: int("id").autoincrement().primaryKey(),
+  assignedToCrewMemberId: int("assignedToCrewMemberId").notNull().references(() => crewMembers.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  dueDate: bigint("dueDate", { mode: "number" }),
+  isComplete: boolean("isComplete").default(false).notNull(),
+  completedAt: bigint("completedAt", { mode: "number" }),
+  createdBy: varchar("createdBy", { length: 255 }).default("Admin"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CrewTask = typeof crewTasks.$inferSelect;
+export type InsertCrewTask = typeof crewTasks.$inferInsert;
+
+// ─── Crew Permissions (per-crew feature access toggles) ───────────────────────
+export const crewPermissions = mysqlTable("crewPermissions", {
+  id: int("id").autoincrement().primaryKey(),
+  crewMemberId: int("crewMemberId").notNull().unique().references(() => crewMembers.id, { onDelete: "cascade" }),
+  canViewCalendar: boolean("canViewCalendar").default(true).notNull(),
+  canViewClients: boolean("canViewClients").default(true).notNull(),
+  canCloseOutJobs: boolean("canCloseOutJobs").default(true).notNull(),
+  canAddNotes: boolean("canAddNotes").default(true).notNull(),
+  canAddPhotos: boolean("canAddPhotos").default(true).notNull(),
+  canViewProjects: boolean("canViewProjects").default(true).notNull(),
+  canViewVanInventory: boolean("canViewVanInventory").default(true).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CrewPermission = typeof crewPermissions.$inferSelect;
+export type InsertCrewPermission = typeof crewPermissions.$inferInsert;

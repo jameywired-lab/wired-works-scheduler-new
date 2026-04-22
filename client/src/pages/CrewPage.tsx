@@ -12,12 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { getInitials } from "@/lib/utils";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Loader2, Mail, Pencil, Phone, Plus, Trash2, UserCircle2 } from "lucide-react";
+import {
+  Loader2, Mail, Pencil, Phone, Plus, Trash2, UserCircle2,
+  ClipboardList, Shield, ChevronDown, ChevronUp, Clock, X,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 type CrewForm = {
   name: string;
@@ -29,6 +33,24 @@ type CrewForm = {
 
 const emptyForm: CrewForm = { name: "", phone: "", email: "", role: "", isActive: true };
 
+type TaskForm = {
+  title: string;
+  description: string;
+  dueDate: string;
+};
+
+const emptyTaskForm: TaskForm = { title: "", description: "", dueDate: "" };
+
+const PERMISSION_LABELS: { key: string; label: string; description: string }[] = [
+  { key: "canViewCalendar", label: "View Calendar", description: "See the full job calendar" },
+  { key: "canViewClients", label: "View Clients", description: "Browse client list and details" },
+  { key: "canCloseOutJobs", label: "Close Out Jobs", description: "Mark jobs complete and add field notes" },
+  { key: "canAddNotes", label: "Add Notes", description: "Add crew notes to jobs" },
+  { key: "canAddPhotos", label: "Add Photos", description: "Upload job photos" },
+  { key: "canViewProjects", label: "View Projects", description: "See active projects" },
+  { key: "canViewVanInventory", label: "Van Inventory", description: "View and manage van inventory" },
+];
+
 export default function CrewPage() {
   const utils = trpc.useUtils();
 
@@ -37,10 +59,38 @@ export default function CrewPage() {
   const [form, setForm] = useState<CrewForm>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
+  const [expandedMember, setExpandedMember] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"tasks" | "permissions">("tasks");
+  const [showTaskForm, setShowTaskForm] = useState<number | null>(null);
+  const [taskForm, setTaskForm] = useState<TaskForm>(emptyTaskForm);
+
   const { data: crew, isLoading } = trpc.crew.list.useQuery({});
+  const { data: allTasks = [] } = trpc.crewTasks.listAll.useQuery();
+  const { data: crewWithPerms = [] } = trpc.crewPermissions.listAll.useQuery();
+
   const createCrew = trpc.crew.create.useMutation();
   const updateCrew = trpc.crew.update.useMutation();
   const deleteCrew = trpc.crew.delete.useMutation();
+
+  const createTask = trpc.crewTasks.create.useMutation({
+    onSuccess: () => {
+      utils.crewTasks.listAll.invalidate();
+      setShowTaskForm(null);
+      setTaskForm(emptyTaskForm);
+      toast.success("Task assigned!");
+    },
+  });
+
+  const deleteTask = trpc.crewTasks.delete.useMutation({
+    onSuccess: () => utils.crewTasks.listAll.invalidate(),
+  });
+
+  const upsertPerms = trpc.crewPermissions.upsert.useMutation({
+    onSuccess: () => {
+      utils.crewPermissions.listAll.invalidate();
+      toast.success("Permissions saved.");
+    },
+  });
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -88,6 +138,22 @@ export default function CrewPage() {
     }
   };
 
+  const handleAssignTask = async () => {
+    if (!taskForm.title.trim() || !showTaskForm) { toast.error("Title is required."); return; }
+    const dueDate = taskForm.dueDate ? new Date(taskForm.dueDate).getTime() : undefined;
+    await createTask.mutateAsync({
+      assignedToCrewMemberId: showTaskForm,
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || undefined,
+      dueDate,
+      createdBy: "Jamey",
+    });
+  };
+
+  const handlePermToggle = (crewMemberId: number, key: string, value: boolean) => {
+    upsertPerms.mutate({ crewMemberId, [key]: value });
+  };
+
   const isPending = createCrew.isPending || updateCrew.isPending;
 
   return (
@@ -118,60 +184,224 @@ export default function CrewPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(crew ?? []).map((member) => (
-            <div
-              key={member.id}
-              className="bg-card border border-border rounded-xl p-4 group"
-            >
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 border border-border shrink-0">
-                  <AvatarFallback className={`text-sm font-semibold ${member.isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
-                    {getInitials(member.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="font-semibold text-sm truncate">{member.name}</p>
-                      {!member.isActive && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Inactive</Badge>
+        <div className="space-y-3">
+          {(crew ?? []).map((member) => {
+            const memberTasks = allTasks.filter((t) => t.assignedToCrewMemberId === member.id && !t.isComplete);
+            const memberPerms = crewWithPerms.find((m) => m.id === member.id)?.permissions;
+            const isExpanded = expandedMember === member.id;
+
+            return (
+              <div key={member.id} className="bg-card border border-border rounded-xl overflow-hidden">
+                {/* Main row */}
+                <div className="p-4 flex items-start gap-3">
+                  <Avatar className="h-10 w-10 border border-border shrink-0">
+                    <AvatarFallback className={`text-sm font-semibold ${member.isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {getInitials(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-semibold text-sm truncate">{member.name}</p>
+                        {!member.isActive && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Inactive</Badge>
+                        )}
+                        {memberTasks.length > 0 && (
+                          <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-purple-100 text-purple-700 border border-purple-200">
+                            {memberTasks.length} task{memberTasks.length !== 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => { setShowTaskForm(member.id); setTaskForm(emptyTaskForm); }}
+                          className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors text-purple-600"
+                          title="Assign task"
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setExpandedMember(isExpanded ? null : member.id);
+                            setActiveTab("tasks");
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                          title="Manage tasks & permissions"
+                        >
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </button>
+                        <button onClick={() => openEdit(member)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <button onClick={() => setDeleteConfirm(member.id)} className="p-1.5 rounded-lg hover:bg-destructive/15 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                    {member.role && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{member.role}</p>
+                    )}
+                    <div className="space-y-0.5 mt-1.5">
+                      {member.phone && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          <span>{member.phone}</span>
+                        </div>
+                      )}
+                      {member.email && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{member.email}</span>
+                        </div>
                       )}
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(member)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                      <button onClick={() => setDeleteConfirm(member.id)} className="p-1.5 rounded-lg hover:bg-destructive/15 transition-colors">
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </button>
-                    </div>
-                  </div>
-                  {member.role && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{member.role}</p>
-                  )}
-                  <div className="space-y-0.5 mt-1.5">
-                    {member.phone && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Phone className="h-3 w-3 shrink-0" />
-                        <span>{member.phone}</span>
-                      </div>
-                    )}
-                    {member.email && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{member.email}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
+
+                {/* Expanded panel */}
+                {isExpanded && (
+                  <div className="border-t border-border">
+                    <div className="flex border-b border-border">
+                      <button
+                        onClick={() => setActiveTab("tasks")}
+                        className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "tasks" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      >
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        Tasks
+                        {memberTasks.length > 0 && (
+                          <span className="bg-purple-100 text-purple-700 text-xs px-1.5 rounded-full">{memberTasks.length}</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("permissions")}
+                        className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "permissions" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        Permissions
+                      </button>
+                    </div>
+
+                    {activeTab === "tasks" && (
+                      <div className="p-4 space-y-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-muted-foreground">Pending tasks for {member.name.split(" ")[0]}</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7"
+                            onClick={() => { setShowTaskForm(member.id); setTaskForm(emptyTaskForm); }}
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Assign Task
+                          </Button>
+                        </div>
+                        {memberTasks.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">No pending tasks.</p>
+                        ) : (
+                          memberTasks.map((task) => (
+                            <div key={task.id} className="flex items-start gap-2 bg-purple-50 border border-purple-200 rounded-lg p-2.5">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-purple-900">{task.title}</p>
+                                {task.description && (
+                                  <p className="text-xs text-gray-600 mt-0.5">{task.description}</p>
+                                )}
+                                {task.dueDate && (
+                                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {format(new Date(task.dueDate), "MMM d, h:mm a")}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => deleteTask.mutate({ id: task.id })}
+                                className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === "permissions" && (
+                      <div className="p-4 space-y-3">
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Control what {member.name.split(" ")[0]} can see and do in the app.
+                        </p>
+                        {PERMISSION_LABELS.map(({ key, label, description }) => {
+                          const value = memberPerms
+                            ? ((memberPerms as Record<string, unknown>)[key] as boolean) ?? true
+                            : true;
+                          return (
+                            <div key={key} className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium">{label}</p>
+                                <p className="text-xs text-muted-foreground">{description}</p>
+                              </div>
+                              <Switch
+                                checked={value}
+                                onCheckedChange={(v) => handlePermToggle(member.id, key, v)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* Assign Task Dialog */}
+      <Dialog open={showTaskForm !== null} onOpenChange={(v) => !v && setShowTaskForm(null)}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>
+              Assign Task to {crew?.find((m) => m.id === showTaskForm)?.name ?? "Crew Member"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Task Title *</Label>
+              <Input
+                value={taskForm.title}
+                onChange={(e) => setTaskForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Stop by Home Depot for wire nuts"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Details (optional)</Label>
+              <Textarea
+                value={taskForm.description}
+                onChange={(e) => setTaskForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Any additional instructions..."
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Due Date / Time (optional)</Label>
+              <Input
+                type="datetime-local"
+                value={taskForm.dueDate}
+                onChange={(e) => setTaskForm((f) => ({ ...f, dueDate: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTaskForm(null)} disabled={createTask.isPending}>Cancel</Button>
+            <Button onClick={handleAssignTask} disabled={createTask.isPending}>
+              {createTask.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Assign Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Crew Member Dialog */}
       <Dialog open={showForm} onOpenChange={(v) => !v && setShowForm(false)}>
         <DialogContent className="max-w-md bg-card border-border">
           <DialogHeader>
@@ -180,20 +410,20 @@ export default function CrewPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Full Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="bg-input border-border" placeholder="John Smith" />
+              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="John Smith" />
             </div>
             <div className="space-y-1.5">
               <Label>Role / Title</Label>
-              <Input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="bg-input border-border" placeholder="Electrician, Foreman, etc." />
+              <Input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="Electrician, Foreman, etc." />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Phone</Label>
-                <Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="bg-input border-border" placeholder="(555) 000-0000" />
+                <Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(555) 000-0000" />
               </div>
               <div className="space-y-1.5">
                 <Label>Email</Label>
-                <Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="bg-input border-border" placeholder="john@example.com" />
+                <Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="john@example.com" />
               </div>
             </div>
             {editingId && (
@@ -222,7 +452,7 @@ export default function CrewPage() {
           <DialogHeader>
             <DialogTitle>Remove Crew Member?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">This will mark the member as inactive.</p>
+          <p className="text-sm text-muted-foreground">This will permanently remove the crew member.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} disabled={deleteCrew.isPending}>

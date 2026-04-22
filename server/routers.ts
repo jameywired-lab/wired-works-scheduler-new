@@ -71,6 +71,7 @@ import {
 import { importRouter } from "./routers/import";
 import { projectsRouter, followUpsRouter } from "./routers/projectsFollowups";
 import { jobPhotosRouter, messagingRouter } from "./routers/jobPhotosMessaging";
+import { crewTasksRouter, crewPermissionsRouter } from "./routers/crewTasksPermissions";
 import {
   addTagToClient,
   createTag,
@@ -1450,6 +1451,8 @@ export const appRouter = router({
   system: systemRouter,
   activityLog: activityLogRouter,
   clientNotes: clientNotesRouter,
-  clientPhotos: clientPhotosRouter,
+   clientPhotos: clientPhotosRouter,
+  crewTasks: crewTasksRouter,
+  crewPermissions: crewPermissionsRouter,
 });
 export type AppRouter = typeof appRouter;
