@@ -22,11 +22,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Loader2, Plus, Shield, Trash2, Users2 } from "lucide-react";
+import { KeyRound, Loader2, Plus, Shield, Trash2, Users2 } from "lucide-react";
 import { toast } from "sonner";
 
-type NewUserForm = { name: string; email: string; role: "user" | "admin" | "crew" };
-const emptyForm: NewUserForm = { name: "", email: "", role: "user" };
+type NewUserForm = { name: string; email: string; role: "user" | "admin" | "crew"; password: string };
+const emptyForm: NewUserForm = { name: "", email: "", role: "user", password: "" };
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -34,8 +34,11 @@ export default function UsersPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState<NewUserForm>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: number; openId: string; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   const { data: users, isLoading } = trpc.users.list.useQuery();
+
   const createUser = trpc.users.create.useMutation({
     onSuccess: () => {
       utils.users.list.invalidate();
@@ -45,10 +48,21 @@ export default function UsersPage() {
     },
     onError: (e) => toast.error(e.message || "Failed to add user."),
   });
+
+  const setPasswordMutation = trpc.users.setPassword.useMutation({
+    onSuccess: () => {
+      setResetTarget(null);
+      setNewPassword("");
+      toast.success("Password updated.");
+    },
+    onError: (e) => toast.error(e.message || "Failed to update password."),
+  });
+
   const updateRole = trpc.users.updateRole.useMutation({
     onSuccess: () => { utils.users.list.invalidate(); toast.success("Role updated."); },
     onError: () => toast.error("Failed to update role."),
   });
+
   const deleteUser = trpc.users.delete.useMutation({
     onSuccess: () => { utils.users.list.invalidate(); setDeleteConfirm(null); toast.success("User removed."); },
     onError: () => toast.error("Failed to remove user."),
@@ -56,7 +70,13 @@ export default function UsersPage() {
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error("Name is required."); return; }
-    createUser.mutate(form);
+    createUser.mutate({ name: form.name, email: form.email, role: form.role, password: form.password || undefined });
+  };
+
+  const handleResetPassword = () => {
+    if (!resetTarget) return;
+    if (!newPassword.trim() || newPassword.length < 6) { toast.error("Password must be at least 6 characters."); return; }
+    setPasswordMutation.mutate({ openId: resetTarget.openId, newPassword });
   };
 
   return (
@@ -144,6 +164,14 @@ export default function UsersPage() {
                       </SelectContent>
                     </Select>
                   )}
+                  {/* Reset password button — visible on hover for all users */}
+                  <button
+                    onClick={() => { setResetTarget({ id: u.id, openId: u.openId, name: u.name ?? "User" }); setNewPassword(""); }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-primary/10 transition-all"
+                    title="Set / reset password"
+                  >
+                    <KeyRound className="h-3.5 w-3.5 text-primary" />
+                  </button>
                   {!isSelf && (
                     <button
                       onClick={() => setDeleteConfirm(u.id)}
@@ -176,12 +204,22 @@ export default function UsersPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Email <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>Email <span className="text-muted-foreground text-xs">(used to log in)</span></Label>
               <Input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 placeholder="john@example.com"
+                className="bg-input border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Password *</Label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="Set a login password"
                 className="bg-input border-border"
               />
             </div>
@@ -193,13 +231,13 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin — Full access</SelectItem>
-                  <SelectItem value="user">User — View clients & jobs</SelectItem>
+                  <SelectItem value="user">User — View clients &amp; jobs</SelectItem>
                   <SelectItem value="crew">Crew — Assigned jobs only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-              Manually added users are created with a placeholder login. To give them full app access, they can sign in with their own account and you can update their role from this page.
+              The crew member will log in with their email and this password. You can change their password anytime using the key icon on their row.
             </p>
           </div>
           <DialogFooter>
@@ -209,6 +247,38 @@ export default function UsersPage() {
             <Button onClick={handleSave} disabled={createUser.isPending}>
               {createUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetTarget !== null} onOpenChange={(v) => !v && setResetTarget(null)}>
+        <DialogContent className="max-w-sm bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Set Password — {resetTarget?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Enter a new password for this user. They will use it to log in.
+            </p>
+            <div className="space-y-1.5">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                className="bg-input border-border"
+                onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetTarget(null)}>Cancel</Button>
+            <Button onClick={handleResetPassword} disabled={setPasswordMutation.isPending}>
+              {setPasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Password
             </Button>
           </DialogFooter>
         </DialogContent>

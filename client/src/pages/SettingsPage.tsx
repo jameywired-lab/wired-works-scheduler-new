@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -8,6 +10,7 @@ import {
   Calendar,
   CheckCircle2,
   ExternalLink,
+  KeyRound,
   Loader2,
   MessageSquare,
   Save,
@@ -15,7 +18,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 // ─── SMS Template Editor ──────────────────────────────────────────────────────
@@ -143,10 +145,96 @@ function SmsTemplateEditor() {
   );
 }
 
+// ─── Change Password Section ──────────────────────────────────────────────────
+function ChangePasswordSection() {
+  const { user } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Password updated successfully.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(data.error || "Failed to update password.");
+      }
+    } catch {
+      toast.error("Failed to update password.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Update the password for <strong className="text-foreground">{user?.email || user?.name}</strong>.
+      </p>
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <Label>Current Password</Label>
+          <Input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Enter current password"
+            className="bg-input border-border max-w-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>New Password</Label>
+          <Input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="At least 6 characters"
+            className="bg-input border-border max-w-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Confirm New Password</Label>
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repeat new password"
+            className="bg-input border-border max-w-sm"
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          />
+        </div>
+      </div>
+      <Button size="sm" onClick={handleSave} disabled={saving}>
+        {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
+        Update Password
+      </Button>
+    </div>
+  );
+}
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
   const { data: calStatus, isLoading: calLoading } = trpc.googleCalendar.status.useQuery();
@@ -184,7 +272,11 @@ export default function SettingsPage() {
   }, []);
 
   const handleConnectGoogle = () => {
-    if (authUrlData?.url) window.location.href = authUrlData.url;
+    if (authUrlData?.url) {
+      window.location.href = authUrlData.url;
+    } else {
+      toast.error("Google Calendar is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway → Variables.");
+    }
   };
 
   const handleDisconnectGoogle = async () => {
@@ -224,6 +316,18 @@ export default function SettingsPage() {
             <span className="text-sm text-muted-foreground">Role</span>
             <Badge variant="secondary" className="capitalize">{user?.role}</Badge>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-primary" /> Change Password
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          <ChangePasswordSection />
         </CardContent>
       </Card>
 
@@ -269,16 +373,30 @@ export default function SettingsPage() {
               </Button>
             </div>
           ) : (
-            <Button
-              size="sm"
-              onClick={handleConnectGoogle}
-              disabled={!authUrlData?.url}
-              className="flex items-center gap-2"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              Connect Google Calendar
-              <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
-            </Button>
+            <div className="space-y-3">
+              <Button
+                size="sm"
+                onClick={handleConnectGoogle}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                Connect Google Calendar
+                <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+              {!authUrlData?.url && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-400 space-y-1">
+                  <p className="font-medium">Setup required</p>
+                  <p className="text-muted-foreground">
+                    To enable Google Calendar sync, add these two environment variables in Railway → Variables:
+                  </p>
+                  <p className="font-mono text-amber-300">GOOGLE_CLIENT_ID</p>
+                  <p className="font-mono text-amber-300">GOOGLE_CLIENT_SECRET</p>
+                  <p className="text-muted-foreground mt-1">
+                    Get these from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="underline text-amber-400">Google Cloud Console</a> → Create OAuth 2.0 Client ID (Web application). Set the authorized redirect URI to <span className="font-mono">{window.location.origin}/settings</span>.
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

@@ -82,6 +82,40 @@ export function registerLocalAuthRoutes(app: Express) {
     }
   });
 
+  /** POST /api/auth/change-password  { currentPassword, newPassword } → updates password */
+  app.post("/api/auth/change-password", async (req: Request, res: Response) => {
+    const { currentPassword, newPassword } = req.body ?? {};
+    if (!newPassword || newPassword.length < 6) {
+      res.status(400).json({ error: "New password must be at least 6 characters" });
+      return;
+    }
+    try {
+      const authUser = await authenticateRequest(req);
+      if (!authUser) {
+        res.status(401).json({ error: "Not authenticated" });
+        return;
+      }
+      // If user already has a password, verify current password first
+      if (authUser.passwordHash) {
+        if (!currentPassword) {
+          res.status(400).json({ error: "Current password is required" });
+          return;
+        }
+        const valid = await verifyPassword(currentPassword, authUser.passwordHash);
+        if (!valid) {
+          res.status(401).json({ error: "Current password is incorrect" });
+          return;
+        }
+      }
+      const hash = await hashPassword(newPassword);
+      await db.setUserPassword(authUser.openId, hash);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[localAuth] change-password error", err);
+      res.status(500).json({ error: "Failed to update password" });
+    }
+  });
+
   /** POST /api/auth/logout → clears session cookie */
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     const cookieOptions = getSessionCookieOptions(req);

@@ -856,3 +856,10 @@
 - [x] DashboardLayout: notification bell in sidebar footer (desktop) and mobile top bar with unread badge and dropdown
 - [x] Notification dropdown: shows last 50 notifications, blue dot for unread, "Mark all read" button, relative time
 - [x] Dashboard: timestamps on follow-up cards (contactedAt or createdAt, formatted as "Apr 22, 10:30 AM")
+
+## Crew Logins, Google Calendar Fix & Password Management
+- [ ] Users page: create user with name, email, password, role (crew/admin) — password set at creation, no OAuth required
+- [ ] Users page: reset/change password for any user (admin sets a new password for any account)
+- [ ] Settings page: Change Password section for the logged-in user (current password + new password + confirm)
+- [ ] Settings page: fix Google Calendar Connect button — make it functional (OAuth redirect)
+- [ ] Settings page: show connected Google Calendar account email when connected

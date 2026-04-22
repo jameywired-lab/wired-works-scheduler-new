@@ -29,6 +29,7 @@ import {
   createManualUser,
   deleteUser,
   listUsers,
+  setUserPassword,
   replaceJobAssignments,
   unassignCrewFromJob,
   updateClient,
@@ -666,12 +667,12 @@ const googleCalendarRouter = router({
 // ─── Users/Admin Router ───────────────────────────────────────────────────────
 const usersRouter = router({
   list: p.query(async () => listUsers()),
-
   create: p
     .input(z.object({
       name: z.string().min(1),
       email: z.string().email().optional().or(z.literal("")),
       role: z.enum(["user", "admin", "crew"]).default("user"),
+      password: z.string().min(6).optional(),
     }))
     .mutation(async ({ input }) => {
       const result = await createManualUser({
@@ -679,23 +680,34 @@ const usersRouter = router({
         email: input.email || undefined,
         role: input.role,
       });
+      if (input.password) {
+        const bcrypt = await import("bcryptjs");
+        const hash = await bcrypt.hash(input.password, 10);
+        await setUserPassword(result.openId, hash);
+      }
       return { success: true, openId: result.openId };
     }),
-
+  setPassword: p
+    .input(z.object({ openId: z.string(), newPassword: z.string().min(6) }))
+    .mutation(async ({ input }) => {
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.hash(input.newPassword, 10);
+      await setUserPassword(input.openId, hash);
+      return { success: true };
+    }),
   updateRole: p
     .input(z.object({ userId: z.number(), role: z.enum(["user", "admin", "crew"]) }))
     .mutation(async ({ input }) => {
       await updateUserRole(input.userId, input.role);
       return { success: true };
     }),
-
   delete: p
     .input(z.object({ userId: z.number() }))
     .mutation(async ({ input }) => {
       await deleteUser(input.userId);
       return { success: true };
     }),
-});
+});;
 
 // ─── Tags Router ────────────────────────────────────────────────────────────
 const tagsRouter = router({
