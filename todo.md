@@ -848,3 +848,11 @@
 - [x] Add getUserByEmail and setUserPassword helpers to db.ts
 - [x] All 80 tests passing (0 TypeScript errors)
 - [x] Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway Variables (user action required — instructions provided)
+
+## Notification Bell & Dashboard Timestamps
+- [x] DB: appNotifications table (id, title, body, type, relatedId, relatedType, isRead, createdAt)
+- [x] Backend: notifications router (list, unreadCount, markRead, markAllRead, create)
+- [x] Webhook: createNotification on inbound SMS and missed call/voicemail
+- [x] DashboardLayout: notification bell in sidebar footer (desktop) and mobile top bar with unread badge and dropdown
+- [x] Notification dropdown: shows last 50 notifications, blue dot for unread, "Mark all read" button, relative time
+- [x] Dashboard: timestamps on follow-up cards (contactedAt or createdAt, formatted as "Apr 22, 10:30 AM")

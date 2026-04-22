@@ -72,6 +72,7 @@ import { importRouter } from "./routers/import";
 import { projectsRouter, followUpsRouter } from "./routers/projectsFollowups";
 import { jobPhotosRouter, messagingRouter } from "./routers/jobPhotosMessaging";
 import { crewTasksRouter, crewPermissionsRouter } from "./routers/crewTasksPermissions";
+import { notificationsRouter } from "./routers/notifications";
 import {
   addTagToClient,
   createTag,
@@ -1454,5 +1455,6 @@ export const appRouter = router({
    clientPhotos: clientPhotosRouter,
   crewTasks: crewTasksRouter,
   crewPermissions: crewPermissionsRouter,
+  notifications: notificationsRouter,
 });
 export type AppRouter = typeof appRouter;

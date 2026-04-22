@@ -47,6 +47,9 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { useTheme } from "../contexts/ThemeContext";
+import { trpc } from "../lib/trpc";
+import { ScrollArea } from "./ui/scroll-area";
+import { formatDistanceToNow } from "date-fns";
 
 // Nav shown to admin/user roles
 const adminNavItems = [
@@ -133,6 +136,13 @@ function DashboardLayoutContent({
   const isAdmin = user?.role === "admin" || user?.role === "user";
   const visibleNav = isCrew ? crewNavItems : adminNavItems;
   const { theme, toggleTheme } = useTheme();
+  const utils = trpc.useUtils();
+  const { data: notifData } = trpc.notifications.unreadCount.useQuery(undefined, { refetchInterval: 30_000 });
+  const { data: notifications = [] } = trpc.notifications.list.useQuery(undefined, { refetchInterval: 30_000 });
+  const markRead = trpc.notifications.markRead.useMutation({ onSuccess: () => utils.notifications.unreadCount.invalidate() });
+  const markAllRead = trpc.notifications.markAllRead.useMutation({ onSuccess: () => { utils.notifications.unreadCount.invalidate(); utils.notifications.list.invalidate(); } });
+  const unreadCount = notifData?.count ?? 0;
+  const [notifOpen, setNotifOpen] = useState(false);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -255,6 +265,57 @@ function DashboardLayoutContent({
             </SidebarContent>
 
             <SidebarFooter className="p-3 border-t border-sidebar-border">
+              {/* Notification Bell — desktop */}
+              <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button className="relative flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/10 transition-colors w-full text-left focus:outline-none mb-1">
+                    <div className="relative h-8 w-8 flex items-center justify-center shrink-0">
+                      <Bell className="h-5 w-5 text-white/80" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    {!isCollapsed && (
+                      <span className="text-sm text-white/75">Notifications</span>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="right" align="end" className="w-80 p-0" sideOffset={8}>
+                  <div className="flex items-center justify-between px-3 py-2 border-b">
+                    <span className="font-semibold text-sm">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button onClick={() => markAllRead.mutate()} className="text-xs text-muted-foreground hover:text-foreground">
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <ScrollArea className="max-h-80">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground">No notifications yet</div>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          className={`w-full text-left px-3 py-2.5 border-b last:border-0 hover:bg-muted/50 transition-colors ${!n.isRead ? "bg-blue-50 dark:bg-blue-950/30" : ""}`}
+                          onClick={() => { if (!n.isRead) markRead.mutate({ id: n.id }); }}
+                        >
+                          <div className="flex items-start gap-2">
+                            {!n.isRead && <span className="mt-1.5 w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                            {n.isRead && <span className="mt-1.5 w-2 h-2 shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{n.title}</p>
+                              {n.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>}
+                              <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </ScrollArea>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/10 transition-colors w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -324,6 +385,52 @@ function DashboardLayoutContent({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-white/80">{activeLabel}</span>
+              {/* Notification Bell */}
+              <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button className="relative focus:outline-none p-1">
+                    <Bell className="h-5 w-5 text-white/80" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-0" sideOffset={8}>
+                  <div className="flex items-center justify-between px-3 py-2 border-b">
+                    <span className="font-semibold text-sm">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button onClick={() => markAllRead.mutate()} className="text-xs text-muted-foreground hover:text-foreground">
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <ScrollArea className="max-h-80">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground">No notifications yet</div>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          className={`w-full text-left px-3 py-2.5 border-b last:border-0 hover:bg-muted/50 transition-colors ${!n.isRead ? "bg-blue-50 dark:bg-blue-950/30" : ""}`}
+                          onClick={() => { if (!n.isRead) markRead.mutate({ id: n.id }); }}
+                        >
+                          <div className="flex items-start gap-2">
+                            {!n.isRead && <span className="mt-1.5 w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                            {n.isRead && <span className="mt-1.5 w-2 h-2 shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{n.title}</p>
+                              {n.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>}
+                              <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </ScrollArea>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="focus:outline-none">

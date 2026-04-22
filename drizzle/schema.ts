@@ -499,3 +499,17 @@ export const crewPermissions = mysqlTable("crewPermissions", {
 });
 export type CrewPermission = typeof crewPermissions.$inferSelect;
 export type InsertCrewPermission = typeof crewPermissions.$inferInsert;
+
+// ─── App Notifications (in-app bell notifications) ────────────────────────────
+export const appNotifications = mysqlTable("appNotifications", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  type: mysqlEnum("type", ["inbound_sms", "inbound_call", "task_complete", "job_update", "general"]).default("general").notNull(),
+  relatedId: int("relatedId"),          // e.g. followUp id, job id
+  relatedType: varchar("relatedType", { length: 64 }), // "followUp" | "job" | "crewTask"
+  isRead: boolean("isRead").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AppNotification = typeof appNotifications.$inferSelect;
+export type InsertAppNotification = typeof appNotifications.$inferInsert;

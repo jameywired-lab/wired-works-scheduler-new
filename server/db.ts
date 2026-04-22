@@ -53,6 +53,8 @@ import {
   InsertClientPhoto,
   crewTasks,
   crewPermissions,
+  appNotifications,
+  AppNotification,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1411,4 +1413,53 @@ export async function upsertCrewPermissions(crewMemberId: number, perms: {
   } else {
     await db.insert(crewPermissions).values({ crewMemberId, ...perms });
   }
+}
+
+// ─── App Notifications ────────────────────────────────────────────────────────
+export async function createNotification(data: {
+  title: string;
+  body?: string;
+  type?: AppNotification["type"];
+  relatedId?: number;
+  relatedType?: string;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(appNotifications).values({
+    title: data.title,
+    body: data.body,
+    type: data.type ?? "general",
+    relatedId: data.relatedId,
+    relatedType: data.relatedType,
+    isRead: false,
+  });
+}
+
+export async function listNotifications(limit = 50): Promise<AppNotification[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(appNotifications)
+    .orderBy(desc(appNotifications.createdAt))
+    .limit(limit);
+}
+
+export async function countUnreadNotifications(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ count: sql<number>`COUNT(*)` })
+    .from(appNotifications)
+    .where(eq(appNotifications.isRead, false));
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function markNotificationRead(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(appNotifications).set({ isRead: true }).where(eq(appNotifications.id, id));
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(appNotifications).set({ isRead: true }).where(eq(appNotifications.isRead, false));
 }

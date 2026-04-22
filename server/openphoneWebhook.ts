@@ -14,7 +14,7 @@
  */
 
 import type { Request, Response } from "express";
-import { createFollowUp, getClientByPhone, getDb } from "./db";
+import { createFollowUp, getClientByPhone, getDb, createNotification } from "./db";
 import { clientCommunications, followUps } from "../drizzle/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
 
@@ -162,6 +162,14 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
             .where(eq(followUps.id, ex.id));
 
           console.log(`[Webhook] Inbound SMS from ${phone} → grouped into follow-up #${ex.id} (${msgs.length} messages)`);
+          // Create a notification for the new message
+          await createNotification({
+            title: `New text from ${contactName ?? phone}`,
+            body: body.length > 120 ? body.slice(0, 117) + "..." : body,
+            type: "inbound_sms",
+            relatedId: ex.id,
+            relatedType: "followUp",
+          });
           grouped = true;
         }
       }
@@ -180,6 +188,13 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
           clientContacted: false,
         });
         console.log(`[Webhook] Inbound SMS from ${phone} → new follow-up created`);
+        // Create a notification for the new inbound text
+        await createNotification({
+          title: `New text from ${contactName ?? phone}`,
+          body: body.length > 120 ? body.slice(0, 117) + "..." : body,
+          type: "inbound_sms",
+          relatedType: "followUp",
+        });
       }
     } else if (type === "call.completed") {
       // ── Missed call or voicemail ─────────────────────────────────────────────
@@ -208,6 +223,13 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
         clientContacted: false,
       });
       console.log(`[Webhook] Inbound ${status} from ${phone} → follow-up created`);
+      // Create a notification for the missed call / voicemail
+      await createNotification({
+        title: `${obj.voicemailUrl ? "Voicemail" : "Missed call"} from ${contactName ?? phone}`,
+        body: note,
+        type: "inbound_call",
+        relatedType: "followUp",
+      });
     }
   } catch (err) {
     console.error("[Webhook] OpenPhone handler error:", err);

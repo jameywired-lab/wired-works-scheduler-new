@@ -471,6 +471,12 @@ function FollowUpPanel() {
                           isUrgent ? "text-destructive/80" : "text-gray-700"
                         }`}>{f.note.replace(/^(?:📱 Inbound SMS(?:\s*\(\d+ messages\))?:|📞 (?:Missed call|Voicemail received):?)\s*/, "")}</p>
                       ) : null}
+                      {/* Timestamp */}
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        {f.contactedAt
+                          ? new Date(f.contactedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                          : new Date(f.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </p>
                     </div>
                     <button
                       onClick={() => deleteFollowUp.mutate({ id: f.id })}
