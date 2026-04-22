@@ -27,24 +27,11 @@ async function startServer() {
 
   // Simple health check — Railway uses this to confirm the app is up
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, v: "9129d3d" });
+    res.json({ ok: true, v: "webhook-fix" });
   });
 
   // Local username/password auth routes (/api/auth/login, /api/auth/logout)
   registerLocalAuthRoutes(app);
-  // Debug endpoint — stores the raw payload OpenPhone sends so we can inspect it
-  const debugPayloads: { ts: number; headers: Record<string, string>; body: unknown }[] = [];
-  app.post("/api/openphone/debug", (req, res) => {
-    const entry = { ts: Date.now(), headers: req.headers as Record<string, string>, body: req.body };
-    debugPayloads.push(entry);
-    if (debugPayloads.length > 10) debugPayloads.shift();
-    console.log("[OpenPhone DEBUG] Headers:", JSON.stringify(req.headers));
-    console.log("[OpenPhone DEBUG] Body:", JSON.stringify(req.body));
-    res.status(200).json({ received: true });
-  });
-  app.get("/api/openphone/debug", (_req, res) => {
-    res.json(debugPayloads);
-  });
   // OpenPhone inbound webhook — auto-creates follow-ups for inbound SMS and missed calls/voicemails
   app.post("/api/openphone/webhook", handleOpenPhoneWebhook);
   // Portal.io → Zapier → Wired Works: auto-create project when proposal is accepted

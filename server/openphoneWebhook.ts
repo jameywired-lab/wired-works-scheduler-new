@@ -27,18 +27,25 @@ interface OpenPhoneFrom {
 
 interface OpenPhoneMessageObject {
   from?: string;           // E.164 phone number
+  to?: string | string[];  // E.164 phone number (string in v3, array in older versions)
   body?: string;           // SMS body text
   direction?: string;      // "incoming" | "outgoing"
   media?: { url: string }[];
+  phoneNumberId?: string;
+  conversationId?: string;
+  userId?: string;
 }
 
 interface OpenPhoneCallObject {
   from?: string;           // E.164 phone number
+  to?: string | string[];  // E.164 phone number (string in v3, array in older versions)
   direction?: string;      // "incoming" | "outgoing"
   status?: string;         // "missed" | "completed" | "voicemail" etc.
   voicemailUrl?: string;
   transcription?: string;  // Voicemail transcription if available
   duration?: number;       // seconds
+  phoneNumberId?: string;
+  conversationId?: string;
 }
 
 interface OpenPhoneParticipant {
@@ -72,6 +79,8 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
 
   try {
     const payload = req.body as OpenPhoneWebhookPayload;
+    console.log(`[Webhook] Received event type: ${payload?.type}`);
+    console.log(`[Webhook] Payload: ${JSON.stringify(payload?.data?.object)}`);
     if (!payload?.type || !payload?.data?.object) return;
 
     const { type, data } = payload;
@@ -85,7 +94,11 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
 
     // Try to match against an existing client
     const matchedClient = phone ? await getClientByPhone(phone) : undefined;
-    const contactName = matchedClient?.name ?? data.participants?.find(p => p.phoneNumber === rawPhone)?.name ?? undefined;
+    // Try to get contact name from matched client, then participants (older API), then undefined
+    const participantName = data.participants?.find(p => p.phoneNumber === rawPhone)?.name
+      ?? data.participants?.find(p => normalisePhone(p.phoneNumber ?? '') === phone)?.name
+      ?? undefined;
+    const contactName = matchedClient?.name ?? participantName ?? undefined;
 
     const now = Date.now();
 
