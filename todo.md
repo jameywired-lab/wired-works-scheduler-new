@@ -880,11 +880,11 @@
 - [x] Sidebar nav: add Communications (phone icon) for admin users
 
 ## Follow-Up Next Steps & Reminders
-- [ ] DB: add nextStepsNote (text) and remindAt (bigint timestamp) columns to followUps table
-- [ ] Backend: followUps.saveNextSteps procedure (save note + optional remindAt timestamp)
-- [ ] Backend: followUps.listDueReminders procedure (return follow-ups where remindAt <= now and not dismissed)
-- [ ] Frontend: "Next Steps" button on each follow-up card opens an inline panel
-- [ ] Frontend: Next Steps panel has a notes textarea (pre-filled with existing note if any)
-- [ ] Frontend: "Remind me this afternoon" button sets remindAt to today at 4:00 PM
-- [ ] Frontend: "Remind me tomorrow" button sets remindAt to tomorrow at 8:00 AM
-- [ ] Frontend: Due reminders show as a banner/badge on the Dashboard Follow-Up section
+- [x] DB: add nextStepsNote (text) and remindAt (bigint timestamp) columns to followUps table
+- [x] Backend: followUps.saveNextSteps procedure (save note + optional remindAt timestamp)
+- [x] Backend: followUps.listDueReminders procedure (return follow-ups where remindAt <= now and not dismissed)
+- [x] Frontend: "Next Steps" button on each follow-up card opens an inline panel
+- [x] Frontend: Next Steps panel has a notes textarea (pre-filled with existing note if any)
+- [x] Frontend: "Remind me this afternoon" button sets remindAt to today at 4:00 PM
+- [x] Frontend: "Remind me tomorrow" button sets remindAt to tomorrow at 8:00 AM
+- [x] Frontend: Due reminders surface automatically when remindAt <= now via the existing filter (cards reappear at the set time)
