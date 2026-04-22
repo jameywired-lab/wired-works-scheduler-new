@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   Client,
@@ -55,6 +55,12 @@ import {
   crewPermissions,
   appNotifications,
   AppNotification,
+  callLog,
+  CallLog,
+  InsertCallLog,
+  inboundSmsLog,
+  InboundSmsLog,
+  InsertInboundSmsLog,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1462,4 +1468,78 @@ export async function markAllNotificationsRead(): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.update(appNotifications).set({ isRead: true }).where(eq(appNotifications.isRead, false));
+}
+
+// ─── Call Log ─────────────────────────────────────────────────────────────────
+
+export async function createCallLog(data: Omit<InsertCallLog, "id" | "createdAt">): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(callLog).values(data);
+}
+
+export async function listCallLogs(options?: {
+  limit?: number;
+  status?: "missed" | "voicemail" | "completed" | "all";
+}): Promise<CallLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const limit = options?.limit ?? 100;
+  const status = options?.status ?? "all";
+  if (status === "all") {
+    return db.select().from(callLog).orderBy(desc(callLog.createdAt)).limit(limit);
+  }
+  return db.select().from(callLog)
+    .where(eq(callLog.status, status as CallLog["status"]))
+    .orderBy(desc(callLog.createdAt))
+    .limit(limit);
+}
+
+// ─── Inbound SMS Log ─────────────────────────────────────────────────────────
+
+export async function createInboundSmsLog(data: Omit<InsertInboundSmsLog, "id" | "createdAt">): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(inboundSmsLog).values(data);
+}
+
+export async function listInboundSmsLogs(options?: {
+  limit?: number;
+  phone?: string;
+}): Promise<InboundSmsLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const limit = options?.limit ?? 200;
+  if (options?.phone) {
+    return db.select().from(inboundSmsLog)
+      .where(or(eq(inboundSmsLog.from, options.phone), eq(inboundSmsLog.to, options.phone)))
+      .orderBy(desc(inboundSmsLog.createdAt))
+      .limit(limit);
+  }
+  return db.select().from(inboundSmsLog).orderBy(desc(inboundSmsLog.createdAt)).limit(limit);
+}
+
+export async function listSmsThreads(): Promise<{ phone: string; contactName: string | null; clientId: number | null; lastMessage: string; lastAt: Date; count: number }[]> {
+  const db = await getDb();
+  if (!db) return [];
+  // Get all messages, group by the "other" party phone number
+  const rows = await db.select().from(inboundSmsLog).orderBy(desc(inboundSmsLog.createdAt)).limit(500);
+  const threads = new Map<string, { phone: string; contactName: string | null; clientId: number | null; lastMessage: string; lastAt: Date; count: number }>();
+  for (const row of rows) {
+    // The "other" phone is the from number for inbound, to number for outbound
+    const phone = row.direction === "inbound" ? row.from : row.to;
+    if (!threads.has(phone)) {
+      threads.set(phone, {
+        phone,
+        contactName: row.contactName,
+        clientId: row.clientId,
+        lastMessage: row.body,
+        lastAt: row.createdAt,
+        count: 1,
+      });
+    } else {
+      threads.get(phone)!.count++;
+    }
+  }
+  return Array.from(threads.values()).sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
 }

@@ -858,8 +858,23 @@
 - [x] Dashboard: timestamps on follow-up cards (contactedAt or createdAt, formatted as "Apr 22, 10:30 AM")
 
 ## Crew Logins, Google Calendar Fix & Password Management
-- [ ] Users page: create user with name, email, password, role (crew/admin) — password set at creation, no OAuth required
-- [ ] Users page: reset/change password for any user (admin sets a new password for any account)
-- [ ] Settings page: Change Password section for the logged-in user (current password + new password + confirm)
-- [ ] Settings page: fix Google Calendar Connect button — make it functional (OAuth redirect)
-- [ ] Settings page: show connected Google Calendar account email when connected
+- [x] Users page: create user with name, email, password, role (crew/admin) — password set at creation, no OAuth required
+- [x] Users page: reset/change password for any user (admin sets a new password for any account)
+- [x] Settings page: Change Password section for the logged-in user (current password + new password + confirm)
+- [x] Settings page: fix Google Calendar Connect button — make it functional (OAuth redirect)
+- [x] Settings page: show connected Google Calendar account email when connected
+
+## Communications Page (OpenPhone Mirror)
+- [ ] DB: callLog table (id, from, to, direction, status: missed/completed/voicemail, duration, recordingUrl, transcription, createdAt)
+- [ ] DB: extend smsLog to store inbound messages (body, from, to, direction, openPhoneMessageId, createdAt)
+- [ ] Webhook: handle call.completed, call.missed, voicemail.received events → store in callLog
+- [ ] Webhook: handle message.received (inbound SMS) → store in smsLog with direction=inbound
+- [ ] Backend: communications.listCalls procedure (list callLog, filter by type: all/missed/voicemail)
+- [ ] Backend: communications.listMessages procedure (list smsLog threads grouped by contact number)
+- [ ] Backend: communications.sendReply procedure (send SMS reply via OpenPhone API)
+- [ ] Frontend: Communications page (/communications) — tabbed: All / Messages / Missed Calls / Voicemails
+- [ ] Frontend: SMS thread view — grouped by contact, show full conversation, reply box
+- [ ] Frontend: Missed call cards — caller name/number, time, callback button
+- [ ] Frontend: Voicemail cards — caller, timestamp, audio player, transcription if available
+- [ ] Frontend: Auto-refresh every 30 seconds on Communications page
+- [ ] Sidebar nav: add Communications (phone icon) for admin users

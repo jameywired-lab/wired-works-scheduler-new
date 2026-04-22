@@ -176,6 +176,13 @@
       "when": 1776868220859,
       "tag": "0024_dazzling_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1776873821125,
+      "tag": "0025_tiny_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

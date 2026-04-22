@@ -513,3 +513,36 @@ export const appNotifications = mysqlTable("appNotifications", {
 });
 export type AppNotification = typeof appNotifications.$inferSelect;
 export type InsertAppNotification = typeof appNotifications.$inferInsert;
+
+// ─── Call Log ─────────────────────────────────────────────────────────────────
+export const callLog = mysqlTable("callLog", {
+  id: int("id").autoincrement().primaryKey(),
+  openPhoneCallId: varchar("openPhoneCallId", { length: 255 }),
+  from: varchar("from", { length: 50 }).notNull(),
+  to: varchar("to", { length: 50 }).notNull(),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull().default("inbound"),
+  status: mysqlEnum("status", ["completed", "missed", "voicemail", "no-answer", "busy", "failed"]).notNull().default("completed"),
+  duration: int("duration"), // seconds
+  recordingUrl: text("recordingUrl"),
+  transcription: text("transcription"),
+  clientId: int("clientId").references(() => clients.id),
+  contactName: varchar("contactName", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CallLog = typeof callLog.$inferSelect;
+export type InsertCallLog = typeof callLog.$inferInsert;
+
+// ─── Inbound SMS Log ─────────────────────────────────────────────────────────
+export const inboundSmsLog = mysqlTable("inboundSmsLog", {
+  id: int("id").autoincrement().primaryKey(),
+  openPhoneMessageId: varchar("openPhoneMessageId", { length: 255 }),
+  from: varchar("from", { length: 50 }).notNull(),
+  to: varchar("to", { length: 50 }).notNull(),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull().default("inbound"),
+  body: text("body").notNull(),
+  clientId: int("clientId").references(() => clients.id),
+  contactName: varchar("contactName", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type InboundSmsLog = typeof inboundSmsLog.$inferSelect;
+export type InsertInboundSmsLog = typeof inboundSmsLog.$inferInsert;

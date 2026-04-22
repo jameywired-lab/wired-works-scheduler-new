@@ -1262,6 +1262,39 @@ const communicationsRouter = router({
       return { success: true, messageId: result.messageId };
     }),
 
+  // ── Global Communications (OpenPhone inbox mirror) ──────────────────────────
+  /** List all call log entries from the callLog table */
+  listCalls: p
+    .input(
+      z.object({
+        status: z.enum(["all", "missed", "voicemail", "completed"]).default("all"),
+        limit: z.number().min(1).max(500).default(100),
+      }).optional()
+    )
+    .query(async ({ input }) => {
+      const { listCallLogs } = await import("./db");
+      return listCallLogs({ status: (input?.status ?? "all") as "all" | "missed" | "voicemail" | "completed", limit: input?.limit ?? 100 });
+    }),
+
+  /** List all SMS messages from the inboundSmsLog table */
+  listMessages: p
+    .input(
+      z.object({
+        phone: z.string().optional(),
+        limit: z.number().min(1).max(500).default(200),
+      }).optional()
+    )
+    .query(async ({ input }) => {
+      const { listInboundSmsLogs } = await import("./db");
+      return listInboundSmsLogs({ phone: input?.phone, limit: input?.limit ?? 200 });
+    }),
+
+  /** List SMS threads grouped by contact phone number */
+  listThreads: p.query(async () => {
+    const { listSmsThreads } = await import("./db");
+    return listSmsThreads();
+  }),
+
   // Upload a media file for MMS attachment and return a public URL
   uploadMedia: p
     .input(z.object({

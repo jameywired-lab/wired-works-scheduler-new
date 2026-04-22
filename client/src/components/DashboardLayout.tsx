@@ -31,6 +31,7 @@ import {
   LogOut,
   Moon,
   PanelLeft,
+  Phone,
   Settings,
   Shield,
   Sun,
@@ -62,6 +63,7 @@ const adminNavItems = [
   { icon: Mail, label: "Marketing", path: "/marketing" },
   { icon: TrendingUp, label: "Revenue Report", path: "/revenue-report" },
   { icon: Users2, label: "Crew", path: "/crew" },
+  { icon: Phone, label: "Communications", path: "/communications" },
   { icon: History, label: "Activity Log", path: "/activity-log" },
 ];
 

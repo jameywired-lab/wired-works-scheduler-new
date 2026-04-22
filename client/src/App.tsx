@@ -24,6 +24,8 @@ import VanInventoryPage from "./pages/VanInventoryPage";
 import MarketingPage from "./pages/MarketingPage";
 import RevenueReportPage from "./pages/RevenueReportPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
+import CommunicationsPage from "./pages/CommunicationsPage";
+import CrewHomePage from "./pages/CrewHomePage";
 import Login from "./pages/Login";
 import { trpc } from "./lib/trpc";
 
@@ -69,6 +71,8 @@ function ProtectedRoutes() {
         <Route path="/marketing" component={MarketingPage} />
         <Route path="/revenue-report" component={RevenueReportPage} />
         <Route path="/activity-log" component={ActivityLogPage} />
+        <Route path="/communications" component={CommunicationsPage} />
+        <Route path="/crew-home" component={CrewHomePage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

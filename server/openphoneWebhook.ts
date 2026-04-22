@@ -14,7 +14,7 @@
  */
 
 import type { Request, Response } from "express";
-import { createFollowUp, getClientByPhone, getDb, createNotification } from "./db";
+import { createFollowUp, getClientByPhone, getDb, createNotification, createCallLog, createInboundSmsLog } from "./db";
 import { clientCommunications, followUps } from "../drizzle/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
 
@@ -174,6 +174,16 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
         }
       }
 
+      // Always log to inboundSmsLog for the Communications page
+      await createInboundSmsLog({
+        from: phone || rawPhone,
+        to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
+        direction: "inbound",
+        body,
+        clientId: matchedClient?.id ?? undefined,
+        contactName: contactName ?? undefined,
+      });
+
       if (!grouped) {
         await createFollowUp({
           contactName: contactName ?? (phone || "Unknown"),
@@ -199,6 +209,27 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
     } else if (type === "call.completed") {
       // ── Missed call or voicemail ─────────────────────────────────────────────
       const status = obj.status ?? "";
+      // Always log to callLog for the Communications page (all completed calls)
+      const callStatus: "completed" | "missed" | "voicemail" | "no-answer" | "busy" | "failed" =
+        obj.voicemailUrl ? "voicemail" :
+        status === "missed" ? "missed" :
+        status === "completed" ? "completed" :
+        status === "no-answer" ? "no-answer" :
+        status === "busy" ? "busy" :
+        status === "failed" ? "failed" : "completed";
+
+      await createCallLog({
+        from: phone || rawPhone,
+        to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
+        direction: "inbound",
+        status: callStatus,
+        duration: obj.duration ?? undefined,
+        recordingUrl: obj.voicemailUrl ?? undefined,
+        transcription: obj.transcription ?? undefined,
+        clientId: matchedClient?.id ?? undefined,
+        contactName: contactName ?? undefined,
+      });
+
       // Only create follow-up for missed calls or voicemails
       if (status !== "missed" && status !== "voicemail" && !obj.voicemailUrl) return;
 
