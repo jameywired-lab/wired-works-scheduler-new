@@ -114,6 +114,9 @@ export const jobAssignments = mysqlTable("jobAssignments", {
   crewMemberId: int("crewMemberId")
     .notNull()
     .references(() => crewMembers.id),
+  visitStartedAt: bigint("visitStartedAt", { mode: "number" }),   // UTC ms
+  visitCompletedAt: bigint("visitCompletedAt", { mode: "number" }), // UTC ms
+  visitNotes: text("visitNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

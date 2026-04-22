@@ -1563,3 +1563,91 @@ export async function listSmsThreads(): Promise<{ phone: string; contactName: st
   }
   return Array.from(threads.values()).sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
 }
+
+// ─── Crew Visit Tracking ──────────────────────────────────────────────────────
+export async function getJobAssignmentForCrew(jobId: number, crewMemberId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(jobAssignments)
+    .where(and(eq(jobAssignments.jobId, jobId), eq(jobAssignments.crewMemberId, crewMemberId)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateJobAssignment(id: number, data: Partial<{
+  visitStartedAt: number | null;
+  visitCompletedAt: number | null;
+  visitNotes: string | null;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(jobAssignments).set(data).where(eq(jobAssignments.id, id));
+}
+
+/** Full crew schedule: all jobs assigned to a crew member with client info, visit status, and team members */
+export async function getCrewSchedule(crewMemberId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const myAssignments = await db
+    .select({
+      assignmentId: jobAssignments.id,
+      jobId: jobAssignments.jobId,
+      visitStartedAt: jobAssignments.visitStartedAt,
+      visitCompletedAt: jobAssignments.visitCompletedAt,
+      visitNotes: jobAssignments.visitNotes,
+    })
+    .from(jobAssignments)
+    .where(eq(jobAssignments.crewMemberId, crewMemberId));
+
+  if (myAssignments.length === 0) return [];
+
+  const jobIds = myAssignments.map((a) => a.jobId);
+
+  const jobRows = await db
+    .select({
+      id: jobs.id,
+      title: jobs.title,
+      description: jobs.description,
+      status: jobs.status,
+      scheduledStart: jobs.scheduledStart,
+      scheduledEnd: jobs.scheduledEnd,
+      address: jobs.address,
+      ownerInstructions: jobs.ownerInstructions,
+      jobType: jobs.jobType,
+      clientId: jobs.clientId,
+      clientName: clients.name,
+      clientPhone: clients.phone,
+    })
+    .from(jobs)
+    .leftJoin(clients, eq(jobs.clientId, clients.id))
+    .where(sql`${jobs.id} IN (${sql.join(jobIds.map((id) => sql`${id}`), sql`, `)})`)
+    .orderBy(jobs.scheduledStart);
+
+  const allAssignments = await db
+    .select({
+      jobId: jobAssignments.jobId,
+      crewMemberId: jobAssignments.crewMemberId,
+      crewMemberName: crewMembers.name,
+    })
+    .from(jobAssignments)
+    .leftJoin(crewMembers, eq(jobAssignments.crewMemberId, crewMembers.id))
+    .where(sql`${jobAssignments.jobId} IN (${sql.join(jobIds.map((id) => sql`${id}`), sql`, `)})`);
+
+  return jobRows.map((job) => {
+    const myAssignment = myAssignments.find((a) => a.jobId === job.id)!;
+    const teamMembers = allAssignments
+      .filter((a) => a.jobId === job.id && a.crewMemberId !== crewMemberId)
+      .map((a) => ({ crewMemberId: a.crewMemberId, name: a.crewMemberName ?? "Unknown" }));
+    return {
+      ...job,
+      assignmentId: myAssignment.assignmentId,
+      visitStartedAt: myAssignment.visitStartedAt ?? null,
+      visitCompletedAt: myAssignment.visitCompletedAt ?? null,
+      visitNotes: myAssignment.visitNotes ?? null,
+      teamMembers,
+    };
+  });
+}

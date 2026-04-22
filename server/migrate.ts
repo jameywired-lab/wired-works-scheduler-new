@@ -161,6 +161,10 @@ export async function runMigrations(): Promise<void> {
     { table: "jobPhotos", column: "annotatedS3Url", sql: "ALTER TABLE `jobPhotos` ADD `annotatedS3Url` text" },
     { table: "projectMilestones", column: "weight", sql: "ALTER TABLE `projectMilestones` ADD `weight` int DEFAULT 0 NOT NULL" },
     { table: "projectCredentials", column: "clientId", sql: "ALTER TABLE `projectCredentials` ADD `clientId` int" },
+    // Visit tracking (crew time on-site)
+    { table: "jobAssignments", column: "visitStartedAt",   sql: "ALTER TABLE `jobAssignments` ADD `visitStartedAt` bigint" },
+    { table: "jobAssignments", column: "visitCompletedAt", sql: "ALTER TABLE `jobAssignments` ADD `visitCompletedAt` bigint" },
+    { table: "jobAssignments", column: "visitNotes",       sql: "ALTER TABLE `jobAssignments` ADD `visitNotes` text" },
   ];
 
   // Ensure callLog table exists (was missing from initial schema)

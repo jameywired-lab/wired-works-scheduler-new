@@ -24,6 +24,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Bell,
   Calendar,
+  CalendarDays,
   FolderOpen,
   History,
   LayoutDashboard,
@@ -69,7 +70,8 @@ const adminNavItems = [
 
 // Nav shown exclusively to crew role
 const crewNavItems = [
-  { icon: Calendar, label: "My Schedule", path: "/crew-jobs" },
+  { icon: CalendarDays, label: "My Schedule", path: "/crew-home" },
+  { icon: Calendar, label: "Calendar", path: "/crew-calendar" },
   { icon: FolderOpen, label: "Projects", path: "/crew-projects" },
   { icon: Users, label: "Clients", path: "/crew-clients" },
   { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
@@ -85,10 +87,10 @@ const adminBottomNavItems = [
 ];
 
 const crewBottomNavItems = [
-  { icon: Calendar, label: "Schedule", path: "/crew-jobs" },
+  { icon: CalendarDays, label: "Schedule", path: "/crew-home" },
+  { icon: Calendar, label: "Calendar", path: "/crew-calendar" },
   { icon: FolderOpen, label: "Projects", path: "/crew-projects" },
   { icon: Users, label: "Clients", path: "/crew-clients" },
-  { icon: Truck, label: "Inventory", path: "/van-inventory" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 

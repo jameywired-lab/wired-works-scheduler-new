@@ -26,6 +26,9 @@ import RevenueReportPage from "./pages/RevenueReportPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
 import CommunicationsPage from "./pages/CommunicationsPage";
 import CrewHomePage from "./pages/CrewHomePage";
+import CrewSchedulePage from "./pages/CrewSchedulePage";
+import CrewJobDetailPage from "./pages/CrewJobDetailPage";
+import CrewCalendarPage from "./pages/CrewCalendarPage";
 import Login from "./pages/Login";
 import { trpc } from "./lib/trpc";
 
@@ -72,7 +75,10 @@ function ProtectedRoutes() {
         <Route path="/revenue-report" component={RevenueReportPage} />
         <Route path="/activity-log" component={ActivityLogPage} />
         <Route path="/communications" component={CommunicationsPage} />
-        <Route path="/crew-home" component={CrewHomePage} />
+        <Route path="/crew-home" component={CrewSchedulePage} />
+        <Route path="/crew-job/:id" component={CrewJobDetailPage} />
+        <Route path="/crew-calendar" component={CrewCalendarPage} />
+        <Route path="/crew-home-legacy" component={CrewHomePage} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

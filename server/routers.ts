@@ -76,6 +76,15 @@ import { jobPhotosRouter, messagingRouter } from "./routers/jobPhotosMessaging";
 import { crewTasksRouter, crewPermissionsRouter } from "./routers/crewTasksPermissions";
 import { notificationsRouter } from "./routers/notifications";
 import {
+  getCrewMemberByUserId,
+  getJobAssignmentForCrew,
+  updateJobAssignment,
+  getCrewSchedule,
+  getJobPhotos,
+  createJobPhoto,
+  deleteJobPhoto,
+} from "./db";
+import {
   addTagToClient,
   createTag,
   deleteTag,
@@ -1501,6 +1510,67 @@ const clientPhotosRouter = router({
     }),
 });
 
+
+// ─── Crew Schedule Router ─────────────────────────────────────────────────────
+const crewScheduleRouter = router({
+  mySchedule: p.query(async ({ ctx }) => {
+    if (!ctx.user) return [];
+    const member = await getCrewMemberByUserId(ctx.user.id);
+    if (!member) return [];
+    return getCrewSchedule(member.id);
+  }),
+
+  startVisit: p
+    .input(z.object({ assignmentId: z.number() }))
+    .mutation(async ({ input }) => {
+      await updateJobAssignment(input.assignmentId, { visitStartedAt: Date.now() });
+      return { success: true };
+    }),
+
+  completeVisit: p
+    .input(z.object({ assignmentId: z.number(), notes: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      await updateJobAssignment(input.assignmentId, {
+        visitCompletedAt: Date.now(),
+        ...(input.notes !== undefined ? { visitNotes: input.notes } : {}),
+      });
+      return { success: true };
+    }),
+
+  updateNotes: p
+    .input(z.object({ assignmentId: z.number(), notes: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateJobAssignment(input.assignmentId, { visitNotes: input.notes });
+      return { success: true };
+    }),
+
+  uploadPhoto: p
+    .input(z.object({ jobId: z.number(), dataUrl: z.string(), caption: z.string().optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const matches = input.dataUrl.match(/^data:(.+);base64,(.+)$/);
+      if (!matches) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid data URL" });
+      const mimeType = matches[1];
+      const buffer = Buffer.from(matches[2], "base64");
+      const ext = mimeType.split("/")[1] || "jpg";
+      const key = `job-photos/${input.jobId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const { url } = await storagePut(key, buffer, mimeType);
+      const uploaderName = ctx.user?.name ?? "Crew";
+      await createJobPhoto({ jobId: input.jobId, s3Url: url, s3Key: key });
+      return { url };
+    }),
+
+  deletePhoto: p
+    .input(z.object({ photoId: z.number() }))
+    .mutation(async ({ input }) => {
+      await deleteJobPhoto(input.photoId);
+      return { success: true };
+    }),
+
+  getPhotos: p
+    .input(z.object({ jobId: z.number() }))
+    .query(async ({ input }) => getJobPhotos(input.jobId)),
+});
+
 // ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
@@ -1541,5 +1611,6 @@ export const appRouter = router({
   crewTasks: crewTasksRouter,
   crewPermissions: crewPermissionsRouter,
   notifications: notificationsRouter,
+  crewSchedule: crewScheduleRouter,
 });
 export type AppRouter = typeof appRouter;

@@ -933,3 +933,29 @@
 - [x] Users page: Add User form for crew role — show password field, phone field, and send SMS checkbox prominently
 - [x] Crew delete: fully remove the user record from the DB instead of marking inactive (also clears job assignments first)
 - [x] Crew page: deleteCrewMember now does a real DELETE instead of isActive = false
+
+## Crew Experience Redesign
+
+- [x] DB: add visitStartedAt, visitCompletedAt (bigint UTC ms) to jobAssignments table
+- [x] DB: add visitNotes (text nullable) to jobAssignments table
+- [x] DB migration: critical patches in migrate.ts for all new columns
+- [x] Backend: crewSchedule.mySchedule procedure — returns all jobs assigned to logged-in crew, ordered by scheduledDate ASC, with client name, address, phone, team members
+- [x] Backend: crewSchedule.startVisit mutation — sets visitStartedAt = now()
+- [x] Backend: crewSchedule.completeVisit mutation — sets visitCompletedAt = now(), saves visitNotes
+- [x] Backend: crewSchedule.updateNotes mutation — editable after completion
+- [x] Backend: crewSchedule.uploadPhoto mutation — uploads photo to S3, saves to jobPhotos table
+- [x] Backend: crewSchedule.getJobDetail procedure — full job detail for crew
+- [x] CrewSchedulePage: chronological list grouped by date, date headers with color-coded day bands, today highlighted
+- [x] CrewSchedulePage: each job card shows job name, client name, time, visit status badge
+- [x] CrewSchedulePage: tap anywhere on job card to open job detail
+- [x] CrewJobDetailPage: job name + client name + client phone (tappable) at top
+- [x] CrewJobDetailPage: clickable address opens Google Maps
+- [x] CrewJobDetailPage: team members section showing other crew assigned to same job
+- [x] CrewJobDetailPage: Start Visit button (shows when not started) — records start time
+- [x] CrewJobDetailPage: Complete Visit button (shows when started) — records end time
+- [x] CrewJobDetailPage: show visit duration once completed
+- [x] Post-visit notes: editable textarea + photo upload, always accessible after visit started
+- [x] Photos shown as thumbnails, deletable
+- [x] CrewCalendarPage: week view and month view of upcoming assigned jobs
+- [x] Crew nav: updated bottom nav and sidebar to show Schedule (/crew-home) and Calendar (/crew-calendar)
+- [x] Route /crew-home → CrewSchedulePage, /crew-job/:id → CrewJobDetailPage, /crew-calendar → CrewCalendarPage

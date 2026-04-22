@@ -190,6 +190,13 @@
       "when": 1776887889599,
       "tag": "0026_misty_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1776893277180,
+      "tag": "0027_burly_scream",
+      "breakpoints": true
     }
   ]
 }
