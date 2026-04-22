@@ -17,13 +17,18 @@ async function ensurePasswordHashColumn() {
   if (!dbUrl) return;
   const pool = createPool({ uri: dbUrl });
   try {
-    // This is a no-op if the column already exists (MySQL 8.0+)
-    await pool.query(
-      "ALTER TABLE `users` ADD IF NOT EXISTS `passwordHash` varchar(255)"
-    );
-    console.log("[seedAdmin] passwordHash column ensured");
+    // Check via INFORMATION_SCHEMA — works on all MySQL versions (no ADD IF NOT EXISTS)
+    const url = new URL(dbUrl.replace(/^mysql2?:\/\//, "http://"));
+    const dbName = url.pathname.slice(1).split("?")[0];
+    const [rows] = await pool.query(
+      "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'passwordHash' LIMIT 1",
+      [dbName]
+    ) as [Record<string, unknown>[], unknown];
+    if ((rows as Record<string, unknown>[]).length === 0) {
+      await pool.query("ALTER TABLE `users` ADD `passwordHash` varchar(255)");
+      console.log("[seedAdmin] passwordHash column added");
+    }
   } catch (err) {
-    // If it fails for any reason, log but don't crash — the column may already exist
     const e = err as { code?: string; message?: string };
     console.warn("[seedAdmin] Could not ensure passwordHash column:", e.code, e.message);
   } finally {

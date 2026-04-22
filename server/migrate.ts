@@ -163,6 +163,29 @@ export async function runMigrations(): Promise<void> {
     { table: "projectCredentials", column: "clientId", sql: "ALTER TABLE `projectCredentials` ADD `clientId` int" },
   ];
 
+  // Ensure callLog table exists (was missing from initial schema)
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS \`callLog\` (
+      \`id\` int AUTO_INCREMENT PRIMARY KEY,
+      \`openPhoneCallId\` varchar(255),
+      \`from\` varchar(50) NOT NULL,
+      \`to\` varchar(50) NOT NULL,
+      \`direction\` enum('inbound','outbound') NOT NULL DEFAULT 'inbound',
+      \`status\` enum('completed','missed','voicemail','no-answer','busy','failed') NOT NULL DEFAULT 'completed',
+      \`duration\` int,
+      \`recordingUrl\` text,
+      \`transcription\` text,
+      \`clientId\` int,
+      \`contactName\` varchar(255),
+      \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    if (e.code !== 'ER_TABLE_EXISTS_ERROR') {
+      console.warn(`[migrate] callLog table patch failed: ${e.message}`);
+    }
+  }
+
   // Always run MODIFY COLUMN (role enum) — safe to run repeatedly
   const modifyPatches = [
     "ALTER TABLE `users` MODIFY COLUMN `role` enum('user','admin','crew') NOT NULL DEFAULT 'user'",
