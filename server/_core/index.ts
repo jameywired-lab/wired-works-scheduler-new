@@ -32,11 +32,18 @@ async function startServer() {
 
   // Local username/password auth routes (/api/auth/login, /api/auth/logout)
   registerLocalAuthRoutes(app);
-  // Debug endpoint — logs the raw payload OpenPhone sends (remove after confirming format)
+  // Debug endpoint — stores the raw payload OpenPhone sends so we can inspect it
+  const debugPayloads: { ts: number; headers: Record<string, string>; body: unknown }[] = [];
   app.post("/api/openphone/debug", (req, res) => {
+    const entry = { ts: Date.now(), headers: req.headers as Record<string, string>, body: req.body };
+    debugPayloads.push(entry);
+    if (debugPayloads.length > 10) debugPayloads.shift();
     console.log("[OpenPhone DEBUG] Headers:", JSON.stringify(req.headers));
     console.log("[OpenPhone DEBUG] Body:", JSON.stringify(req.body));
     res.status(200).json({ received: true });
+  });
+  app.get("/api/openphone/debug", (_req, res) => {
+    res.json(debugPayloads);
   });
   // OpenPhone inbound webhook — auto-creates follow-ups for inbound SMS and missed calls/voicemails
   app.post("/api/openphone/webhook", handleOpenPhoneWebhook);
