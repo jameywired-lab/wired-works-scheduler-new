@@ -73,6 +73,7 @@ const crewNavItems = [
   { icon: FolderOpen, label: "Projects", path: "/crew-projects" },
   { icon: Users, label: "Clients", path: "/crew-clients" },
   { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
+  { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 const adminBottomNavItems = [
@@ -88,6 +89,7 @@ const crewBottomNavItems = [
   { icon: FolderOpen, label: "Projects", path: "/crew-projects" },
   { icon: Users, label: "Clients", path: "/crew-clients" },
   { icon: Truck, label: "Inventory", path: "/van-inventory" },
+  { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -890,13 +890,13 @@
 - [x] Frontend: Due reminders surface automatically when remindAt <= now via the existing filter (cards reappear at the set time)
 
 ## PWA & Crew Onboarding
-- [ ] PWA: manifest.json with app name, icons, theme color, display: standalone
-- [ ] PWA: service worker for offline support and installability
-- [ ] PWA: iOS meta tags (apple-mobile-web-app-capable, apple-touch-icon, status bar style)
-- [ ] PWA: Android theme-color meta tag
-- [ ] Crew onboarding: when admin creates a crew user, auto-send SMS via OpenPhone with login URL and their temporary password
-- [ ] Users page: show "Send Login SMS" button for existing crew users who haven't logged in yet
-- [ ] Settings page: crew members can change their own password after first login
+- [x] PWA: manifest.json with app name, icons, theme color, display: standalone
+- [x] PWA: service worker for offline support and installability
+- [x] PWA: iOS meta tags (apple-mobile-web-app-capable, apple-touch-icon, status bar style)
+- [x] PWA: Android theme-color meta tag
+- [x] Crew onboarding: when admin creates a crew user, auto-send SMS via OpenPhone with login URL and their temporary password
+- [x] Users page: "Send invite SMS" checkbox on Add User form (crew role) — sends login link + password via OpenPhone
+- [x] Settings page: crew members can change their own password after first login (Change Password section already present)
 
 ## PWA (Add to Home Screen) & Crew Onboarding SMS
 
@@ -908,3 +908,10 @@
 - [x] users.create backend: send SMS invite via sendSms() when sendInviteSms=true and role=crew
 - [x] UsersPage.tsx: phone number field and "Send invite SMS" checkbox in Add User form (crew role only)
 - [x] SMS invite body: app URL, username (email or name), password, tip to add to home screen
+
+## Resend Invite SMS & Crew Self-Service Password Change
+
+- [x] Backend: users.sendInviteSms procedure — accepts userId, phone, appUrl; looks up user by id, sends login SMS via OpenPhone
+- [x] UsersPage: "Send Login SMS" button (message icon) on each crew user row — opens a small dialog to enter/confirm phone number, then fires the invite SMS
+- [x] Verify crew members can change their own password from Settings page (Change Password section)
+- [x] Settings nav added to crew sidebar and crew mobile bottom nav so crew can reach Change Password

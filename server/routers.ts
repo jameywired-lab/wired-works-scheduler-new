@@ -717,6 +717,23 @@ const usersRouter = router({
       await deleteUser(input.userId);
       return { success: true };
     }),
+  sendInviteSms: p
+    .input(z.object({
+      userId: z.number(),
+      phone: z.string().min(7),
+      appUrl: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      // Look up the user to get name and email for the SMS body
+      const allUsers = await listUsers();
+      const user = allUsers.find((u) => u.id === input.userId);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      const appUrl = input.appUrl || "https://wired-works-scheduler-new-production.up.railway.app";
+      const loginId = user.email || user.name || "your username";
+      const smsBody = `Hi ${user.name ?? "there"}! Here's your login for the Wired Works Scheduler app.\n\nLogin: ${appUrl}\nUsername: ${loginId}\n\nIf you need to reset your password, open the app and go to Settings → Change Password.\n\nTip: Open in Safari/Chrome and tap "Add to Home Screen" to install the app on your phone.`;
+      const result = await sendSms(input.phone, smsBody);
+      return { success: result.success, error: result.error };
+    }),
 });;
 
 // ─── Tags Router ────────────────────────────────────────────────────────────

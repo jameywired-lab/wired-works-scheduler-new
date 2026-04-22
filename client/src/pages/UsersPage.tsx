@@ -43,6 +43,8 @@ export default function UsersPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [resetTarget, setResetTarget] = useState<{ id: number; openId: string; name: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  // Resend invite SMS state
+  const [smsTarget, setSmsTarget] = useState<{ id: number; name: string; phone: string } | null>(null);
 
   const { data: users, isLoading } = trpc.users.list.useQuery();
 
@@ -75,6 +77,18 @@ export default function UsersPage() {
     onError: () => toast.error("Failed to remove user."),
   });
 
+  const sendInviteSmsMutation = trpc.users.sendInviteSms.useMutation({
+    onSuccess: (data) => {
+      setSmsTarget(null);
+      if (data.success) {
+        toast.success("Login SMS sent successfully!");
+      } else {
+        toast.error("SMS send failed: " + (data.error || "Unknown error"));
+      }
+    },
+    onError: (e) => toast.error(e.message || "Failed to send SMS."),
+  });
+
   const handleSave = () => {
     if (!form.name.trim()) { toast.error("Name is required."); return; }
     if (form.sendInviteSms && !form.phone.trim()) {
@@ -96,6 +110,16 @@ export default function UsersPage() {
     if (!resetTarget) return;
     if (!newPassword.trim() || newPassword.length < 6) { toast.error("Password must be at least 6 characters."); return; }
     setPasswordMutation.mutate({ openId: resetTarget.openId, newPassword });
+  };
+
+  const handleSendInviteSms = () => {
+    if (!smsTarget) return;
+    if (!smsTarget.phone.trim()) { toast.error("Phone number is required."); return; }
+    sendInviteSmsMutation.mutate({
+      userId: smsTarget.id,
+      phone: smsTarget.phone,
+      appUrl: window.location.origin,
+    });
   };
 
   return (
@@ -146,6 +170,7 @@ export default function UsersPage() {
           {(users ?? []).map((u) => {
             const isSelf = u.id === currentUser?.id;
             const isManual = u.openId?.startsWith("manual-");
+            const isCrew = u.role === "crew";
             return (
               <div
                 key={u.id}
@@ -182,6 +207,16 @@ export default function UsersPage() {
                         <SelectItem value="crew">Crew</SelectItem>
                       </SelectContent>
                     </Select>
+                  )}
+                  {/* Send Login SMS — always visible for crew users */}
+                  {isCrew && (
+                    <button
+                      onClick={() => setSmsTarget({ id: u.id, name: u.name ?? "User", phone: "" })}
+                      className="p-1.5 rounded-lg hover:bg-amber-500/15 transition-all"
+                      title="Send login SMS"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-amber-500" />
+                    </button>
                   )}
                   {/* Reset password button — visible on hover for all users */}
                   <button
@@ -300,6 +335,46 @@ export default function UsersPage() {
             <Button onClick={handleSave} disabled={createUser.isPending}>
               {createUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Login SMS Dialog */}
+      <Dialog open={smsTarget !== null} onOpenChange={(v) => !v && setSmsTarget(null)}>
+        <DialogContent className="max-w-sm bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-amber-500" />
+              Send Login SMS — {smsTarget?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Enter the crew member's phone number. They'll receive a text with the app login link and their username.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Phone Number</Label>
+              <Input
+                type="tel"
+                value={smsTarget?.phone ?? ""}
+                onChange={(e) => setSmsTarget((t) => t ? { ...t, phone: e.target.value } : t)}
+                placeholder="(904) 555-1234"
+                className="bg-input border-border"
+                onKeyDown={(e) => e.key === "Enter" && handleSendInviteSms()}
+              />
+            </div>
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-muted-foreground">
+              The SMS will include the app URL, their username, and a reminder to go to Settings → Change Password to update their password.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSmsTarget(null)} disabled={sendInviteSmsMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendInviteSms} disabled={sendInviteSmsMutation.isPending} className="bg-amber-500 hover:bg-amber-600 text-white">
+              {sendInviteSmsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send SMS
             </Button>
           </DialogFooter>
         </DialogContent>
