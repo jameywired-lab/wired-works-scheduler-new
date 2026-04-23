@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   Client,
@@ -609,7 +609,10 @@ export async function getDashboardData() {
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const [todayJobs, upcomingJobs, recentJobs, clientCount, crewCount, activeProjectsData, jobTotalData] = await Promise.all([
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const [todayJobs, upcomingJobs, recentJobs, clientCount, crewCount, activeProjectsData, jobTotalData, completedThisMonthData] = await Promise.all([
     db
       .select()
       .from(jobs)
@@ -640,6 +643,12 @@ export async function getDashboardData() {
     db.select({ totalJobTotal: sql<string>`COALESCE(SUM(jobTotal), 0)` })
       .from(projects)
       .where(sql`${projects.jobTotal} IS NOT NULL`),
+    db.select({ count: sql<number>`count(*)` })
+      .from(jobs)
+      .where(and(
+        eq(jobs.status, "completed"),
+        gte(jobs.scheduledStart, monthStart.getTime()),
+      )),
   ]);
   const activeProjectCount = activeProjectsData[0]?.count ?? 0;
   const pipelineValue = parseFloat(String(activeProjectsData[0]?.pipelineValue ?? "0"));
@@ -653,7 +662,24 @@ export async function getDashboardData() {
     activeProjectCount,
     pipelineValue,
     totalJobTotal,
+    completedThisMonth: completedThisMonthData[0]?.count ?? 0,
   };
+}
+
+export async function listCompletedJobsThisMonth() {
+  const db = await getDb();
+  if (!db) return [];
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  return db
+    .select()
+    .from(jobs)
+    .where(and(
+      eq(jobs.status, "completed"),
+      gte(jobs.scheduledStart, monthStart.getTime()),
+    ))
+    .orderBy(desc(jobs.scheduledStart));
 }
 // ─── Projects ─────────────────────────────────────────────────────────────────
 export async function listProjects() {
@@ -1674,4 +1700,65 @@ export async function getCrewSchedule(crewMemberId: number) {
       teamMembers,
     };
   });
+}
+
+// ─── Completed Visits (Admin Dashboard) ───────────────────────────────────────
+export async function getCompletedVisits(filter: "today" | "week" | "all" = "today") {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = Date.now();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const cutoff =
+    filter === "today"
+      ? startOfToday.getTime()
+      : filter === "week"
+      ? now - 7 * 24 * 60 * 60 * 1000
+      : 0;
+
+  const rows = await db
+    .select({
+      assignmentId: jobAssignments.id,
+      jobId: jobAssignments.jobId,
+      jobTitle: jobs.title,
+      clientName: clients.name,
+      crewMemberName: crewMembers.name,
+      visitStartedAt: jobAssignments.visitStartedAt,
+      visitCompletedAt: jobAssignments.visitCompletedAt,
+      visitNotes: jobAssignments.visitNotes,
+    })
+    .from(jobAssignments)
+    .innerJoin(jobs, eq(jobAssignments.jobId, jobs.id))
+    .leftJoin(clients, eq(jobs.clientId, clients.id))
+    .leftJoin(crewMembers, eq(jobAssignments.crewMemberId, crewMembers.id))
+    .where(
+      and(
+        isNotNull(jobAssignments.visitCompletedAt),
+        cutoff > 0
+          ? sql`${jobAssignments.visitCompletedAt} >= ${cutoff}`
+          : sql`1=1`
+      )
+    )
+    .orderBy(desc(jobAssignments.visitCompletedAt))
+    .limit(50);
+
+  // Fetch first photo for each job
+  const jobIds = Array.from(new Set(rows.map((r) => r.jobId)));
+  let photoMap: Record<number, string> = {};
+  if (jobIds.length > 0) {
+    const photos = await db
+      .select({ jobId: jobPhotos.jobId, s3Url: jobPhotos.s3Url })
+      .from(jobPhotos)
+      .where(sql`${jobPhotos.jobId} IN (${sql.join(jobIds.map((id) => sql`${id}`), sql`, `)})`)
+      .orderBy(jobPhotos.createdAt);
+    for (const ph of photos) {
+      if (!photoMap[ph.jobId]) photoMap[ph.jobId] = ph.s3Url;
+    }
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    firstPhotoUrl: photoMap[r.jobId] ?? null,
+  }));
 }

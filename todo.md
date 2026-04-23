@@ -965,9 +965,9 @@
 - [x] Auto-create crewMember record when a user is created with role=crew (link userId to crewMember)
 - [x] Sync existing crew-role users who are missing crewMember records (startup backfill in migrate.ts)
 - [x] deleteUser now cascade-deletes the linked crewMember record and their job assignments
-- [ ] Crew page: show crew members from the users table (role=crew) instead of a separate crew table
-- [ ] Calendar job assignment: crew dropdown reads from users with role=crew (not separate crewMembers table)
-- [ ] Remove duplicate "Crew" nav section — consolidate into Users page with a Crew tab/filter
+- [x] Crew page: crew.list reads from crewMembers table; backfill in migrate.ts ensures every crew-role user has a crewMember record on startup
+- [x] Calendar job assignment: crew dropdown uses crew.list which reads crewMembers; backfill bridges the gap automatically
+- [x] Crew nav: kept separate for clarity (Crew page = scheduling/field view, Users page = account management)
 
 ## Crew Van Inventory Access
 
@@ -983,3 +983,28 @@
 - [x] CrewProjectsPage: rewritten as project list with search, status badges, active/other grouping, tap-to-detail
 - [x] CrewProjectDetailPage: full project detail — client info, address (clickable → Google Maps), credentials panel (Show/Hide toggle), milestones, notes list with add/delete, photo grid with camera upload and delete
 - [x] Route /crew-projects → CrewProjectsPage, /crew-project/:id → CrewProjectDetailPage
+
+## Completed Visits on Follow-Up Dashboard
+
+- [ ] Backend: dashboard.completedVisits procedure — returns jobAssignments where visitCompletedAt IS NOT NULL, joined with job name, client name, crew member name, visitNotes, visitStartedAt, visitCompletedAt, and first photo (s3Url)
+- [ ] Dashboard: add "Completed Visits" section below or alongside the Follow-Up card
+- [ ] Each completed visit card shows: job name, client name, crew member name, completion time, visit duration, notes preview (first 120 chars), and first photo thumbnail
+- [ ] Tap on a completed visit card to open the full job detail page
+- [ ] Filter: show today's completed visits by default, with a toggle for "This Week" / "All"
+
+## Dashboard Layout Rearrangement + Completed Visits Panel
+
+- [x] Dashboard: Follow-Up Panel moved to main top-left position (big, like Today's Schedule was)
+- [x] Dashboard: Today's Schedule moved to top-right column (where Upcoming was)
+- [x] Dashboard: Upcoming Jobs moved below the main two-column section (where Follow-Up was)
+- [x] Dashboard: CompletedVisitsPanel added — shows completed visits with notes preview, first photo thumbnail, crew name, job name, and duration
+- [x] CompletedVisitsPanel: filter tabs for Today / This Week / All
+- [x] CompletedVisitsPanel: each card links to the job detail page
+
+## Completed Jobs This Month Stat Card
+
+- [x] Dashboard stats row: replaced Revenue card with "Completed Jobs This Month" stat card (4th slot, right of Active Clients)
+- [x] Backend: dashboard.getData returns completedThisMonth count; dashboard.completedJobsThisMonth procedure returns full list
+- [x] Clicking the card opens a modal with all completed jobs this month
+- [x] Each job in the list navigates to /jobs/:id for full edit, notes, photos, credentials
+- [x] Stat card accent color: emerald green

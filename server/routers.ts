@@ -18,6 +18,8 @@ import {
   getCrewMemberById,
   getCrewNotesByJob,
   getDashboardData,
+  getCompletedVisits,
+  listCompletedJobsThisMonth,
   getJobAssignments,
   getJobById,
   getSmsLogByJob,
@@ -625,6 +627,10 @@ const crewNotesRouter = router({
 // ─── Dashboard Router ─────────────────────────────────────────────────────────
 const dashboardRouter = router({
   getData: p.query(async () => getDashboardData()),
+  completedVisits: p
+    .input(z.object({ filter: z.enum(["today", "week", "all"]).optional() }).optional())
+    .query(async ({ input }) => getCompletedVisits(input?.filter ?? "today")),
+  completedJobsThisMonth: p.query(async () => listCompletedJobsThisMonth()),
 });
 
 // ─── Google Calendar Router ───────────────────────────────────────────────────

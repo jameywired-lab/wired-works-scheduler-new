@@ -10,9 +10,9 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -40,6 +40,9 @@ import {
   Users,
   Wrench,
   Zap,
+  Camera,
+  CheckCheck,
+  Timer,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import JobFormModal from "@/components/JobFormModal";
@@ -49,6 +52,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [showJobForm, setShowJobForm] = useState(false);
+  const [showCompletedJobs, setShowCompletedJobs] = useState(false);
   const { data, isLoading } = trpc.dashboard.getData.useQuery();
   const utils = trpc.useUtils();
 
@@ -125,18 +129,30 @@ export default function Dashboard() {
           onClick={() => setLocation("/projects")}
         />
         <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-blue-400" />} iconBg="bg-blue-500/15" accent="border-l-blue-500" loading={isLoading} onClick={() => setLocation("/clients")} />
+        <StatCard
+          label="Completed This Month"
+          value={isLoading ? null : (data?.completedThisMonth ?? 0)}
+          sublabel={isLoading ? undefined : new Date().toLocaleString("en-US", { month: "long" })}
+          icon={<CheckCheck className="h-4 w-4 text-emerald-400" />}
+          iconBg="bg-emerald-500/15"
+          accent="border-l-emerald-500"
+          loading={isLoading}
+          onClick={() => setShowCompletedJobs(true)}
+        />
       </div>
 
-      {/* Revenue row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <RevenueCard loading={isLoading} totalJobTotal={totalJobTotal} onClick={() => setLocation("/projects")} />
-      </div>
-
-      {/* Main 3-column layout */}
+      {/* Main 3-column layout: Follow-Up (big left) + Today's Schedule (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── Column 1 & 2: Schedule ── */}
+        {/* ── Column 1 & 2: Follow-Up Panel (big) ── */}
         <div className="lg:col-span-2 space-y-6">
+          <FollowUpPanel />
+          {/* Projects Panel */}
+          <ProjectsPanel />
+        </div>
+
+        {/* ── Column 3: Today's Schedule + Upcoming ── */}
+        <div className="space-y-6">
           {/* Today's Schedule */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
@@ -158,12 +174,6 @@ export default function Dashboard() {
             )}
           </section>
 
-          {/* Projects Panel */}
-          <ProjectsPanel />
-        </div>
-
-        {/* ── Column 3: Upcoming + Follow-Up ── */}
-        <div className="space-y-6">
           {/* Upcoming Jobs */}
           <section className="space-y-3">
             <h2 className="font-semibold text-base">Upcoming</h2>
@@ -182,11 +192,11 @@ export default function Dashboard() {
               </div>
             )}
           </section>
-
-          {/* Follow-Up Panel */}
-          <FollowUpPanel />
         </div>
       </div>
+
+      {/* Completed Visits Panel — full width below main grid */}
+      <CompletedVisitsPanel />
 
       {showJobForm && (
         <JobFormModal
@@ -195,6 +205,7 @@ export default function Dashboard() {
           onSuccess={() => { setShowJobForm(false); utils.dashboard.getData.invalidate(); }}
         />
       )}
+      <CompletedJobsModal open={showCompletedJobs} onClose={() => setShowCompletedJobs(false)} />
     </div>
   );
 }
@@ -929,6 +940,171 @@ function EmptyState({ icon, title, description, compact = false }: { icon: React
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
       <p className="text-xs text-muted-foreground/60 mt-1 max-w-[200px]">{description}</p>
     </div>
+  );
+}
+
+// ─── Completed Visits Panel ─────────────────────────────────────────────────
+function CompletedVisitsPanel() {
+  const [, setLocation] = useLocation();
+  const [filter, setFilter] = useState<"today" | "week" | "all">("today");
+  const { data: visits = [], isLoading } = trpc.dashboard.completedVisits.useQuery({ filter });
+
+  function formatDuration(startMs: number | null, endMs: number | null): string {
+    if (!startMs || !endMs) return "";
+    const diffMs = endMs - startMs;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 60) return `${mins}m onsite`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m onsite` : `${h}h onsite`;
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <CheckCheck className="h-4 w-4 text-emerald-400" />
+          <h2 className="font-semibold text-base">Completed Visits</h2>
+          {visits.length > 0 && (
+            <span className="text-xs bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium">{visits.length}</span>
+          )}
+        </div>
+        <div className="flex gap-1">
+          {(["today", "week", "all"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                filter === f
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "text-muted-foreground hover:text-foreground border border-transparent"
+              }`}
+            >
+              {f === "today" ? "Today" : f === "week" ? "This Week" : "All"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+        </div>
+      ) : visits.length === 0 ? (
+        <EmptyState
+          icon={<CheckCheck className="h-8 w-8 text-muted-foreground/40" />}
+          title={filter === "today" ? "No visits completed today" : filter === "week" ? "No visits completed this week" : "No completed visits yet"}
+          description="Completed visits will appear here with notes and photos."
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {visits.map((v) => (
+            <button
+              key={v.assignmentId}
+              onClick={() => setLocation(`/jobs/${v.jobId}`)}
+              className="text-left rounded-xl border border-border/50 bg-card hover:bg-accent/30 transition-colors p-4 space-y-2 w-full"
+            >
+              <div className="flex items-start gap-3">
+                {v.firstPhotoUrl ? (
+                  <img
+                    src={v.firstPhotoUrl}
+                    alt="Visit photo"
+                    className="w-14 h-14 rounded-lg object-cover shrink-0 border border-border/40"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                    <Camera className="h-5 w-5 text-muted-foreground/40" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{v.jobTitle ?? "Job"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{v.clientName ?? ""}</p>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {v.crewMemberName && (
+                      <span className="text-xs bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded font-medium">{v.crewMemberName}</span>
+                    )}
+                    {v.visitCompletedAt && (
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(v.visitCompletedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                    {formatDuration(v.visitStartedAt, v.visitCompletedAt) && (
+                      <span className="flex items-center gap-0.5 text-xs text-emerald-400">
+                        <Timer className="h-3 w-3" />
+                        {formatDuration(v.visitStartedAt, v.visitCompletedAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {v.visitNotes && (
+                <p className="text-xs text-muted-foreground line-clamp-2 border-t border-border/30 pt-2">
+                  {v.visitNotes}
+                </p>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CompletedJobsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [, setLocation] = useLocation();
+  const { data: jobs, isLoading } = trpc.dashboard.completedJobsThisMonth.useQuery(undefined, { enabled: open });
+  const monthName = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCheck className="h-5 w-5 text-emerald-500" />
+            Completed Jobs — {monthName}
+          </DialogTitle>
+          <DialogDescription>
+            {isLoading ? "Loading..." : `${jobs?.length ?? 0} job${(jobs?.length ?? 0) !== 1 ? "s" : ""} completed this month`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 mt-2">
+          {isLoading && Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+          {!isLoading && (!jobs || jobs.length === 0) && (
+            <div className="text-center py-10 text-muted-foreground">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p>No completed jobs this month yet.</p>
+            </div>
+          )}
+          {!isLoading && jobs?.map((job) => (
+            <button
+              key={job.id}
+              className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+              onClick={() => { onClose(); setLocation(`/jobs/${job.id}`); }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{job.title}</p>
+                  {job.address && <p className="text-xs text-muted-foreground truncate">{job.address}</p>}
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Completed</Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(job.scheduledStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 pt-3 border-t border-border">
+          <Button variant="outline" size="sm" className="w-full" onClick={() => { onClose(); setLocation("/calendar?status=completed"); }}>
+            View all completed jobs
+            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
