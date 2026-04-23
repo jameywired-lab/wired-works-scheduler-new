@@ -1102,3 +1102,16 @@
 
 - [x] Calendar: scheduled jobs no longer appear on the week/month view (confirmed working in dev)
 - [x] Dashboard: follow-up list is empty / not loading (confirmed working in dev — was Railway deploy lag)
+
+## Sales Pipeline Feature
+- [x] DB: salesPipeline table (clientId, clientName, phone, email, stage, notes, estimatedValue, reminderAt, reminderNote, sourceFollowUpId)
+- [x] Migration applied to local DB
+- [x] Backend: salesPipelineRouter (list, create, update, delete, setReminder)
+- [x] Backend: salesPipeline wired into appRouter
+- [x] Frontend: SalesPipelinePage with Kanban board (6 stages: New Lead → Won/Lost)
+- [x] Frontend: Add/edit/delete pipeline entries
+- [x] Frontend: Move stage inline, set reminder (creates follow-up entry)
+- [x] Sidebar: Sales Pipeline nav item added to adminNavItems
+- [x] Dashboard: Sales Pipeline stat card (active leads count, links to /sales-pipeline)
+- [x] App.tsx: /sales-pipeline route registered
+- [x] railway-db-schema.sql: fixed followUps.type enum to include 'inventory'

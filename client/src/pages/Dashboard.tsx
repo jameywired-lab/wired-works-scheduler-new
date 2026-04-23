@@ -41,6 +41,7 @@ import {
   MessageSquare,
   Phone,
   Plus,
+  TrendingUp,
   Users,
   Wrench,
   Zap,
@@ -65,6 +66,7 @@ export default function Dashboard() {
   const [newJobDate, setNewJobDate] = useState<Date | undefined>(undefined);
   const [showCompletedJobs, setShowCompletedJobs] = useState(false);
   const { data, isLoading } = trpc.dashboard.getData.useQuery();
+  const { data: pipelineData = [], isLoading: pipelineLoading } = trpc.salesPipeline.list.useQuery();
   const utils = trpc.useUtils();
 
   const todayJobs = data?.todayJobs ?? [];
@@ -139,7 +141,7 @@ export default function Dashboard() {
           loading={isLoading}
           onClick={() => setLocation("/projects")}
         />
-        <StatCard label="Active Clients" value={isLoading ? null : (data?.totalClients ?? 0)} icon={<Users className="h-4 w-4 text-blue-400" />} iconBg="bg-blue-500/15" accent="border-l-blue-500" loading={isLoading} onClick={() => setLocation("/clients")} />
+        <StatCard label="Sales Pipeline" value={pipelineLoading ? null : pipelineData.filter((e: { stage: string }) => e.stage !== 'won' && e.stage !== 'lost').length} icon={<TrendingUp className="h-4 w-4 text-violet-400" />} iconBg="bg-violet-500/15" accent="border-l-violet-500" loading={pipelineLoading} onClick={() => setLocation("/sales-pipeline")} />
         <StatCard
           label="Completed This Month"
           value={isLoading ? null : (data?.completedThisMonth ?? 0)}

@@ -1767,6 +1767,97 @@ const commissionRouter = router({
 });
 
 // ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+// ─── Sales Pipeline Router ──────────────────────────────────────────────────
+import { salesPipeline } from "../drizzle/schema";
+import { followUps } from "../drizzle/schema";
+const salesPipelineRouter = router({
+  list: p.query(async () => {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(salesPipeline).orderBy(salesPipeline.createdAt);
+  }),
+  create: p
+    .input(z.object({
+      clientId: z.number().optional(),
+      clientName: z.string().min(1),
+      phone: z.string().optional(),
+      email: z.string().optional(),
+      stage: z.enum(["new_lead", "proposal_needed", "proposal_sent", "follow_up", "won", "lost"]).default("new_lead"),
+      notes: z.string().optional(),
+      estimatedValue: z.number().optional(),
+      sourceFollowUpId: z.number().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [result] = await db.insert(salesPipeline).values({
+        clientId: input.clientId ?? null,
+        clientName: input.clientName,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        stage: input.stage,
+        notes: input.notes ?? null,
+        estimatedValue: input.estimatedValue ?? null,
+        sourceFollowUpId: input.sourceFollowUpId ?? null,
+      });
+      return { id: (result as any).insertId };
+    }),
+  update: p
+    .input(z.object({
+      id: z.number(),
+      stage: z.enum(["new_lead", "proposal_needed", "proposal_sent", "follow_up", "won", "lost"]).optional(),
+      notes: z.string().optional(),
+      estimatedValue: z.number().optional(),
+      reminderAt: z.number().optional(),
+      reminderNote: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().optional(),
+      clientName: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { id, ...fields } = input;
+      await db.update(salesPipeline).set(fields).where(eqC(salesPipeline.id, id));
+      return { success: true };
+    }),
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(salesPipeline).where(eqC(salesPipeline.id, input.id));
+      return { success: true };
+    }),
+  setReminder: p
+    .input(z.object({
+      id: z.number(),
+      reminderAt: z.number(),
+      reminderNote: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(salesPipeline)
+        .set({ reminderAt: input.reminderAt, reminderNote: input.reminderNote ?? null })
+        .where(eqC(salesPipeline.id, input.id));
+      const entries = await db.select().from(salesPipeline).where(eqC(salesPipeline.id, input.id));
+      const entry = entries[0];
+      if (entry) {
+        await db.insert(followUps).values({
+          contactName: entry.clientName,
+          phone: entry.phone ?? null,
+          note: input.reminderNote ?? `Follow up on Sales Pipeline: ${entry.clientName}`,
+          type: "manual",
+          scheduledFor: input.reminderAt,
+          isFollowedUp: false,
+        } as any);
+      }
+      return { success: true };
+    }),
+});
+
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -1810,5 +1901,6 @@ export const appRouter = router({
   parts: partsRouter,
   jobParts: jobPartsRouter,
   commission: commissionRouter,
+  salesPipeline: salesPipelineRouter,
 });
 export type AppRouter = typeof appRouter;

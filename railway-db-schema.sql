@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS `tags` (
 );
 --> statement-breakpoint
 ALTER TABLE `clientTags` ADD CONSTRAINT `clientTags_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `clientTags` ADD CONSTRAINT `clientTags_tagId_tags_id_fk` FOREIGN KEY (`tagId`) REFERENCES `tags`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal') NOT NULL DEFAULT 'manual';--> statement-breakpoint
+ALTER TABLE `clientTags` ADD CONSTRAINT `clientTags_tagId_tags_id_fk` FOREIGN KEY (`tagId`) REFERENCES `tags`(`id`) ON DELETE no action ON UPDATE no action;ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal','inventory') NOT NULL DEFAULT 'manual';--> statement-breakpoint
 ALTER TABLE `followUps` ADD `linkedJobId` int;--> statement-breakpoint
 ALTER TABLE `followUps` ADD `clientId` int;--> statement-breakpoint
 ALTER TABLE `followUps` ADD `proposalStatus` enum('none','pending','accepted','declined','not_ready') DEFAULT 'none' NOT NULL;--> statement-breakpoint

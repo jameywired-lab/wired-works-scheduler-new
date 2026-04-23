@@ -60,6 +60,7 @@ const adminNavItems = [
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Bell, label: "Follow-Ups", path: "/follow-ups" },
+  { icon: TrendingUp, label: "Sales Pipeline", path: "/sales-pipeline" },
   { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
   { icon: Phone, label: "Communications", path: "/communications" },
   { icon: History, label: "Activity Log", path: "/activity-log" },

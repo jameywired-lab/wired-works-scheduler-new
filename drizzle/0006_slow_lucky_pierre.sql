@@ -1,4 +1,4 @@
-ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal') NOT NULL DEFAULT 'manual';--> statement-breakpoint
+ALTER TABLE `followUps` MODIFY COLUMN `type` enum('call','text','manual','closeout','proposal','inventory') NOT NULL DEFAULT 'manual';--> statement-breakpoint
 ALTER TABLE `followUps` ADD `linkedJobId` int;--> statement-breakpoint
 ALTER TABLE `followUps` ADD `clientId` int;--> statement-breakpoint
 ALTER TABLE `followUps` ADD `proposalStatus` enum('none','pending','accepted','declined','not_ready') DEFAULT 'none' NOT NULL;--> statement-breakpoint

@@ -585,3 +585,22 @@ export const jobParts = mysqlTable("jobParts", {
 });
 export type JobPart = typeof jobParts.$inferSelect;
 export type InsertJobPart = typeof jobParts.$inferInsert;
+
+// ─── Sales Pipeline ───────────────────────────────────────────────────────────
+export const salesPipeline = mysqlTable("salesPipeline", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").references(() => clients.id),
+  clientName: varchar("clientName", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }),
+  email: varchar("email", { length: 255 }),
+  stage: mysqlEnum("stage", ["new_lead", "proposal_needed", "proposal_sent", "follow_up", "won", "lost"]).notNull().default("new_lead"),
+  notes: text("notes"),
+  estimatedValue: bigint("estimatedValue", { mode: "number" }),
+  reminderAt: bigint("reminderAt", { mode: "number" }),
+  reminderNote: text("reminderNote"),
+  sourceFollowUpId: int("sourceFollowUpId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SalesPipelineEntry = typeof salesPipeline.$inferSelect;
+export type InsertSalesPipelineEntry = typeof salesPipeline.$inferInsert;

@@ -218,6 +218,13 @@
       "when": 1776912853652,
       "tag": "0030_jittery_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1776915086579,
+      "tag": "0031_chubby_baron_strucker",
+      "breakpoints": true
     }
   ]
 }
