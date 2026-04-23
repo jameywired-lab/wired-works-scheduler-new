@@ -48,6 +48,7 @@ import {
   upsertClientCredential,
   seedClientCredentials,
   createFollowUp,
+  listFollowUps,
   getCrewNotesByClient,
   getJobPhotosByClient,
   listSmsTemplates,
@@ -61,6 +62,7 @@ import {
   deleteClientPhoto,
 } from "./db";
 import { sendSms } from "./sms";
+import { invokeLLM } from "./_core/llm";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -626,6 +628,50 @@ const crewNotesRouter = router({
 
 // ─── Dashboard Router ─────────────────────────────────────────────────────────
 const dashboardRouter = router({
+  aiAssist: p
+    .input(z.object({ message: z.string().min(1).max(2000) }))
+    .mutation(async ({ input }) => {
+      // Gather context: today's jobs, upcoming jobs, pending follow-ups
+      const [dashData, pendingFollowUps] = await Promise.all([
+        getDashboardData(),
+        listFollowUps(),
+      ]);
+      const todayJobs = dashData.todayJobs;
+      const upcomingJobs = dashData.upcomingJobs.slice(0, 10);
+      const pendingFU = pendingFollowUps.filter((f) => !f.isFollowedUp).slice(0, 15);
+      const now = new Date();
+      const systemPrompt = `You are an AI assistant for Wired Works, a field service scheduling company. You help the owner manage their schedule, clients, and follow-ups.
+
+Current date/time: ${now.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+
+TODAY'S JOBS (${todayJobs.length} total):
+${todayJobs.map((j) => `- ${j.title} | ${new Date(j.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}–${new Date(j.scheduledEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} | Status: ${j.status} | Type: ${j.jobType}`).join("\n") || "None"}
+
+UPCOMING JOBS (next 10):
+${upcomingJobs.map((j) => `- ${j.title} | ${new Date(j.scheduledStart).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} ${new Date(j.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} | Status: ${j.status}`).join("\n") || "None"}
+
+PENDING FOLLOW-UPS (${pendingFU.length} pending):
+${pendingFU.map((f) => `- ${f.contactName ?? "Unknown"} | Type: ${f.type} | Note: ${f.note ?? "(none)"}`).join("\n") || "None"}
+
+BUSINESS SNAPSHOT:
+- Active clients: ${dashData.totalClients}
+- Active projects: ${dashData.activeProjectCount}
+- Completed this month: ${dashData.completedThisMonth}
+- Active crew members: ${dashData.totalCrew}
+
+Your role: Give concise, actionable advice. When asked about scheduling, suggest specific time slots. When asked about follow-ups, prioritize by urgency. Keep responses focused and practical — no more than 3-4 paragraphs unless a detailed breakdown is needed. Use plain text, no markdown headers.`;
+      const result = await invokeLLM({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: input.message },
+        ],
+        maxTokens: 800,
+      });
+      const content = result.choices[0]?.message?.content;
+      const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => (c as any).text ?? "").join("") : "";
+      return { reply: text };
+    }),
+
   getData: p.query(async () => getDashboardData()),
   completedVisits: p
     .input(z.object({ filter: z.enum(["today", "week", "all"]).optional() }).optional())

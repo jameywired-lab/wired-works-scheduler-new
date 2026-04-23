@@ -1015,3 +1015,20 @@
 - [x] Calendar shows all scheduled jobs for the month with color-coded dots or event chips per day
 - [x] Clicking a day highlights it and shows that day's jobs in the right panel
 - [x] Clicking an event chip navigates to the job detail page
+
+## Dashboard Calendar — Week & Month Views
+
+- [x] Dashboard calendar: add Week / Month view toggle buttons
+- [x] Week view: 7-column time-slot grid (rows = hours 6am–8pm, columns = days of week), jobs rendered as colored blocks spanning their scheduled time
+- [x] Week view: prev/next week navigation, current week highlighted
+- [x] Month view: keep existing month grid with job dots per day and day detail panel
+- [x] Clicking a job block in week view navigates to the job detail page
+
+## Dashboard AI Assistant & Calendar Improvements
+
+- [x] Dashboard calendar: add Week / Month view toggle (Week = time-slot grid 6am-8pm, Month = existing dot grid)
+- [x] Week view: 7-column grid with hour rows, jobs rendered as colored blocks spanning their time slot
+- [x] Remove Today's Schedule card from the right column
+- [x] Add AI Assistant panel in place of Today's Schedule — analyzes schedule, clients, follow-ups and provides actionable suggestions
+- [x] AI Assistant: backend tRPC procedure that gathers context (today's jobs, pending follow-ups, overdue clients) and streams LLM response
+- [x] AI Assistant: user can ask free-form questions or click quick-action prompts

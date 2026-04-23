@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,6 +45,10 @@ import {
   Camera,
   CheckCheck,
   Timer,
+  Sparkles,
+  Bot,
+  Send,
+  RotateCcw,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import JobFormModal from "@/components/JobFormModal";
@@ -156,47 +160,9 @@ export default function Dashboard() {
           <ProjectsPanel />
         </div>
 
-        {/* ── Column 3: Today's Schedule + Upcoming ── */}
-        <div className="space-y-6">
-          {/* Today's Schedule */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-base">Today's Schedule</h2>
-              <Button variant="ghost" size="sm" onClick={() => setLocation("/calendar")} className="text-xs text-muted-foreground h-7 px-2">
-                View calendar <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </div>
-            {isLoading ? (
-              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
-            ) : todayJobs.length === 0 ? (
-              <EmptyState icon={<Calendar className="h-8 w-8 text-muted-foreground/40" />} title="No jobs today" description="Your schedule is clear. Enjoy the day or add a new job." />
-            ) : (
-              <div className="space-y-2">
-                {todayJobs.map((job) => (
-                  <JobCard key={job.id} job={job} onClick={() => setLocation(`/jobs/${job.id}`)} />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Upcoming Jobs */}
-          <section className="space-y-3">
-            <h2 className="font-semibold text-base">Upcoming</h2>
-            {isLoading ? (
-              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : upcomingJobs.filter((j) => { const e = new Date(); e.setHours(23,59,59,999); return j.scheduledStart > e.getTime(); }).length === 0 ? (
-              <EmptyState icon={<Clock className="h-6 w-6 text-muted-foreground/40" />} title="No upcoming jobs" description="Nothing scheduled beyond today." compact />
-            ) : (
-              <div className="space-y-2">
-                {upcomingJobs
-                  .filter((j) => { const e = new Date(); e.setHours(23,59,59,999); return j.scheduledStart > e.getTime(); })
-                  .slice(0, 5)
-                  .map((job) => (
-                    <UpcomingJobRow key={job.id} job={job} onClick={() => setLocation(`/jobs/${job.id}`)} />
-                  ))}
-              </div>
-            )}
-          </section>
+        {/* ── Column 3: AI Assistant ── */}
+        <div>
+          <AIAssistantPanel />
         </div>
       </div>
 
@@ -226,53 +192,59 @@ const JOB_STATUS_COLORS: Record<string, string> = {
 
 function DashboardCalendar({ onNavigateToJob }: { onNavigateToJob: (jobId: number) => void }) {
   const today = useMemo(() => new Date(), []);
+  const [calView, setCalView] = useState<"month" | "week">("month");
+  // Month view state
   const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Week view state — anchor = Sunday of the current week
+  const [weekAnchor, setWeekAnchor] = useState(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - d.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
-  // Compute month range for query
-  const monthStart = useMemo(() => new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getTime(), [viewDate]);
-  const monthEnd = useMemo(() => new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0, 23, 59, 59, 999).getTime(), [viewDate]);
+  // ── Date range for query (covers both views) ──
+  const { startMs, endMs } = useMemo(() => {
+    if (calView === "week") {
+      const s = weekAnchor.getTime();
+      const e = new Date(weekAnchor);
+      e.setDate(e.getDate() + 6);
+      e.setHours(23, 59, 59, 999);
+      return { startMs: s, endMs: e.getTime() };
+    }
+    return {
+      startMs: new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getTime(),
+      endMs: new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0, 23, 59, 59, 999).getTime(),
+    };
+  }, [calView, viewDate, weekAnchor]);
 
-  const { data: monthJobs = [], isLoading } = trpc.jobs.listByDateRange.useQuery(
-    { startMs: monthStart, endMs: monthEnd } as { startMs: number; endMs: number },
+  const { data: rangeJobs = [], isLoading } = trpc.jobs.listByDateRange.useQuery(
+    { startMs, endMs } as { startMs: number; endMs: number },
     { staleTime: 60_000 }
   );
 
-  // Build a map: "YYYY-MM-DD" -> jobs[]
-  type MonthJob = (typeof monthJobs)[number];
+  type RangeJob = (typeof rangeJobs)[number];
+
+  // ── Month helpers ──
   const jobsByDay = useMemo(() => {
-    const map: Record<string, MonthJob[]> = {};
-    for (const job of monthJobs) {
-      const key = new Date(job.scheduledStart).toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const map: Record<string, RangeJob[]> = {};
+    for (const job of rangeJobs) {
+      const key = new Date(job.scheduledStart).toLocaleDateString("en-CA");
       if (!map[key]) map[key] = [];
       map[key].push(job);
     }
     return map;
-  }, [monthJobs]);
+  }, [rangeJobs]);
 
-  // Jobs for the selected day (or today if nothing selected)
   const activeDateKey = selectedDate ?? today.toLocaleDateString("en-CA");
-  const selectedJobs: MonthJob[] = jobsByDay[activeDateKey] ?? [];
-
-  // Calendar grid helpers
+  const selectedJobs: RangeJob[] = jobsByDay[activeDateKey] ?? [];
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-  const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0=Sun
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = today.toLocaleDateString("en-CA");
 
-  function prevMonth() {
-    setViewDate(new Date(year, month - 1, 1));
-    setSelectedDate(null);
-  }
-  function nextMonth() {
-    setViewDate(new Date(year, month + 1, 1));
-    setSelectedDate(null);
-  }
-
-  const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-  // Build grid cells: leading empty cells + day cells
   const cells: Array<{ day: number | null; key: string | null }> = [];
   for (let i = 0; i < firstDayOfMonth; i++) cells.push({ day: null, key: null });
   for (let d = 1; d <= daysInMonth; d++) {
@@ -280,164 +252,402 @@ function DashboardCalendar({ onNavigateToJob }: { onNavigateToJob: (jobId: numbe
     cells.push({ day: d, key });
   }
 
+  // ── Week helpers ──
+  const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6am – 8pm
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekAnchor);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [weekAnchor]);
+
+  // Map each job to its week-day column and pixel position
+  const weekJobsByDay = useMemo(() => {
+    const map: Record<number, RangeJob[]> = {};
+    for (let i = 0; i < 7; i++) map[i] = [];
+    for (const job of rangeJobs) {
+      const d = new Date(job.scheduledStart);
+      const anchor = weekAnchor;
+      const diff = Math.floor((d.getTime() - anchor.getTime()) / 86400000);
+      if (diff >= 0 && diff < 7) map[diff].push(job);
+    }
+    return map;
+  }, [rangeJobs, weekAnchor]);
+
+  function jobBlockStyle(job: RangeJob) {
+    const start = new Date(job.scheduledStart);
+    const end = new Date(job.scheduledEnd);
+    const startH = start.getHours() + start.getMinutes() / 60;
+    const endH = end.getHours() + end.getMinutes() / 60;
+    const clampedStart = Math.max(startH, 6);
+    const clampedEnd = Math.min(endH, 21);
+    const top = ((clampedStart - 6) / 15) * 100;
+    const height = Math.max(((clampedEnd - clampedStart) / 15) * 100, 2);
+    return { top: `${top}%`, height: `${height}%` };
+  }
+
+  const JOB_STATUS_BG: Record<string, string> = {
+    scheduled: "bg-blue-500/80 border-blue-600/60",
+    in_progress: "bg-amber-500/80 border-amber-600/60",
+    completed: "bg-emerald-500/80 border-emerald-600/60",
+    cancelled: "bg-red-400/50 border-red-500/40",
+  };
+
+  // ── Navigation ──
+  function prevPeriod() {
+    if (calView === "month") { setViewDate(new Date(year, month - 1, 1)); setSelectedDate(null); }
+    else { const d = new Date(weekAnchor); d.setDate(d.getDate() - 7); setWeekAnchor(d); }
+  }
+  function nextPeriod() {
+    if (calView === "month") { setViewDate(new Date(year, month + 1, 1)); setSelectedDate(null); }
+    else { const d = new Date(weekAnchor); d.setDate(d.getDate() + 7); setWeekAnchor(d); }
+  }
+  function goToday() {
+    setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDate(null);
+    const d = new Date(today);
+    d.setDate(d.getDate() - d.getDay());
+    d.setHours(0, 0, 0, 0);
+    setWeekAnchor(d);
+  }
+
+  const headerLabel = calView === "month"
+    ? viewDate.toLocaleString("en-US", { month: "long", year: "numeric" })
+    : (() => {
+        const end = new Date(weekAnchor); end.setDate(end.getDate() + 6);
+        return `${weekAnchor.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+      })();
+
+  const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      {/* Calendar header */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold text-sm">
-            {viewDate.toLocaleString("en-US", { month: "long", year: "numeric" })}
-          </h2>
+        <div className="flex items-center gap-3">
+          <Calendar className="h-4 w-4 text-primary shrink-0" />
+          <h2 className="font-semibold text-sm">{headerLabel}</h2>
           {isLoading && <span className="text-[10px] text-muted-foreground animate-pulse">Loading…</span>}
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={prevMonth}
-            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            aria-label="Previous month"
-          >
+        <div className="flex items-center gap-1.5">
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+            <button
+              onClick={() => setCalView("month")}
+              className={`px-2.5 py-1 transition-colors font-medium ${
+                calView === "month" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground"
+              }`}
+            >Month</button>
+            <button
+              onClick={() => setCalView("week")}
+              className={`px-2.5 py-1 transition-colors font-medium border-l border-border ${
+                calView === "week" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground"
+              }`}
+            >Week</button>
+          </div>
+          <button onClick={prevPeriod} className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground" aria-label="Previous">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setSelectedDate(null); }}
-            className="text-xs px-2 py-1 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground font-medium"
-          >
-            Today
-          </button>
-          <button
-            onClick={nextMonth}
-            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            aria-label="Next month"
-          >
+          <button onClick={goToday} className="text-xs px-2 py-1 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground font-medium">Today</button>
+          <button onClick={nextPeriod} className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground" aria-label="Next">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] divide-y lg:divide-y-0 lg:divide-x divide-border">
-        {/* Month grid */}
-        <div className="p-3">
-          {/* Day-of-week labels */}
-          <div className="grid grid-cols-7 mb-1">
-            {DAY_LABELS.map((d) => (
-              <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">
-                {d}
-              </div>
-            ))}
-          </div>
-          {/* Day cells */}
-          <div className="grid grid-cols-7 gap-0.5">
-            {cells.map((cell, idx) => {
-              if (!cell.day || !cell.key) {
-                return <div key={`empty-${idx}`} className="aspect-square" />;
-              }
-              const dayJobs = jobsByDay[cell.key] ?? [];
-              const isToday = cell.key === todayKey;
-              const isSelected = cell.key === activeDateKey;
-              const hasJobs = dayJobs.length > 0;
-
-              return (
-                <button
-                  key={cell.key}
-                  onClick={() => setSelectedDate(cell.key === activeDateKey ? null : cell.key!)}
-                  className={`
-                    relative flex flex-col items-center justify-start pt-1 pb-1 rounded-lg aspect-square transition-all text-xs font-medium
-                    ${isSelected
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : isToday
-                      ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+      {calView === "month" ? (
+        /* ── MONTH VIEW ── */
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] divide-y lg:divide-y-0 lg:divide-x divide-border">
+          <div className="p-3">
+            <div className="grid grid-cols-7 mb-1">
+              {DAY_LABELS.map((d) => (
+                <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {cells.map((cell, idx) => {
+                if (!cell.day || !cell.key) return <div key={`empty-${idx}`} className="aspect-square" />;
+                const dayJobs = jobsByDay[cell.key] ?? [];
+                const isToday = cell.key === todayKey;
+                const isSelected = cell.key === activeDateKey;
+                return (
+                  <button
+                    key={cell.key}
+                    onClick={() => setSelectedDate(cell.key === activeDateKey ? null : cell.key!)}
+                    className={`relative flex flex-col items-center justify-start pt-1 pb-1 rounded-lg aspect-square transition-all text-xs font-medium ${
+                      isSelected ? "bg-primary text-primary-foreground shadow-sm"
+                      : isToday ? "bg-primary/15 text-primary ring-1 ring-primary/40"
                       : "hover:bg-accent text-foreground"
-                    }
-                  `}
-                >
-                  <span className="leading-none">{cell.day}</span>
-                  {/* Job dots */}
-                  {hasJobs && (
-                    <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center max-w-full px-0.5">
-                      {dayJobs.slice(0, 3).map((job, i) => (
-                        <span
-                          key={i}
-                          className={`w-1 h-1 rounded-full ${isSelected ? "bg-primary-foreground/70" : JOB_STATUS_COLORS[job.status] ?? "bg-muted-foreground/40"}`}
-                        />
-                      ))}
-                      {dayJobs.length > 3 && (
-                        <span className={`text-[8px] leading-none ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                          +{dayJobs.length - 3}
-                        </span>
-                      )}
+                    }`}
+                  >
+                    <span className="leading-none">{cell.day}</span>
+                    {dayJobs.length > 0 && (
+                      <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center max-w-full px-0.5">
+                        {dayJobs.slice(0, 3).map((job, i) => (
+                          <span key={i} className={`w-1 h-1 rounded-full ${isSelected ? "bg-primary-foreground/70" : JOB_STATUS_COLORS[job.status] ?? "bg-muted-foreground/40"}`} />
+                        ))}
+                        {dayJobs.length > 3 && <span className={`text-[8px] leading-none ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>+{dayJobs.length - 3}</span>}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-3 mt-3 pt-2 border-t border-border/50 flex-wrap">
+              {[{ label: "Scheduled", color: "bg-blue-400" }, { label: "In Progress", color: "bg-amber-400" }, { label: "Completed", color: "bg-emerald-400" }].map(({ label, color }) => (
+                <div key={label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className={`w-2 h-2 rounded-full ${color}`} />{label}
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Day detail panel */}
+          <div className="p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">
+                {activeDateKey === todayKey ? "Today" : new Date(activeDateKey + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+              </p>
+              <span className="text-xs text-muted-foreground">{selectedJobs.length} job{selectedJobs.length !== 1 ? "s" : ""}</span>
+            </div>
+            {isLoading ? (
+              <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+            ) : selectedJobs.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
+                <Calendar className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                <p className="text-xs text-muted-foreground">No jobs scheduled</p>
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto max-h-64">
+                {selectedJobs.map((job) => (
+                  <button key={job.id} onClick={() => onNavigateToJob(job.id)} className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all group">
+                    <div className="flex items-start gap-2">
+                      <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${JOB_STATUS_COLORS[job.status] ?? "bg-muted-foreground/40"}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate group-hover:text-primary transition-colors">{job.title}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{formatTime(job.scheduledStart)} – {formatTime(job.scheduledEnd)}</p>
+                        {job.address && <p className="text-[10px] text-muted-foreground truncate">{job.address}</p>}
+                      </div>
+                      <Badge className={`${statusClass(job.status as JobStatus)} text-[9px] shrink-0 rounded-full`}>{statusLabel(job.status as JobStatus)}</Badge>
                     </div>
-                  )}
-                </button>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ── WEEK VIEW ── */
+        <div className="overflow-x-auto">
+          {/* Day header row */}
+          <div className="grid min-w-[640px]" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
+            <div className="border-b border-border" />
+            {weekDays.map((d, i) => {
+              const key = d.toLocaleDateString("en-CA");
+              const isToday = key === todayKey;
+              return (
+                <div key={i} className={`border-b border-l border-border text-center py-2 ${ isToday ? "bg-primary/10" : "" }`}>
+                  <p className={`text-[10px] font-semibold ${ isToday ? "text-primary" : "text-muted-foreground" }`}>{WEEK_DAYS[i]}</p>
+                  <p className={`text-sm font-bold ${ isToday ? "text-primary" : "text-foreground" }`}>{d.getDate()}</p>
+                </div>
               );
             })}
           </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-3 mt-3 pt-2 border-t border-border/50 flex-wrap">
-            {[
-              { label: "Scheduled", color: "bg-blue-400" },
-              { label: "In Progress", color: "bg-amber-400" },
-              { label: "Completed", color: "bg-emerald-400" },
-            ].map(({ label, color }) => (
-              <div key={label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className={`w-2 h-2 rounded-full ${color}`} />
-                {label}
+          {/* Time grid */}
+          <div className="relative grid min-w-[640px]" style={{ gridTemplateColumns: "56px repeat(7, 1fr)", height: `${15 * 56}px` }}>
+            {/* Hour labels + horizontal lines */}
+            {HOURS.map((h) => (
+              <>
+                <div key={`label-${h}`} className="border-b border-border/40 flex items-start justify-end pr-2 pt-0.5" style={{ gridColumn: 1, gridRow: h - 5 }}>
+                  <span className="text-[9px] text-muted-foreground/60 font-medium">{h === 12 ? "12pm" : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                </div>
+                {Array.from({ length: 7 }, (_, col) => (
+                  <div key={`cell-${h}-${col}`} className="border-b border-l border-border/30" style={{ gridColumn: col + 2, gridRow: h - 5 }} />
+                ))}
+              </>
+            ))}
+            {/* Job blocks */}
+            {weekDays.map((_, colIdx) => (
+              <div key={colIdx} className="relative" style={{ gridColumn: colIdx + 2, gridRow: "1 / -1" }}>
+                {weekJobsByDay[colIdx].map((job) => {
+                  const style = jobBlockStyle(job);
+                  const colorClass = JOB_STATUS_BG[job.status] ?? "bg-blue-500/80 border-blue-600/60";
+                  return (
+                    <button
+                      key={job.id}
+                      onClick={() => onNavigateToJob(job.id)}
+                      title={`${job.title}\n${formatTime(job.scheduledStart)} – ${formatTime(job.scheduledEnd)}`}
+                      className={`absolute inset-x-0.5 rounded border text-left overflow-hidden transition-opacity hover:opacity-90 ${ colorClass }`}
+                      style={{ top: style.top, height: style.height, minHeight: "18px" }}
+                    >
+                      <div className="px-1 py-0.5">
+                        <p className="text-[9px] font-semibold text-white leading-tight truncate">{job.title}</p>
+                        <p className="text-[8px] text-white/80 leading-tight">{formatTime(job.scheduledStart)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Day detail panel */}
-        <div className="p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">
-              {activeDateKey === todayKey
-                ? "Today"
-                : new Date(activeDateKey + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-            </p>
-            <span className="text-xs text-muted-foreground">
-              {selectedJobs.length} job{selectedJobs.length !== 1 ? "s" : ""}
-            </span>
+// ─── AI Assistant Panel ─────────────────────────────────────────────────────
+const QUICK_PROMPTS = [
+  "What should I prioritize today?",
+  "Which follow-ups are most urgent?",
+  "Any scheduling gaps this week?",
+  "Summarize my week ahead",
+];
+
+type ChatMessage = { role: "user" | "assistant"; text: string };
+
+function AIAssistantPanel() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isThinking, setIsThinking] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const aiAssist = trpc.dashboard.aiAssist.useMutation({
+    onSuccess: (data) => {
+      setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+      setIsThinking(false);
+    },
+    onError: () => {
+      setMessages((prev) => [...prev, { role: "assistant", text: "Sorry, I ran into an issue. Please try again." }]);
+      setIsThinking(false);
+    },
+  });
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
+
+  function sendMessage(text: string) {
+    if (!text.trim() || isThinking) return;
+    setMessages((prev) => [...prev, { role: "user", text: text.trim() }]);
+    setInput("");
+    setIsThinking(true);
+    aiAssist.mutate({ message: text.trim() });
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full min-h-[500px] rounded-xl border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-primary/15">
+            <Sparkles className="h-4 w-4 text-primary" />
           </div>
+          <div>
+            <p className="text-sm font-semibold">AI Assistant</p>
+            <p className="text-[10px] text-muted-foreground">Knows your schedule, clients & follow-ups</p>
+          </div>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setMessages([])}
+            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Clear conversation"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
 
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center py-6 gap-4">
+            <div className="p-3 rounded-full bg-primary/10">
+              <Bot className="h-8 w-8 text-primary/60" />
             </div>
-          ) : selectedJobs.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
-              <Calendar className="h-8 w-8 text-muted-foreground/30 mb-2" />
-              <p className="text-xs text-muted-foreground">No jobs scheduled</p>
+            <div>
+              <p className="text-sm font-medium">How can I help you today?</p>
+              <p className="text-xs text-muted-foreground mt-1">Ask me about your schedule, clients, or follow-ups</p>
             </div>
-          ) : (
-            <div className="space-y-2 overflow-y-auto max-h-64">
-              {selectedJobs.map((job) => (
+            <div className="flex flex-col gap-2 w-full mt-2">
+              {QUICK_PROMPTS.map((prompt) => (
                 <button
-                  key={job.id}
-                  onClick={() => onNavigateToJob(job.id)}
-                  className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all group"
+                  key={prompt}
+                  onClick={() => sendMessage(prompt)}
+                  className="text-left text-xs px-3 py-2 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all text-muted-foreground hover:text-foreground"
                 >
-                  <div className="flex items-start gap-2">
-                    <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${JOB_STATUS_COLORS[job.status] ?? "bg-muted-foreground/40"}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate group-hover:text-primary transition-colors">{job.title}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {formatTime(job.scheduledStart)} – {formatTime(job.scheduledEnd)}
-                      </p>
-                      {job.address && (
-                        <p className="text-[10px] text-muted-foreground truncate">{job.address}</p>
-                      )}
-                    </div>
-                    <Badge className={`${statusClass(job.status as JobStatus)} text-[9px] shrink-0 rounded-full`}>
-                      {statusLabel(job.status as JobStatus)}
-                    </Badge>
-                  </div>
+                  {prompt}
                 </button>
               ))}
             </div>
-          )}
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            {msg.role === "assistant" && (
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center mt-0.5">
+                <Sparkles className="h-3 w-3 text-primary" />
+              </div>
+            )}
+            <div
+              className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-primary text-primary-foreground rounded-br-sm"
+                  : "bg-muted/60 text-foreground rounded-bl-sm"
+              }`}
+            >
+              {msg.text}
+            </div>
+          </div>
+        ))}
+
+        {isThinking && (
+          <div className="flex gap-2 justify-start">
+            <div className="shrink-0 w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
+              <Sparkles className="h-3 w-3 text-primary" />
+            </div>
+            <div className="bg-muted/60 rounded-xl rounded-bl-sm px-3 py-2.5 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input area */}
+      <div className="p-3 border-t border-border">
+        <div className="flex gap-2 items-end">
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask anything about your schedule..."
+            className="flex-1 min-h-[40px] max-h-[120px] text-xs resize-none"
+            rows={1}
+            disabled={isThinking}
+          />
+          <Button
+            size="sm"
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || isThinking}
+            className="h-9 w-9 p-0 shrink-0"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground mt-1.5">Press Enter to send · Shift+Enter for new line</p>
       </div>
     </div>
   );
