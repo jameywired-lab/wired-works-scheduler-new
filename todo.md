@@ -1063,3 +1063,12 @@
 - [x] Show a dropdown list of matching clients (name + phone/address) as the user types
 - [x] Clicking a suggestion selects the client and fills the field
 - [x] Keyboard navigation (arrow keys, Enter, Escape) works in the dropdown
+
+## Follow-Up Form — Client Autocomplete
+
+- [x] Follow-up add form: replace plain name text input with a searchable autocomplete field
+- [x] As user types, filter existing clients by name and show a dropdown with name + phone/email
+- [x] Selecting an existing client auto-fills their phone number and email into the form fields
+- [x] If no match or user types a new name, allow free-text entry (saves as a manual contact name)
+- [x] Works in both the quick-add card (dashboard) and the full Follow-Ups section
+- [x] Selected client is tagged/linked so their follow-up shows their client record

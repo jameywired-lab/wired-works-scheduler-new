@@ -30,9 +30,11 @@ import {
   Bell,
   Briefcase,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   Clock,
   DollarSign,
   FolderOpen,
@@ -53,6 +55,8 @@ import {
 import { useLocation } from "wouter";
 import JobFormModal from "@/components/JobFormModal";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -715,8 +719,13 @@ function FollowUpPanel() {
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newClientId, setNewClientId] = useState<number | undefined>(undefined);
   const [newNote, setNewNote] = useState("");
   const [newType, setNewType] = useState<"call" | "text" | "manual">("call");
+  const [clientSearchOpen, setClientSearchOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
+  const { data: allClients = [] } = trpc.clients.list.useQuery();
   const [activeNextSteps, setActiveNextSteps] = useState<number | null>(null);
   const [nextStepsText, setNextStepsText] = useState("");
   const [activeSmsReply, setActiveSmsReply] = useState<number | null>(null);
@@ -749,7 +758,7 @@ function FollowUpPanel() {
     onSuccess: () => {
       utils.followUps.list.invalidate();
       setAddOpen(false);
-      setNewName(""); setNewPhone(""); setNewNote(""); setNewType("call");
+      setNewName(""); setNewPhone(""); setNewEmail(""); setNewClientId(undefined); setNewNote(""); setNewType("call"); setClientSearchQuery("");
     },
   });
 
@@ -799,9 +808,95 @@ function FollowUpPanel() {
         {/* Add form */}
         {addOpen && (
           <div className="p-3 rounded-xl border border-border bg-muted/30 space-y-2">
+            {/* Client autocomplete */}
+            <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-8 text-xs bg-input border-border font-normal"
+                >
+                  <span className={newName ? "text-foreground" : "text-muted-foreground"}>
+                    {newName || "Search or type a contact name…"}
+                  </span>
+                  <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground ml-1" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Type a name…"
+                    value={clientSearchQuery}
+                    onValueChange={setClientSearchQuery}
+                  />
+                  <CommandList>
+                    {clientSearchQuery.trim() !== "" && (
+                      <CommandGroup heading="Use as free text">
+                        <CommandItem
+                          value="__free_text__"
+                          onSelect={() => {
+                            setNewName(clientSearchQuery);
+                            setNewClientId(undefined);
+                            setClientSearchQuery("");
+                            setClientSearchOpen(false);
+                          }}
+                        >
+                          <Plus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-sm">"{clientSearchQuery}"</span>
+                          <span className="ml-1.5 text-xs text-muted-foreground">(new contact)</span>
+                        </CommandItem>
+                      </CommandGroup>
+                    )}
+                    {allClients.filter((c) =>
+                      clientSearchQuery.trim() === "" ||
+                      c.name.toLowerCase().includes(clientSearchQuery.toLowerCase())
+                    ).length > 0 && (
+                      <CommandGroup heading="Existing clients">
+                        {allClients
+                          .filter((c) =>
+                            clientSearchQuery.trim() === "" ||
+                            c.name.toLowerCase().includes(clientSearchQuery.toLowerCase())
+                          )
+                          .slice(0, 30)
+                          .map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={String(c.id)}
+                              onSelect={() => {
+                                setNewName(c.name);
+                                setNewPhone(c.phone ?? "");
+                                setNewEmail(c.email ?? "");
+                                setNewClientId(c.id);
+                                setClientSearchQuery("");
+                                setClientSearchOpen(false);
+                              }}
+                            >
+                              <Check className={`mr-2 h-3.5 w-3.5 shrink-0 ${newClientId === c.id ? "opacity-100" : "opacity-0"}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{c.name}</p>
+                                {(c.phone || c.email) && (
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {[c.phone, c.email].filter(Boolean).join(" · ")}
+                                  </p>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    )}
+                    {clientSearchQuery.trim() === "" && allClients.length === 0 && (
+                      <CommandEmpty>No clients found.</CommandEmpty>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Phone + Email row */}
             <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} className="h-8 text-xs" />
-              <Input placeholder="Phone (optional)" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="h-8 text-xs" />
+              <Input placeholder="Phone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="h-8 text-xs" />
+              <Input placeholder="Email (optional)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-8 text-xs" />
             </div>
             <Input placeholder="Note" value={newNote} onChange={(e) => setNewNote(e.target.value)} className="h-8 text-xs" />
             <div className="flex items-center gap-2">
@@ -813,7 +908,7 @@ function FollowUpPanel() {
                   <SelectItem value="manual">Manual</SelectItem>
                 </SelectContent>
               </Select>
-              <Button size="sm" className="h-8 text-xs" onClick={() => createFollowUp.mutate({ contactName: newName, phone: newPhone, note: newNote, type: newType })} disabled={!newName.trim() || createFollowUp.isPending}>
+              <Button size="sm" className="h-8 text-xs" onClick={() => createFollowUp.mutate({ contactName: newName, phone: newPhone || undefined, email: newEmail || undefined, clientId: newClientId, note: newNote, type: newType })} disabled={!newName.trim() || createFollowUp.isPending}>
                 Save
               </Button>
               <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAddOpen(false)}>Cancel</Button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,11 @@ import {
 import {
   AlertTriangle,
   Bell,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   Image,
   Link,
   MessageSquare,
@@ -39,6 +41,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -511,15 +515,27 @@ function FollowUpCard({ f, onRefresh }: { f: FollowUp; onRefresh: () => void }) 
 
 function AddFollowUpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const utils = trpc.useUtils();
-  const [form, setForm] = useState({ contactName: "", phone: "", note: "", type: "manual" });
+  const [form, setForm] = useState({ contactName: "", phone: "", email: "", note: "", type: "manual" });
+  const [clientId, setClientId] = useState<number | undefined>(undefined);
+  const [clientSearchOpen, setClientSearchOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
+  const { data: allClients = [] } = trpc.clients.list.useQuery();
+
   const create = trpc.followUps.create.useMutation({
     onSuccess: () => {
       utils.followUps.list.invalidate();
       toast.success("Follow-up added");
-      setForm({ contactName: "", phone: "", note: "", type: "manual" });
+      setForm({ contactName: "", phone: "", email: "", note: "", type: "manual" });
+      setClientId(undefined);
+      setClientSearchQuery("");
       onClose();
     },
   });
+
+  const filteredClients = allClients.filter((c) =>
+    clientSearchQuery.trim() === "" ||
+    c.name.toLowerCase().includes(clientSearchQuery.toLowerCase())
+  );
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -528,16 +544,98 @@ function AddFollowUpDialog({ open, onClose }: { open: boolean; onClose: () => vo
           <DialogTitle>Add Follow-Up</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          <Input
-            placeholder="Contact name"
-            value={form.contactName}
-            onChange={(e) => setForm({ ...form, contactName: e.target.value })}
-          />
-          <Input
-            placeholder="Phone number"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
+          {/* Client autocomplete */}
+          <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between font-normal text-left"
+              >
+                <span className={form.contactName ? "text-foreground" : "text-muted-foreground"}>
+                  {form.contactName || "Search or type a contact name…"}
+                </span>
+                <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[320px] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Type a name…"
+                  value={clientSearchQuery}
+                  onValueChange={setClientSearchQuery}
+                />
+                <CommandList>
+                  {clientSearchQuery.trim() !== "" && (
+                    <CommandGroup heading="Use as free text">
+                      <CommandItem
+                        value="__free_text__"
+                        onSelect={() => {
+                          setForm((f) => ({ ...f, contactName: clientSearchQuery }));
+                          setClientId(undefined);
+                          setClientSearchQuery("");
+                          setClientSearchOpen(false);
+                        }}
+                      >
+                        <span className="text-sm">"{clientSearchQuery}"</span>
+                        <span className="ml-1.5 text-xs text-muted-foreground">(new contact)</span>
+                      </CommandItem>
+                    </CommandGroup>
+                  )}
+                  {filteredClients.length > 0 && (
+                    <CommandGroup heading="Existing clients">
+                      {filteredClients.slice(0, 30).map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={String(c.id)}
+                          onSelect={() => {
+                            setForm((f) => ({
+                              ...f,
+                              contactName: c.name,
+                              phone: c.phone ?? "",
+                              email: c.email ?? "",
+                            }));
+                            setClientId(c.id);
+                            setClientSearchQuery("");
+                            setClientSearchOpen(false);
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${clientId === c.id ? "opacity-100" : "opacity-0"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{c.name}</p>
+                            {(c.phone || c.email) && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {[c.phone, c.email].filter(Boolean).join(" · ")}
+                              </p>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                  {clientSearchQuery.trim() === "" && allClients.length === 0 && (
+                    <CommandEmpty>No clients yet.</CommandEmpty>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Phone + Email */}
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              placeholder="Phone number"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <Input
+              placeholder="Email (optional)"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -556,8 +654,15 @@ function AddFollowUpDialog({ open, onClose }: { open: boolean; onClose: () => vo
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
-            onClick={() => create.mutate({ ...form, type: form.type as "call" | "text" | "manual" })}
-            disabled={create.isPending}
+            onClick={() => create.mutate({
+              contactName: form.contactName || undefined,
+              phone: form.phone || undefined,
+              email: form.email || undefined,
+              clientId,
+              note: form.note || undefined,
+              type: form.type as "call" | "text" | "manual",
+            })}
+            disabled={!form.contactName.trim() || create.isPending}
           >
             Add
           </Button>

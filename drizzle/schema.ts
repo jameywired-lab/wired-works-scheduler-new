@@ -257,6 +257,7 @@ export const followUps = mysqlTable("followUps", {
   // Proposal tracking
   linkedJobId: int("linkedJobId").references(() => jobs.id),
   clientId: int("clientId").references(() => clients.id),
+  email: varchar("email", { length: 320 }),
   proposalStatus: mysqlEnum("proposalStatus", ["none", "pending", "accepted", "declined", "not_ready"]).default("none").notNull(),
   proposalSentAt: bigint("proposalSentAt", { mode: "number" }), // UTC ms — when proposal was sent
   isUrgent: boolean("isUrgent").default(false).notNull(),

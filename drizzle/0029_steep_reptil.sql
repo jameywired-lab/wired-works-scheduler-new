@@ -1,0 +1,1 @@
+ALTER TABLE `followUps` ADD `email` varchar(320);

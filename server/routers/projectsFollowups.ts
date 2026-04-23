@@ -294,6 +294,8 @@ export const followUpsRouter = router({
       z.object({
         contactName: z.string().optional(),
         phone: z.string().optional(),
+        email: z.string().optional(),
+        clientId: z.number().optional(),
         type: z.enum(["call", "text", "manual"]).optional().default("manual"),
         note: z.string().optional(),
         contactedAt: z.number().optional(),
