@@ -986,11 +986,11 @@
 
 ## Completed Visits on Follow-Up Dashboard
 
-- [ ] Backend: dashboard.completedVisits procedure — returns jobAssignments where visitCompletedAt IS NOT NULL, joined with job name, client name, crew member name, visitNotes, visitStartedAt, visitCompletedAt, and first photo (s3Url)
-- [ ] Dashboard: add "Completed Visits" section below or alongside the Follow-Up card
-- [ ] Each completed visit card shows: job name, client name, crew member name, completion time, visit duration, notes preview (first 120 chars), and first photo thumbnail
-- [ ] Tap on a completed visit card to open the full job detail page
-- [ ] Filter: show today's completed visits by default, with a toggle for "This Week" / "All"
+- [x] Backend: dashboard.completedVisits procedure — returns jobAssignments where visitCompletedAt IS NOT NULL, joined with job name, client name, crew member name, visitNotes, visitStartedAt, visitCompletedAt, and first photo (s3Url)
+- [x] Dashboard: add "Completed Visits" section below or alongside the Follow-Up card
+- [x] Each completed visit card shows: job name, client name, crew member name, completion time, visit duration, notes preview (first 120 chars), and first photo thumbnail
+- [x] Tap on a completed visit card to open the full job detail page
+- [x] Filter: show today's completed visits by default, with a toggle for "This Week" / "All"
 
 ## Dashboard Layout Rearrangement + Completed Visits Panel
 
@@ -1008,3 +1008,10 @@
 - [x] Clicking the card opens a modal with all completed jobs this month
 - [x] Each job in the list navigates to /jobs/:id for full edit, notes, photos, credentials
 - [x] Stat card accent color: emerald green
+
+## Dashboard Calendar Section
+
+- [x] Dashboard: add a mini calendar between the stats cards and the Follow-Up / main content section
+- [x] Calendar shows all scheduled jobs for the month with color-coded dots or event chips per day
+- [x] Clicking a day highlights it and shows that day's jobs in the right panel
+- [x] Clicking an event chip navigates to the job detail page

@@ -31,6 +31,8 @@ import {
   Briefcase,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   DollarSign,
   FolderOpen,
@@ -141,6 +143,9 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Dashboard Calendar — between stats and main content */}
+      <DashboardCalendar onNavigateToJob={(jobId) => setLocation(`/jobs/${jobId}`)} />
+
       {/* Main 3-column layout: Follow-Up (big left) + Today's Schedule (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -210,498 +215,432 @@ export default function Dashboard() {
   );
 }
 
+// ─── Dashboard Calendar ───────────────────────────────────────────────────────
+// Status color mapping for job dots
+const JOB_STATUS_COLORS: Record<string, string> = {
+  scheduled: "bg-blue-400",
+  in_progress: "bg-amber-400",
+  completed: "bg-emerald-400",
+  cancelled: "bg-red-400/60",
+};
+
+function DashboardCalendar({ onNavigateToJob }: { onNavigateToJob: (jobId: number) => void }) {
+  const today = useMemo(() => new Date(), []);
+  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Compute month range for query
+  const monthStart = useMemo(() => new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getTime(), [viewDate]);
+  const monthEnd = useMemo(() => new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0, 23, 59, 59, 999).getTime(), [viewDate]);
+
+  const { data: monthJobs = [], isLoading } = trpc.jobs.listByDateRange.useQuery(
+    { startMs: monthStart, endMs: monthEnd } as { startMs: number; endMs: number },
+    { staleTime: 60_000 }
+  );
+
+  // Build a map: "YYYY-MM-DD" -> jobs[]
+  type MonthJob = (typeof monthJobs)[number];
+  const jobsByDay = useMemo(() => {
+    const map: Record<string, MonthJob[]> = {};
+    for (const job of monthJobs) {
+      const key = new Date(job.scheduledStart).toLocaleDateString("en-CA"); // YYYY-MM-DD
+      if (!map[key]) map[key] = [];
+      map[key].push(job);
+    }
+    return map;
+  }, [monthJobs]);
+
+  // Jobs for the selected day (or today if nothing selected)
+  const activeDateKey = selectedDate ?? today.toLocaleDateString("en-CA");
+  const selectedJobs: MonthJob[] = jobsByDay[activeDateKey] ?? [];
+
+  // Calendar grid helpers
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = today.toLocaleDateString("en-CA");
+
+  function prevMonth() {
+    setViewDate(new Date(year, month - 1, 1));
+    setSelectedDate(null);
+  }
+  function nextMonth() {
+    setViewDate(new Date(year, month + 1, 1));
+    setSelectedDate(null);
+  }
+
+  const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  // Build grid cells: leading empty cells + day cells
+  const cells: Array<{ day: number | null; key: string | null }> = [];
+  for (let i = 0; i < firstDayOfMonth; i++) cells.push({ day: null, key: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({ day: d, key });
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* Calendar header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold text-sm">
+            {viewDate.toLocaleString("en-US", { month: "long", year: "numeric" })}
+          </h2>
+          {isLoading && <span className="text-[10px] text-muted-foreground animate-pulse">Loading…</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={prevMonth}
+            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setSelectedDate(null); }}
+            className="text-xs px-2 py-1 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground font-medium"
+          >
+            Today
+          </button>
+          <button
+            onClick={nextMonth}
+            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] divide-y lg:divide-y-0 lg:divide-x divide-border">
+        {/* Month grid */}
+        <div className="p-3">
+          {/* Day-of-week labels */}
+          <div className="grid grid-cols-7 mb-1">
+            {DAY_LABELS.map((d) => (
+              <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">
+                {d}
+              </div>
+            ))}
+          </div>
+          {/* Day cells */}
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((cell, idx) => {
+              if (!cell.day || !cell.key) {
+                return <div key={`empty-${idx}`} className="aspect-square" />;
+              }
+              const dayJobs = jobsByDay[cell.key] ?? [];
+              const isToday = cell.key === todayKey;
+              const isSelected = cell.key === activeDateKey;
+              const hasJobs = dayJobs.length > 0;
+
+              return (
+                <button
+                  key={cell.key}
+                  onClick={() => setSelectedDate(cell.key === activeDateKey ? null : cell.key!)}
+                  className={`
+                    relative flex flex-col items-center justify-start pt-1 pb-1 rounded-lg aspect-square transition-all text-xs font-medium
+                    ${isSelected
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : isToday
+                      ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                      : "hover:bg-accent text-foreground"
+                    }
+                  `}
+                >
+                  <span className="leading-none">{cell.day}</span>
+                  {/* Job dots */}
+                  {hasJobs && (
+                    <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center max-w-full px-0.5">
+                      {dayJobs.slice(0, 3).map((job, i) => (
+                        <span
+                          key={i}
+                          className={`w-1 h-1 rounded-full ${isSelected ? "bg-primary-foreground/70" : JOB_STATUS_COLORS[job.status] ?? "bg-muted-foreground/40"}`}
+                        />
+                      ))}
+                      {dayJobs.length > 3 && (
+                        <span className={`text-[8px] leading-none ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                          +{dayJobs.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-3 mt-3 pt-2 border-t border-border/50 flex-wrap">
+            {[
+              { label: "Scheduled", color: "bg-blue-400" },
+              { label: "In Progress", color: "bg-amber-400" },
+              { label: "Completed", color: "bg-emerald-400" },
+            ].map(({ label, color }) => (
+              <div key={label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span className={`w-2 h-2 rounded-full ${color}`} />
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Day detail panel */}
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">
+              {activeDateKey === todayKey
+                ? "Today"
+                : new Date(activeDateKey + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+            </p>
+            <span className="text-xs text-muted-foreground">
+              {selectedJobs.length} job{selectedJobs.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+            </div>
+          ) : selectedJobs.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
+              <Calendar className="h-8 w-8 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">No jobs scheduled</p>
+            </div>
+          ) : (
+            <div className="space-y-2 overflow-y-auto max-h-64">
+              {selectedJobs.map((job) => (
+                <button
+                  key={job.id}
+                  onClick={() => onNavigateToJob(job.id)}
+                  className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all group"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${JOB_STATUS_COLORS[job.status] ?? "bg-muted-foreground/40"}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate group-hover:text-primary transition-colors">{job.title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {formatTime(job.scheduledStart)} – {formatTime(job.scheduledEnd)}
+                      </p>
+                      {job.address && (
+                        <p className="text-[10px] text-muted-foreground truncate">{job.address}</p>
+                      )}
+                    </div>
+                    <Badge className={`${statusClass(job.status as JobStatus)} text-[9px] shrink-0 rounded-full`}>
+                      {statusLabel(job.status as JobStatus)}
+                    </Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Follow-Up Panel ──────────────────────────────────────────────────────────
 function FollowUpPanel() {
   const utils = trpc.useUtils();
   const [, setLocation] = useLocation();
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newNote, setNewNote] = useState("");
-  const [newType, setNewType] = useState<"call" | "text" | "manual">("manual");
-  const [acceptingId, setAcceptingId] = useState<number | null>(null);
-  const [acceptTitle, setAcceptTitle] = useState("");
-  // SMS reply state
-  const [replyingToId, setReplyingToId] = useState<number | null>(null);
-  const [replyText, setReplyText] = useState("");
-  // Next Steps state
-  const [nextStepsId, setNextStepsId] = useState<number | null>(null);
+  const [newType, setNewType] = useState<"call" | "text" | "manual">("call");
+  const [activeNextSteps, setActiveNextSteps] = useState<number | null>(null);
   const [nextStepsText, setNextStepsText] = useState("");
-  const sendSms = trpc.communications.sendSms.useMutation({
-    onSuccess: () => {
-      toast.success("Message sent");
-      setReplyingToId(null);
-      setReplyText("");
-    },
-    onError: (e) => toast.error(e.message ?? "Failed to send"),
-  });
 
-  // All active (not followed-up) follow-ups
-  const { data: allFollowUps = [], isLoading } = trpc.followUps.list.useQuery();
+  const { data: followUps = [], isLoading: fuLoading } = trpc.followUps.list.useQuery(undefined);
+
+  const toggleFollowUp = trpc.followUps.toggle.useMutation({
+    onMutate: async ({ id, isFollowedUp }) => {
+      await utils.followUps.list.cancel();
+      const prev = utils.followUps.list.getData(undefined);
+      utils.followUps.list.setData(undefined, (old) =>
+        old?.map((f) => f.id === id ? { ...f, isFollowedUp: !isFollowedUp } : f)
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.followUps.list.setData(undefined, ctx.prev);
+    },
+    onSettled: () => utils.followUps.list.invalidate(),
+  });
 
   const createFollowUp = trpc.followUps.create.useMutation({
     onSuccess: () => {
       utils.followUps.list.invalidate();
-      setNewName(""); setNewPhone(""); setNewNote(""); setNewType("manual");
-      setShowAddForm(false);
-      toast.success("Follow-up added");
+      setAddOpen(false);
+      setNewName(""); setNewPhone(""); setNewNote(""); setNewType("call");
     },
-    onError: (e) => toast.error(e.message),
   });
 
-  const completeTask = trpc.followUps.completeTask.useMutation({
-    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Task completed!"); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const sendProposal = trpc.followUps.sendProposal.useMutation({
-    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Proposal marked as sent — follow-up in 24h"); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const resolveProposal = trpc.followUps.resolveProposal.useMutation({
-    onSuccess: (data) => {
-      utils.followUps.list.invalidate();
-      utils.projects.list.invalidate();
-      setAcceptingId(null);
-      setAcceptTitle("");
-      if (data.outcome === "accepted") toast.success("Project created! Client moved to Projects.");
-      else if (data.outcome === "declined") toast.success("Follow-up removed — client declined.");
-      else toast.success("Follow-up updated — client not ready yet.");
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const deleteFollowUp = trpc.followUps.delete.useMutation({
-    onSuccess: () => utils.followUps.list.invalidate(),
-  });
-
-  const markUrgent = trpc.followUps.markUrgent.useMutation({
-    onSuccess: () => utils.followUps.list.invalidate(),
-  });
   const saveNextSteps = trpc.followUps.saveNextSteps.useMutation({
-    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Next steps saved"); setNextStepsId(null); setNextStepsText(""); },
-    onError: (e) => toast.error(e.message),
+    onSuccess: () => {
+      utils.followUps.list.invalidate();
+      setActiveNextSteps(null);
+      setNextStepsText("");
+      toast.success("Next steps saved");
+    },
   });
-  const remindThisAfternoon = trpc.followUps.remindThisAfternoon.useMutation({
-    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Reminder set for 4 PM today"); setNextStepsId(null); setNextStepsText(""); },
-    onError: (e) => toast.error(e.message),
+
+  const remindAfternoon = trpc.followUps.remindThisAfternoon.useMutation({
+    onSuccess: () => { toast.success("Reminder set for 4 PM"); setActiveNextSteps(null); },
   });
   const remindTomorrow = trpc.followUps.remindTomorrow.useMutation({
-    onSuccess: () => { utils.followUps.list.invalidate(); toast.success("Reminder set for tomorrow"); setNextStepsId(null); setNextStepsText(""); },
-    onError: (e) => toast.error(e.message),
+    onSuccess: () => { toast.success("Reminder set for tomorrow morning"); setActiveNextSteps(null); },
   });
 
-  const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
-
-  const now2 = Date.now();
-  const pending = allFollowUps
-    .filter((f) => !f.isFollowedUp && (!(f as any).remindAt || (f as any).remindAt <= now2))
-    .sort((a, b) => {
-      if ((a as any).clientContacted && !(b as any).clientContacted) return -1;
-      if (!(a as any).clientContacted && (b as any).clientContacted) return 1;
-      if (a.isUrgent && !b.isUrgent) return -1;
-      if (!a.isUrgent && b.isUrgent) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  const done = allFollowUps.filter((f) => f.isFollowedUp);
-
-  // Auto-mark urgent if proposal sent > 24h ago (in effect to avoid render-phase side-effects)
-  useEffect(() => {
-    const now = Date.now();
-    pending.forEach((f) => {
-      if (
-        f.type === "proposal" &&
-        f.proposalStatus === "pending" &&
-        f.proposalSentAt &&
-        now - f.proposalSentAt > TWENTY_FOUR_H &&
-        !f.isUrgent
-      ) {
-        markUrgent.mutate({ id: f.id });
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFollowUps]);
-
-  const TYPE_ICON: Record<string, React.ReactNode> = {
-    call: <Phone className="h-3 w-3 text-blue-400" />,
-    text: <MessageSquare className="h-3 w-3 text-emerald-400" />,
-    manual: <Zap className="h-3 w-3 text-amber-400" />,
-    closeout: <CheckCircle2 className="h-3 w-3 text-emerald-400" />,
-    proposal: <Briefcase className="h-3 w-3 text-violet-400" />,
-  };
-  const TYPE_LABEL: Record<string, string> = {
-    call: "Missed Call / Voicemail",
-    text: "Inbound Text",
-    manual: "Follow-Up",
-    closeout: "Close-Out",
-    proposal: "Proposal",
-  };
-
-  const urgentCount = pending.filter((f) => f.isUrgent).length;
+  const pending = followUps.filter((f) => !f.isFollowedUp);
+  const done = followUps.filter((f) => f.isFollowedUp);
 
   return (
-    <Card className="bg-card border-l-[3px] border-l-amber-500 border-border">
+    <Card className="border border-border bg-card">
       <CardHeader className="pb-3 pt-4 px-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Phone className="h-4 w-4 text-amber-400" />
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <span>🤙</span>
             Follow-Up
             {pending.length > 0 && (
-              <Badge className="bg-amber-500/20 text-amber-400 text-[10px] h-4 px-1.5">{pending.length}</Badge>
-            )}
-            {urgentCount > 0 && (
-              <Badge className="bg-destructive/20 text-destructive text-[10px] h-4 px-1.5 flex items-center gap-0.5">
-                <AlertTriangle className="h-2.5 w-2.5" />{urgentCount} urgent
+              <Badge className="bg-amber-500/15 text-amber-500 text-[10px] h-5 px-1.5 rounded-full font-semibold">
+                {pending.length}
               </Badge>
             )}
           </CardTitle>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground hover:text-foreground px-2" onClick={() => setLocation("/follow-ups")}>
-              View All
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/follow-ups")} className="text-xs text-muted-foreground h-7 px-2">
+              View All <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground hover:text-foreground px-2" onClick={() => setShowAddForm(!showAddForm)}>
-              <Plus className="h-3 w-3 mr-1" /> Add
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAddOpen(true)}>
+              <Plus className="h-3 w-3" /> Add
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-3">
-        {/* Quick add form */}
-        {showAddForm && (
-          <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
+        {/* Add form */}
+        {addOpen && (
+          <div className="p-3 rounded-xl border border-border bg-muted/30 space-y-2">
             <div className="grid grid-cols-2 gap-2">
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" className="h-7 text-xs" />
-              <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="Phone" className="h-7 text-xs" />
+              <Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} className="h-8 text-xs" />
+              <Input placeholder="Phone (optional)" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="h-8 text-xs" />
             </div>
-            <Select value={newType} onValueChange={(v) => setNewType(v as any)}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="call">Incoming Call</SelectItem>
-                <SelectItem value="text">Incoming Text</SelectItem>
-                <SelectItem value="manual">Manual Note</SelectItem>
-              </SelectContent>
-            </Select>
-            <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Note..." rows={2} className="text-xs resize-none" />
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowAddForm(false)}>Cancel</Button>
-              <Button size="sm" className="h-6 text-xs" onClick={() => createFollowUp.mutate({ contactName: newName || undefined, phone: newPhone || undefined, note: newNote || undefined, type: newType, contactedAt: Date.now() })} disabled={createFollowUp.isPending}>
+            <Input placeholder="Note" value={newNote} onChange={(e) => setNewNote(e.target.value)} className="h-8 text-xs" />
+            <div className="flex items-center gap-2">
+              <Select value={newType} onValueChange={(v) => setNewType(v as "call" | "text" | "manual")}>
+                <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">Call</SelectItem>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="h-8 text-xs" onClick={() => createFollowUp.mutate({ contactName: newName, phone: newPhone, note: newNote, type: newType })} disabled={!newName.trim() || createFollowUp.isPending}>
                 Save
               </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAddOpen(false)}>Cancel</Button>
             </div>
           </div>
         )}
 
-        {/* Accept project dialog */}
-        {acceptingId !== null && (
-          <div className="border border-emerald-500/30 rounded-lg p-3 space-y-2 bg-emerald-500/5">
-            <p className="text-xs font-semibold text-emerald-400">Create Project for Accepted Client</p>
-            <Input
-              value={acceptTitle}
-              onChange={(e) => setAcceptTitle(e.target.value)}
-              placeholder="Project title…"
-              className="h-7 text-xs"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setAcceptingId(null); setAcceptTitle(""); }}>Cancel</Button>
-              <Button
-                size="sm"
-                className="h-6 text-xs bg-emerald-600 hover:bg-emerald-700"
-                disabled={!acceptTitle.trim() || resolveProposal.isPending}
-                onClick={() => resolveProposal.mutate({
-                  id: acceptingId,
-                  outcome: "accepted",
-                  projectTitle: acceptTitle.trim(),
-                  projectClientId: allFollowUps.find((f) => f.id === acceptingId)?.clientId ?? undefined,
-                })}
-              >
-                Create Project
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="space-y-2">{[1,2].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
-        ) : pending.length === 0 && done.length === 0 ? (
-          <div className="text-center py-4">
-            <p className="text-xs text-muted-foreground">No follow-ups</p>
-          </div>
+        {fuLoading ? (
+          <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
+        ) : followUps.length === 0 ? (
+          <EmptyState icon={<CheckCircle2 className="h-8 w-8 text-muted-foreground/40" />} title="All clear for today" description="No follow-ups pending. Add one or check the Follow-Ups page." />
         ) : (
           <div className="space-y-2">
-            {/* Pending follow-ups — urgent first */}
-            {[...pending].sort((a, b) => (b.isUrgent ? 1 : 0) - (a.isUrgent ? 1 : 0)).map((f) => {
-              const isUrgent = f.isUrgent;
-              const isProposal = f.type === "proposal";
-              const proposalPending = isProposal && f.proposalStatus === "pending";
-              const proposalUnsent = isProposal && (f.proposalStatus === "none" || f.proposalStatus === "not_ready");
-
+            {pending.map((f) => {
+              const isNextStepsOpen = activeNextSteps === f.id;
               return (
-                <div
-                  key={f.id}
-                  className={`rounded-lg border p-3 transition-all group ${
-                    isUrgent
-                      ? "border-destructive/50 bg-white ring-1 ring-destructive/20"
-                      : isProposal
-                      ? "border-violet-500/30 bg-white"
-                      : f.type === "call"
-                      ? "border-blue-500/40 bg-white"
-                      : f.type === "text"
-                      ? "border-emerald-500/30 bg-white"
-                      : "border-border bg-white"
-                  }`}
-                >
-                  {/* Header row */}
-                  <div className="flex items-start gap-2">
+                <div key={f.id} className="rounded-xl border border-border bg-background/50 p-3 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={f.isFollowedUp}
+                      onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: f.isFollowedUp })}
+                      className="mt-0.5 shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {isUrgent && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
-                        <span className={`text-xs font-semibold truncate ${isUrgent ? "text-destructive" : "text-gray-900"}`}>
-                          {f.contactName || "Unknown"}
-                        </span>
-                        {TYPE_ICON[f.type]}
-                        <span className="text-[10px] font-medium text-gray-500">{TYPE_LABEL[f.type] ?? f.type}</span>
-                        {f.phone && <span className="text-[10px] text-gray-500">{f.phone}</span>}
-                        {isUrgent && (
-                          <Badge className="bg-destructive/15 text-destructive text-[10px] h-4 px-1.5">URGENT</Badge>
-                        )}
-                        {proposalPending && (
-                          <Badge className="bg-violet-500/15 text-violet-400 text-[10px] h-4 px-1.5">Proposal Sent</Badge>
-                        )}
-                        {/* Message count badge */}
-                        {f.type === "text" && (f as any).messageCount > 1 && (
-                          <span className="inline-flex items-center gap-0.5 bg-teal-100 text-teal-700 border border-teal-300 rounded-full px-1.5 py-0.5 text-[9px] font-semibold">
-                            {(f as any).messageCount} msgs
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{f.contactName}</span>
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{f.type === "closeout" ? "Close-Out" : f.type}</Badge>
+                        {f.phone && <span className="text-xs text-muted-foreground">{f.phone}</span>}
+                        {f.createdAt && (
+                          <span className="text-[10px] text-muted-foreground/60 ml-auto">
+                            {new Date(f.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                           </span>
                         )}
                       </div>
-                      {/* Grouped messages or single note */}
-                      {f.type === "text" && (f as any).messages ? (
-                        <div className="mt-1.5 space-y-1 bg-gray-50 border border-gray-200 rounded p-1.5">
-                          {(() => {
-                            try {
-                              const msgs: { body: string; receivedAt: number }[] = JSON.parse((f as any).messages);
-                              return msgs.slice(-2).map((m, i) => (
-                                <p key={i} className="text-xs text-gray-800 leading-snug">
-                                  <span className="text-gray-400 text-[10px] mr-1">
-                                    {new Date(m.receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:
-                                  </span>
-                                  {m.body}
-                                </p>
-                              ));
-                            } catch { return null; }
-                          })()}
-                        </div>
-                      ) : f.note ? (
-                        <p className={`text-xs mt-1 line-clamp-2 leading-snug ${
-                          isUrgent ? "text-destructive/80" : "text-gray-700"
-                        }`}>{f.note.replace(/^(?:📱 Inbound SMS(?:\s*\(\d+ messages\))?:|📞 (?:Missed call|Voicemail received):?)\s*/, "")}</p>
-                      ) : null}
-                      {/* Timestamp */}
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        {f.contactedAt
-                          ? new Date(f.contactedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-                          : new Date(f.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </p>
+                      {f.note && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{f.note}</p>}
                     </div>
                     <button
-                      onClick={() => deleteFollowUp.mutate({ id: f.id })}
-                      className="text-gray-400 hover:text-gray-700 transition-colors text-xs shrink-0 mt-0.5 p-0.5 rounded hover:bg-gray-100"
-                      title="Delete"
+                      onClick={() => {
+                        if (isNextStepsOpen) { setActiveNextSteps(null); setNextStepsText(""); }
+                        else { setActiveNextSteps(f.id); setNextStepsText((f as any).nextStepsNote ?? ""); }
+
+                      }}
+                      className="shrink-0 text-[10px] text-amber-500 hover:text-amber-400 font-medium border border-amber-500/30 rounded px-1.5 py-0.5 transition-colors"
                     >
-                      ✕
+                      ✏️ Next Steps
                     </button>
                   </div>
-
                   {/* Next Steps panel */}
-                  {nextStepsId === f.id && (
-                    <div className="mt-2 border border-amber-400/40 rounded-md p-3 bg-amber-50/60 space-y-2">
-                      <p className="text-[10px] font-semibold text-amber-700">📝 Next Steps</p>
-                      <textarea
-                        className="w-full min-h-[60px] text-xs bg-white border border-gray-300 rounded p-2 text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500"
-                        placeholder="What needs to happen next?"
+                  {isNextStepsOpen && (
+                    <div className="ml-7 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-2">
+                      <Textarea
+                        placeholder="What are the next steps for this follow-up?"
                         value={nextStepsText}
                         onChange={(e) => setNextStepsText(e.target.value)}
-                        autoFocus
+                        className="text-xs min-h-[60px] resize-none bg-background/80"
                       />
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button
-                          size="sm"
-                          className="h-6 text-[10px] px-2 bg-amber-500 hover:bg-amber-600 text-white"
-                          disabled={saveNextSteps.isPending}
-                          onClick={() => saveNextSteps.mutate({ id: f.id, nextStepsNote: nextStepsText })}
-                        >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button size="sm" className="h-7 text-xs" onClick={() => saveNextSteps.mutate({ id: f.id, nextStepsNote: nextStepsText })} disabled={saveNextSteps.isPending}>
                           Save Note
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-2 border-amber-400 text-amber-700 hover:bg-amber-50"
-                          disabled={remindThisAfternoon.isPending}
-                          onClick={() => remindThisAfternoon.mutate({ id: f.id })}
-                        >
-                          ⏰ Remind me this afternoon (4 PM)
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => remindAfternoon.mutate({ id: f.id })} disabled={remindAfternoon.isPending}>
+                          ⏰ Remind me this afternoon
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-2 border-blue-400 text-blue-700 hover:bg-blue-50"
-                          disabled={remindTomorrow.isPending}
-                          onClick={() => remindTomorrow.mutate({ id: f.id })}
-                        >
-                          📅 Remind me tomorrow
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 text-[10px] px-2 text-muted-foreground"
-                          onClick={() => { setNextStepsId(null); setNextStepsText(""); }}
-                        >
-                          Cancel
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => remindTomorrow.mutate({ id: f.id })} disabled={remindTomorrow.isPending}>
+                          🌅 Remind me tomorrow
                         </Button>
                       </div>
-                      {(f as any).nextStepsNote && nextStepsText !== (f as any).nextStepsNote && (
-                        <p className="text-[10px] text-amber-800 bg-amber-100 rounded px-2 py-1">
-                          📌 Saved: {(f as any).nextStepsNote}
-                        </p>
-                      )}
                     </div>
                   )}
                   {/* Action buttons */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {/* Next Steps button */}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className={`h-6 text-[10px] px-2 ${
-                        nextStepsId === f.id
-                          ? "border-amber-400 bg-amber-50 text-amber-700"
-                          : (f as any).nextStepsNote
-                          ? "border-amber-400/60 text-amber-600"
-                          : "border-border text-muted-foreground"
-                      }`}
-                      onClick={() => {
-                        if (nextStepsId === f.id) { setNextStepsId(null); setNextStepsText(""); }
-                        else { setNextStepsId(f.id); setNextStepsText((f as any).nextStepsNote ?? ""); }
-                      }}
-                    >
-                      📝 {nextStepsId === f.id ? "Close" : (f as any).nextStepsNote ? "Edit Next Steps" : "Next Steps"}
-                    </Button>
-                    {/* Reply via Text — prominent for SMS/phone follow-ups */}
+                  <div className="ml-7 flex items-center gap-2 flex-wrap">
                     {f.phone && (
-                      <Button
-                        size="sm"
-                        className={replyingToId === f.id
-                          ? "h-6 text-[10px] px-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300"
-                          : "h-6 text-[10px] px-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold"
-                        }
-                        onClick={() => {
-                          if (replyingToId === f.id) { setReplyingToId(null); setReplyText(""); }
-                          else { setReplyingToId(f.id); setReplyText(""); }
-                        }}
-                      >
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        {replyingToId === f.id ? "Cancel" : "Reply via Text"}
-                      </Button>
-                    )}
-                    {/* Complete Task — always available */}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[10px] px-2"
-                      disabled={completeTask.isPending}
-                      onClick={() => completeTask.mutate({ id: f.id })}
-                    >
-                      <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-400" />
-                      Complete Task
-                    </Button>
-
-                    {/* Proposal: unsent → show Send Proposal button */}
-                    {proposalUnsent && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-[10px] px-2 border-violet-500/40 text-violet-400 hover:bg-violet-500/10"
-                        disabled={sendProposal.isPending}
-                        onClick={() => sendProposal.mutate({ id: f.id })}
-                      >
-                        <Briefcase className="h-3 w-3 mr-1" />
-                        Proposal Sent — Follow Up in 24h
-                      </Button>
-                    )}
-
-                    {/* Proposal: pending → show outcome buttons */}
-                    {proposalPending && (
                       <>
-                        <Button
-                          size="sm"
-                          className="h-6 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          disabled={resolveProposal.isPending}
-                          onClick={() => setAcceptingId(f.id)}
-                        >
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Client Accepted
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-2 border-destructive/40 text-destructive hover:bg-destructive/10"
-                          disabled={resolveProposal.isPending}
-                          onClick={() => resolveProposal.mutate({ id: f.id, outcome: "declined" })}
-                        >
-                          Client Declined
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-2"
-                          disabled={resolveProposal.isPending}
-                          onClick={() => resolveProposal.mutate({ id: f.id, outcome: "not_ready" })}
-                        >
-                          Not Ready Yet
-                        </Button>
+                        {(f.type === "call" || f.type === "closeout") && (
+                          <a href={`tel:${f.phone}`} className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 border border-blue-400/30 rounded px-2 py-0.5 transition-colors">
+                            <Phone className="h-2.5 w-2.5" /> Call
+                          </a>
+                        )}
+                        {(f.type === "text" || f.type === "closeout") && (
+                          <a href={`sms:${f.phone}`} className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 border border-emerald-400/30 rounded px-2 py-0.5 transition-colors">
+                            <MessageSquare className="h-2.5 w-2.5" /> Reply via Text
+                          </a>
+                        )}
                       </>
                     )}
-                  </div>
-
-                  {/* Inline SMS reply composer */}
-                  {replyingToId === f.id && f.phone && (
-                    <div className="mt-2 border border-teal-600/30 rounded-md p-2 bg-white space-y-2">
-                      <p className="text-[10px] text-teal-700 font-medium">Reply to {f.contactName || f.phone}</p>
-                      <textarea
-                        className="w-full min-h-[60px] text-xs bg-white border border-gray-300 rounded p-2 text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        placeholder="Type your message…"
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && replyText.trim()) {
-                            sendSms.mutate({ to: f.phone!, body: replyText.trim(), clientId: f.clientId ?? undefined });
-                          }
-                        }}
-                      />
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-muted-foreground">Cmd+Enter to send</span>
-                        <Button
-                          size="sm"
-                          className="h-6 text-[10px] px-3 bg-teal-600 hover:bg-teal-500 text-white"
-                          disabled={!replyText.trim() || sendSms.isPending}
-                          onClick={() => sendSms.mutate({ to: f.phone!, body: replyText.trim(), clientId: f.clientId ?? undefined })}
-                        >
-                          {sendSms.isPending ? "Sending…" : "Send"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* View client link */}
-                  {f.clientId && (
                     <button
-                      className="mt-1.5 text-[10px] text-muted-foreground hover:text-teal-400 transition-colors flex items-center gap-1"
-                      onClick={() => setLocation(`/clients/${f.clientId}`)}
+                      onClick={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: f.isFollowedUp })}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
                     >
-                      <ArrowRight className="h-2.5 w-2.5" /> View client details
+                      <CheckCircle2 className="h-2.5 w-2.5" /> Complete Task
                     </button>
-                  )}
+                    {f.clientId && (
+                      <button
+                        onClick={() => setLocation(`/clients/${f.clientId}`)}
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ArrowRight className="h-2.5 w-2.5" /> View client details
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -948,7 +887,6 @@ function CompletedVisitsPanel() {
   const [, setLocation] = useLocation();
   const [filter, setFilter] = useState<"today" | "week" | "all">("today");
   const { data: visits = [], isLoading } = trpc.dashboard.completedVisits.useQuery({ filter });
-
   function formatDuration(startMs: number | null, endMs: number | null): string {
     if (!startMs || !endMs) return "";
     const diffMs = endMs - startMs;
@@ -958,7 +896,6 @@ function CompletedVisitsPanel() {
     const m = mins % 60;
     return m > 0 ? `${h}h ${m}m onsite` : `${h}h onsite`;
   }
-
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -985,7 +922,6 @@ function CompletedVisitsPanel() {
           ))}
         </div>
       </div>
-
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
