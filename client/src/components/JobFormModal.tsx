@@ -21,8 +21,10 @@ import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import {
   Briefcase,
+  Check,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   ExternalLink,
   KeyRound,
   Loader2,
@@ -32,6 +34,8 @@ import {
   UserPlus,
   Wrench,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useEffect, useState } from "react";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { toast } from "sonner";
@@ -151,6 +155,10 @@ export default function JobFormModal({
       }));
     }
   };
+
+  // Client autocomplete state
+  const [clientSearchOpen, setClientSearchOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
 
   // Inline new-client form state
   const [showNewClient, setShowNewClient] = useState(false);
@@ -391,42 +399,78 @@ export default function JobFormModal({
           <div className="space-y-1.5">
             <Label>Client *</Label>
             <div className="flex gap-2">
-              <Select
-                value={form.clientId}
-                onValueChange={(v) => {
-                  // Immediately populate address from the client's stored address
-                  const selectedClient = clients?.find((c) => String(c.id) === v);
-                  const clientAddr = selectedClient
-                    ? [
-                        selectedClient.addressLine1,
-                        selectedClient.addressLine2,
-                        selectedClient.city,
-                        selectedClient.state,
-                        selectedClient.zip,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")
-                    : "";
-                  setForm((f) => ({
-                    ...f,
-                    clientId: v,
-                    selectedAddressId: "custom",
-                    address: clientAddr || f.address,
-                  }));
-                  setShowNewClient(false);
-                }}
-              >
-                <SelectTrigger className="bg-input border-border flex-1">
-                  <SelectValue placeholder="Select a client…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientSearchOpen}
+                    className="flex-1 justify-between bg-input border-border font-normal text-left h-9 px-3"
+                  >
+                    <span className={form.clientId ? "text-foreground" : "text-muted-foreground"}>
+                      {form.clientId
+                        ? (clients?.find((c) => String(c.id) === form.clientId)?.name ?? "Select a client…")
+                        : "Search clients…"}
+                    </span>
+                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[340px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Type a name to search…"
+                      value={clientSearchQuery}
+                      onValueChange={setClientSearchQuery}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No clients found.</CommandEmpty>
+                      <CommandGroup>
+                        {(clients ?? [])
+                          .filter((c) =>
+                            clientSearchQuery.trim() === "" ||
+                            c.name.toLowerCase().includes(clientSearchQuery.toLowerCase())
+                          )
+                          .slice(0, 50)
+                          .map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={String(c.id)}
+                              onSelect={() => {
+                                const clientAddr = [
+                                  c.addressLine1, c.addressLine2, c.city, c.state, c.zip,
+                                ].filter(Boolean).join(", ");
+                                setForm((f) => ({
+                                  ...f,
+                                  clientId: String(c.id),
+                                  selectedAddressId: "custom",
+                                  address: clientAddr || f.address,
+                                }));
+                                setShowNewClient(false);
+                                setClientSearchQuery("");
+                                setClientSearchOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-3.5 w-3.5 shrink-0 ${
+                                  form.clientId === String(c.id) ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{c.name}</p>
+                                {(c.phone || c.addressLine1) && (
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {[c.phone, c.addressLine1].filter(Boolean).join(" · ")}
+                                  </p>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Button
                 type="button"
                 variant="outline"

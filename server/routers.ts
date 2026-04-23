@@ -465,6 +465,10 @@ const jobsRouter = router({
         crewMemberIds: z.array(z.number()).optional(),
         sendReviewSms: z.boolean().optional(),
         syncToGoogleCalendar: z.boolean().optional().default(false),
+        invoicedAt: z.number().nullable().optional(),
+        paidAt: z.number().nullable().optional(),
+        invoiceAmount: z.number().nullable().optional(),
+        invoiceNotes: z.string().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -677,6 +681,27 @@ Your role: Give concise, actionable advice. When asked about scheduling, suggest
     .input(z.object({ filter: z.enum(["today", "week", "all"]).optional() }).optional())
     .query(async ({ input }) => getCompletedVisits(input?.filter ?? "today")),
   completedJobsThisMonth: p.query(async () => listCompletedJobsThisMonth()),
+
+  getBillingStats: p.query(async () => {
+    const jobs = await listCompletedJobsThisMonth();
+    const invoiced = jobs.filter((j: any) => j.invoicedAt != null);
+    const paid = jobs.filter((j: any) => j.paidAt != null);
+    const unpaid = invoiced.filter((j: any) => j.paidAt == null);
+    return {
+      completedCount: jobs.length,
+      invoicedCount: invoiced.length,
+      paidCount: paid.length,
+      unpaidCount: unpaid.length,
+      unpaidJobs: unpaid.map((j: any) => ({
+        id: j.id,
+        title: j.title,
+        clientName: j.clientName ?? "",
+        invoicedAt: j.invoicedAt,
+        invoiceAmount: j.invoiceAmount,
+        daysOutstanding: j.invoicedAt ? Math.floor((Date.now() - j.invoicedAt) / 86400000) : 0,
+      })),
+    };
+  }),
 });
 
 // ─── Google Calendar Router ───────────────────────────────────────────────────

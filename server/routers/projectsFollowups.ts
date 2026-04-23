@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { invokeLLM } from "../_core/llm";
 import { z } from "zod";
 import {
   closeJob,
@@ -525,5 +526,31 @@ export const followUpsRouter = router({
       const now = Date.now();
       const all = await listFollowUps({});
       return all.filter((f) => f.remindAt && f.remindAt <= now && !f.isFollowedUp);
+    }),
+
+  // ── AI rewrite SMS draft ─────────────────────────────────────────────────────
+  rewriteMessage: p
+    .input(z.object({
+      draft: z.string().min(1).max(2000),
+      contactName: z.string().optional(),
+      context: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const systemPrompt = `You are a professional business communication assistant for a field service company called Wired Works. 
+Rewrite the user's draft SMS message to be clear, professional, and friendly — fix grammar, spelling, and awkward phrasing. 
+Keep it concise (SMS-appropriate). Return ONLY the rewritten message text, no explanation or quotes.`;
+
+      const userPrompt = `Contact: ${input.contactName ?? "client"}
+${input.context ? `Context: ${input.context}\n` : ""}Draft message: ${input.draft}`;
+
+      const result = await invokeLLM({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+
+      const rewritten = (result as any)?.choices?.[0]?.message?.content ?? input.draft;
+      return { rewritten: rewritten.trim() };
     }),
 });

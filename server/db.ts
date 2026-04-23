@@ -673,8 +673,24 @@ export async function listCompletedJobsThisMonth() {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   return db
-    .select()
+    .select({
+      id: jobs.id,
+      title: jobs.title,
+      status: jobs.status,
+      scheduledStart: jobs.scheduledStart,
+      scheduledEnd: jobs.scheduledEnd,
+      address: jobs.address,
+      jobType: jobs.jobType,
+      closedAt: jobs.closedAt,
+      invoicedAt: jobs.invoicedAt,
+      paidAt: jobs.paidAt,
+      invoiceAmount: jobs.invoiceAmount,
+      invoiceNotes: jobs.invoiceNotes,
+      clientId: jobs.clientId,
+      clientName: clients.name,
+    })
     .from(jobs)
+    .leftJoin(clients, eq(jobs.clientId, clients.id))
     .where(and(
       eq(jobs.status, "completed"),
       gte(jobs.scheduledStart, monthStart.getTime()),

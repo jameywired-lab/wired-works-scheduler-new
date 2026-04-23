@@ -94,6 +94,11 @@ export const jobs = mysqlTable("jobs", {
     "bill_service_call",
   ]),
   closedAt: bigint("closedAt", { mode: "number" }), // UTC ms
+  // Billing fields
+  invoicedAt: bigint("invoicedAt", { mode: "number" }), // UTC ms — when invoice was sent
+  paidAt: bigint("paidAt", { mode: "number" }),         // UTC ms — when payment was received
+  invoiceAmount: int("invoiceAmount"),                   // cents (e.g. 15000 = $150.00)
+  invoiceNotes: text("invoiceNotes"),
   // SMS tracking
   bookingSmsSent: boolean("bookingSmsSent").default(false).notNull(),
   reminderSmsSent: boolean("reminderSmsSent").default(false).notNull(),

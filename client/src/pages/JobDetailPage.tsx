@@ -22,6 +22,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  DollarSign,
   Edit2,
   FileText,
   Image,
@@ -33,6 +34,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  Receipt,
   Send,
   Star,
   Trash2,
@@ -69,6 +71,18 @@ export default function JobDetailPage() {
   const [annotatingPhoto, setAnnotatingPhoto] = useState<{ id: number; s3Url: string; annotatedS3Url?: string | null; filename?: string | null } | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [invoiceNotes, setInvoiceNotes] = useState("");
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+
+  const markInvoiced = trpc.jobs.update.useMutation({
+    onSuccess: () => { utils.jobs.getById.invalidate({ id: jobId }); toast.success("Marked as invoiced!"); setShowInvoiceForm(false); },
+    onError: () => toast.error("Failed to update invoice status."),
+  });
+  const markPaid = trpc.jobs.update.useMutation({
+    onSuccess: () => { utils.jobs.getById.invalidate({ id: jobId }); toast.success("Marked as paid!"); },
+    onError: () => toast.error("Failed to update payment status."),
+  });
   const docInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -365,6 +379,139 @@ export default function JobDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Billing & Invoicing */}
+      {job.status === "completed" && (
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-primary" /> Billing & Invoicing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-4">
+            {/* Status badges */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {job.invoicedAt ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <Receipt className="h-3.5 w-3.5 text-blue-400" />
+                  <span className="text-xs font-medium text-blue-400">Invoiced {new Date(job.invoicedAt).toLocaleDateString()}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <Receipt className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-xs font-medium text-amber-400">Not Yet Invoiced</span>
+                </div>
+              )}
+              {job.paidAt ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-400">Paid {new Date(job.paidAt).toLocaleDateString()}</span>
+                </div>
+              ) : job.invoicedAt ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <DollarSign className="h-3.5 w-3.5 text-red-400" />
+                  <span className="text-xs font-medium text-red-400">Payment Outstanding</span>
+                </div>
+              ) : null}
+              {job.invoiceAmount != null && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted border border-border">
+                  <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">${(job.invoiceAmount / 100).toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Invoice notes */}
+            {job.invoiceNotes && (
+              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">{job.invoiceNotes}</p>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {!job.invoicedAt && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowInvoiceForm(!showInvoiceForm)}
+                  className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10"
+                >
+                  <Receipt className="h-3.5 w-3.5 mr-1.5" /> Mark as Invoiced
+                </Button>
+              )}
+              {job.invoicedAt && !job.paidAt && (
+                <Button
+                  size="sm"
+                  onClick={() => markPaid.mutate({ id: jobId, paidAt: Date.now() })}
+                  disabled={markPaid.isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {markPaid.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <DollarSign className="h-3.5 w-3.5 mr-1.5" />}
+                  Mark as Paid
+                </Button>
+              )}
+              {job.invoicedAt && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => markInvoiced.mutate({ id: jobId, invoicedAt: null, paidAt: null })}
+                  disabled={markInvoiced.isPending}
+                  className="text-muted-foreground hover:text-foreground text-xs"
+                >
+                  Reset Invoice Status
+                </Button>
+              )}
+            </div>
+
+            {/* Invoice form */}
+            {showInvoiceForm && !job.invoicedAt && (
+              <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Invoice Amount (optional)</Label>
+                  <div className="relative mt-1">
+                    <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={invoiceAmount}
+                      onChange={(e) => setInvoiceAmount(e.target.value)}
+                      className="pl-7 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Invoice Notes (optional)</Label>
+                  <Textarea
+                    placeholder="e.g. Invoice #1042 sent via email..."
+                    value={invoiceNotes}
+                    onChange={(e) => setInvoiceNotes(e.target.value)}
+                    className="mt-1 text-sm min-h-[60px] resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => markInvoiced.mutate({
+                      id: jobId,
+                      invoicedAt: Date.now(),
+                      invoiceAmount: invoiceAmount ? Math.round(parseFloat(invoiceAmount) * 100) : undefined,
+                      invoiceNotes: invoiceNotes || undefined,
+                    })}
+                    disabled={markInvoiced.isPending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {markInvoiced.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Receipt className="h-3.5 w-3.5 mr-1.5" />}
+                    Confirm Invoice Sent
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowInvoiceForm(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Owner instructions */}
       {job.ownerInstructions && (

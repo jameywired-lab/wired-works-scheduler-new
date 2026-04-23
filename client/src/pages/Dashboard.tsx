@@ -58,6 +58,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [showJobForm, setShowJobForm] = useState(false);
+  const [newJobDate, setNewJobDate] = useState<Date | undefined>(undefined);
   const [showCompletedJobs, setShowCompletedJobs] = useState(false);
   const { data, isLoading } = trpc.dashboard.getData.useQuery();
   const utils = trpc.useUtils();
@@ -148,7 +149,10 @@ export default function Dashboard() {
       </div>
 
       {/* Dashboard Calendar — between stats and main content */}
-      <DashboardCalendar onNavigateToJob={(jobId) => setLocation(`/jobs/${jobId}`)} />
+      <DashboardCalendar
+        onNavigateToJob={(jobId) => setLocation(`/jobs/${jobId}`)}
+        onScheduleNew={(date) => { setNewJobDate(date); setShowJobForm(true); }}
+      />
 
       {/* Main 3-column layout: Follow-Up (big left) + Today's Schedule (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -172,8 +176,9 @@ export default function Dashboard() {
       {showJobForm && (
         <JobFormModal
           open={showJobForm}
-          onClose={() => setShowJobForm(false)}
-          onSuccess={() => { setShowJobForm(false); utils.dashboard.getData.invalidate(); }}
+          onClose={() => { setShowJobForm(false); setNewJobDate(undefined); }}
+          onSuccess={() => { setShowJobForm(false); setNewJobDate(undefined); utils.dashboard.getData.invalidate(); }}
+          initialDate={newJobDate}
         />
       )}
       <CompletedJobsModal open={showCompletedJobs} onClose={() => setShowCompletedJobs(false)} />
@@ -190,9 +195,16 @@ const JOB_STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-400/60",
 };
 
-function DashboardCalendar({ onNavigateToJob }: { onNavigateToJob: (jobId: number) => void }) {
+const HOUR_HEIGHT = 64; // px per hour in week view
+const GRID_START_HOUR = 6; // 6am
+const GRID_END_HOUR = 21; // 9pm (15 hours)
+
+function DashboardCalendar({ onNavigateToJob, onScheduleNew }: {
+  onNavigateToJob: (jobId: number) => void;
+  onScheduleNew: (date: Date) => void;
+}) {
   const today = useMemo(() => new Date(), []);
-  const [calView, setCalView] = useState<"month" | "week">("month");
+  const [calView, setCalView] = useState<"month" | "week">("week");
   // Month view state
   const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -281,11 +293,23 @@ function DashboardCalendar({ onNavigateToJob }: { onNavigateToJob: (jobId: numbe
     const end = new Date(job.scheduledEnd);
     const startH = start.getHours() + start.getMinutes() / 60;
     const endH = end.getHours() + end.getMinutes() / 60;
-    const clampedStart = Math.max(startH, 6);
-    const clampedEnd = Math.min(endH, 21);
-    const top = ((clampedStart - 6) / 15) * 100;
-    const height = Math.max(((clampedEnd - clampedStart) / 15) * 100, 2);
-    return { top: `${top}%`, height: `${height}%` };
+    const clampedStart = Math.max(startH, GRID_START_HOUR);
+    const clampedEnd = Math.min(endH, GRID_END_HOUR);
+    const top = (clampedStart - GRID_START_HOUR) * HOUR_HEIGHT;
+    const height = Math.max((clampedEnd - clampedStart) * HOUR_HEIGHT, 20);
+    return { top: `${top}px`, height: `${height}px` };
+  }
+
+  function handleSlotClick(colIdx: number, e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const hoursFromStart = relY / HOUR_HEIGHT;
+    const hour = Math.floor(GRID_START_HOUR + hoursFromStart);
+    const minute = Math.round(((hoursFromStart % 1) * 60) / 15) * 15;
+    const day = weekDays[colIdx];
+    const date = new Date(day);
+    date.setHours(Math.min(hour, GRID_END_HOUR - 1), minute % 60, 0, 0);
+    onScheduleNew(date);
   }
 
   const JOB_STATUS_BG: Record<string, string> = {
@@ -440,56 +464,95 @@ function DashboardCalendar({ onNavigateToJob }: { onNavigateToJob: (jobId: numbe
       ) : (
         /* ── WEEK VIEW ── */
         <div className="overflow-x-auto">
-          {/* Day header row */}
-          <div className="grid min-w-[640px]" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
-            <div className="border-b border-border" />
+          {/* Sticky day-header row */}
+          <div className="flex min-w-[600px] border-b border-border sticky top-0 bg-card z-10">
+            {/* Gutter */}
+            <div className="w-14 shrink-0 border-r border-border" />
             {weekDays.map((d, i) => {
               const key = d.toLocaleDateString("en-CA");
               const isToday = key === todayKey;
               return (
-                <div key={i} className={`border-b border-l border-border text-center py-2 ${ isToday ? "bg-primary/10" : "" }`}>
+                <div key={i} className={`flex-1 text-center py-2 border-l border-border ${ isToday ? "bg-primary/10" : "" }`}>
                   <p className={`text-[10px] font-semibold ${ isToday ? "text-primary" : "text-muted-foreground" }`}>{WEEK_DAYS[i]}</p>
                   <p className={`text-sm font-bold ${ isToday ? "text-primary" : "text-foreground" }`}>{d.getDate()}</p>
                 </div>
               );
             })}
           </div>
-          {/* Time grid */}
-          <div className="relative grid min-w-[640px]" style={{ gridTemplateColumns: "56px repeat(7, 1fr)", height: `${15 * 56}px` }}>
-            {/* Hour labels + horizontal lines */}
-            {HOURS.map((h) => (
-              <>
-                <div key={`label-${h}`} className="border-b border-border/40 flex items-start justify-end pr-2 pt-0.5" style={{ gridColumn: 1, gridRow: h - 5 }}>
-                  <span className="text-[9px] text-muted-foreground/60 font-medium">{h === 12 ? "12pm" : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
-                </div>
-                {Array.from({ length: 7 }, (_, col) => (
-                  <div key={`cell-${h}-${col}`} className="border-b border-l border-border/30" style={{ gridColumn: col + 2, gridRow: h - 5 }} />
+
+          {/* Scrollable time body */}
+          <div className="overflow-y-auto max-h-[560px] min-w-[600px]">
+            <div className="flex" style={{ height: `${(GRID_END_HOUR - GRID_START_HOUR) * HOUR_HEIGHT}px` }}>
+              {/* Hour labels gutter */}
+              <div className="w-14 shrink-0 relative border-r border-border">
+                {HOURS.map((h) => (
+                  <div
+                    key={h}
+                    className="absolute right-0 flex items-start justify-end pr-1.5"
+                    style={{ top: `${(h - GRID_START_HOUR) * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                  >
+                    <span className="text-[9px] text-muted-foreground/60 font-medium -mt-2">
+                      {h === 12 ? "12pm" : h > 12 ? `${h - 12}pm` : `${h}am`}
+                    </span>
+                  </div>
                 ))}
-              </>
-            ))}
-            {/* Job blocks */}
-            {weekDays.map((_, colIdx) => (
-              <div key={colIdx} className="relative" style={{ gridColumn: colIdx + 2, gridRow: "1 / -1" }}>
-                {weekJobsByDay[colIdx].map((job) => {
-                  const style = jobBlockStyle(job);
-                  const colorClass = JOB_STATUS_BG[job.status] ?? "bg-blue-500/80 border-blue-600/60";
-                  return (
-                    <button
-                      key={job.id}
-                      onClick={() => onNavigateToJob(job.id)}
-                      title={`${job.title}\n${formatTime(job.scheduledStart)} – ${formatTime(job.scheduledEnd)}`}
-                      className={`absolute inset-x-0.5 rounded border text-left overflow-hidden transition-opacity hover:opacity-90 ${ colorClass }`}
-                      style={{ top: style.top, height: style.height, minHeight: "18px" }}
-                    >
-                      <div className="px-1 py-0.5">
-                        <p className="text-[9px] font-semibold text-white leading-tight truncate">{job.title}</p>
-                        <p className="text-[8px] text-white/80 leading-tight">{formatTime(job.scheduledStart)}</p>
-                      </div>
-                    </button>
-                  );
-                })}
               </div>
-            ))}
+
+              {/* Day columns */}
+              {weekDays.map((_, colIdx) => (
+                <div
+                  key={colIdx}
+                  className="flex-1 relative border-l border-border cursor-pointer group"
+                  onClick={(e) => {
+                    // Only fire if the click target is the column itself (not a job block)
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    handleSlotClick(colIdx, e);
+                  }}
+                >
+                  {/* Hour grid lines */}
+                  {HOURS.map((h) => (
+                    <div
+                      key={h}
+                      className="absolute inset-x-0 border-b border-border/25"
+                      style={{ top: `${(h - GRID_START_HOUR) * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                    />
+                  ))}
+                  {/* Half-hour lines */}
+                  {HOURS.map((h) => (
+                    <div
+                      key={`half-${h}`}
+                      className="absolute inset-x-0 border-b border-border/10"
+                      style={{ top: `${(h - GRID_START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px`, height: 0 }}
+                    />
+                  ))}
+                  {/* Hover hint */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="absolute inset-x-1 top-0 h-full flex items-center justify-center">
+                      <span className="text-[9px] text-muted-foreground/40 select-none">+ New job</span>
+                    </div>
+                  </div>
+                  {/* Job blocks */}
+                  {weekJobsByDay[colIdx].map((job) => {
+                    const style = jobBlockStyle(job);
+                    const colorClass = JOB_STATUS_BG[job.status] ?? "bg-blue-500/80 border-blue-600/60";
+                    return (
+                      <button
+                        key={job.id}
+                        onClick={(e) => { e.stopPropagation(); onNavigateToJob(job.id); }}
+                        title={`${job.title}\n${formatTime(job.scheduledStart)} – ${formatTime(job.scheduledEnd)}`}
+                        className={`absolute inset-x-0.5 rounded border text-left overflow-hidden transition-all hover:opacity-90 hover:shadow-md z-10 ${ colorClass }`}
+                        style={{ top: style.top, height: style.height, minHeight: "20px" }}
+                      >
+                        <div className="px-1.5 py-0.5">
+                          <p className="text-[9px] font-semibold text-white leading-tight truncate">{job.title}</p>
+                          <p className="text-[8px] text-white/80 leading-tight">{formatTime(job.scheduledStart)} – {formatTime(job.scheduledEnd)}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -544,63 +607,56 @@ function AIAssistantPanel() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[500px] rounded-xl border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
+    <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden" style={{ height: "420px" }}>
+      {/* Compact header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-gradient-to-r from-primary/10 to-transparent shrink-0">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-primary/15">
-            <Sparkles className="h-4 w-4 text-primary" />
+          <div className="p-1 rounded-md bg-primary/15">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
           </div>
-          <div>
-            <p className="text-sm font-semibold">AI Assistant</p>
-            <p className="text-[10px] text-muted-foreground">Knows your schedule, clients & follow-ups</p>
-          </div>
+          <p className="text-xs font-semibold">AI Assistant</p>
+          <span className="text-[10px] text-muted-foreground hidden sm:inline">· schedule, clients & follow-ups</span>
         </div>
         {messages.length > 0 && (
           <button
             onClick={() => setMessages([])}
-            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            className="p-1 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
             title="Clear conversation"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-3 w-3" />
           </button>
         )}
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* Messages area — grows to fill space */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center py-6 gap-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <Bot className="h-8 w-8 text-primary/60" />
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Bot className="h-5 w-5 text-primary/50 shrink-0" />
+              <p className="text-xs text-muted-foreground">How can I help? Try a quick prompt:</p>
             </div>
-            <div>
-              <p className="text-sm font-medium">How can I help you today?</p>
-              <p className="text-xs text-muted-foreground mt-1">Ask me about your schedule, clients, or follow-ups</p>
-            </div>
-            <div className="flex flex-col gap-2 w-full mt-2">
-              {QUICK_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => sendMessage(prompt)}
-                  className="text-left text-xs px-3 py-2 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all text-muted-foreground hover:text-foreground"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+            {QUICK_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => sendMessage(prompt)}
+                className="text-left text-[11px] px-2.5 py-1.5 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all text-muted-foreground hover:text-foreground"
+              >
+                {prompt}
+              </button>
+            ))}
           </div>
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex gap-1.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "assistant" && (
-              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center mt-0.5">
-                <Sparkles className="h-3 w-3 text-primary" />
+              <div className="shrink-0 w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center mt-0.5">
+                <Sparkles className="h-2.5 w-2.5 text-primary" />
               </div>
             )}
             <div
-              className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+              className={`max-w-[88%] rounded-xl px-2.5 py-1.5 text-[11px] leading-relaxed ${
                 msg.role === "user"
                   ? "bg-primary text-primary-foreground rounded-br-sm"
                   : "bg-muted/60 text-foreground rounded-bl-sm"
@@ -612,29 +668,29 @@ function AIAssistantPanel() {
         ))}
 
         {isThinking && (
-          <div className="flex gap-2 justify-start">
-            <div className="shrink-0 w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
-              <Sparkles className="h-3 w-3 text-primary" />
+          <div className="flex gap-1.5 justify-start">
+            <div className="shrink-0 w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center">
+              <Sparkles className="h-2.5 w-2.5 text-primary" />
             </div>
-            <div className="bg-muted/60 rounded-xl rounded-bl-sm px-3 py-2.5 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="bg-muted/60 rounded-xl rounded-bl-sm px-2.5 py-2 flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input area */}
-      <div className="p-3 border-t border-border">
-        <div className="flex gap-2 items-end">
+      {/* Input area — pinned to bottom */}
+      <div className="p-2.5 border-t border-border shrink-0">
+        <div className="flex gap-1.5 items-end">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your schedule..."
-            className="flex-1 min-h-[40px] max-h-[120px] text-xs resize-none"
+            placeholder="Ask about your schedule..."
+            className="flex-1 min-h-[34px] max-h-[80px] text-[11px] resize-none"
             rows={1}
             disabled={isThinking}
           />
@@ -642,12 +698,11 @@ function AIAssistantPanel() {
             size="sm"
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isThinking}
-            className="h-9 w-9 p-0 shrink-0"
+            className="h-8 w-8 p-0 shrink-0"
           >
-            <Send className="h-3.5 w-3.5" />
+            <Send className="h-3 w-3" />
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5">Press Enter to send · Shift+Enter for new line</p>
       </div>
     </div>
   );
@@ -664,6 +719,14 @@ function FollowUpPanel() {
   const [newType, setNewType] = useState<"call" | "text" | "manual">("call");
   const [activeNextSteps, setActiveNextSteps] = useState<number | null>(null);
   const [nextStepsText, setNextStepsText] = useState("");
+  const [activeSmsReply, setActiveSmsReply] = useState<number | null>(null);
+  const [smsReplyText, setSmsReplyText] = useState("");
+  const [smsRewriting, setSmsRewriting] = useState(false);
+
+  const rewriteMsg = trpc.followUps.rewriteMessage.useMutation({
+    onSuccess: (data) => { setSmsReplyText(data.rewritten); setSmsRewriting(false); },
+    onError: () => { setSmsRewriting(false); toast.error("AI rewrite failed"); },
+  });
 
   const { data: followUps = [], isLoading: fuLoading } = trpc.followUps.list.useQuery(undefined);
 
@@ -830,9 +893,19 @@ function FollowUpPanel() {
                           </a>
                         )}
                         {(f.type === "text" || f.type === "closeout") && (
-                          <a href={`sms:${f.phone}`} className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 border border-emerald-400/30 rounded px-2 py-0.5 transition-colors">
-                            <MessageSquare className="h-2.5 w-2.5" /> Reply via Text
-                          </a>
+                          <button
+                            onClick={() => {
+                              if (activeSmsReply === f.id) { setActiveSmsReply(null); setSmsReplyText(""); }
+                              else { setActiveSmsReply(f.id); setSmsReplyText(""); }
+                            }}
+                            className={`flex items-center gap-1 text-[10px] border rounded px-2 py-0.5 transition-colors ${
+                              activeSmsReply === f.id
+                                ? "text-emerald-400 border-emerald-400/60 bg-emerald-500/10"
+                                : "text-emerald-400 hover:text-emerald-300 border-emerald-400/30"
+                            }`}
+                          >
+                            <MessageSquare className="h-2.5 w-2.5" /> {activeSmsReply === f.id ? "Close" : "Reply via Text"}
+                          </button>
                         )}
                       </>
                     )}
@@ -851,6 +924,50 @@ function FollowUpPanel() {
                       </button>
                     )}
                   </div>
+
+                  {/* SMS Reply Composer */}
+                  {activeSmsReply === f.id && f.phone && (
+                    <div className="ml-7 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <MessageSquare className="h-3 w-3 text-emerald-400" />
+                        <span className="text-[10px] font-medium text-emerald-400">Text to {f.contactName} · {f.phone}</span>
+                      </div>
+                      <Textarea
+                        placeholder="Type your message..."
+                        value={smsReplyText}
+                        onChange={(e) => setSmsReplyText(e.target.value)}
+                        className="text-xs min-h-[60px] resize-none bg-background/80"
+                        rows={3}
+                      />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => {
+                            if (!smsReplyText.trim() || smsRewriting) return;
+                            setSmsRewriting(true);
+                            rewriteMsg.mutate({ draft: smsReplyText, contactName: f.contactName ?? undefined, context: f.note != null ? f.note : undefined });
+                          }}
+                          disabled={!smsReplyText.trim() || smsRewriting}
+                          className="flex items-center gap-1 text-[10px] px-2.5 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all disabled:opacity-40"
+                        >
+                          <Sparkles className="h-2.5 w-2.5" />
+                          {smsRewriting ? "Rewriting..." : "AI Rewrite"}
+                        </button>
+                        <a
+                          href={`sms:${f.phone}${smsReplyText ? `?body=${encodeURIComponent(smsReplyText)}` : ""}`}
+                          className="flex items-center gap-1 text-[10px] px-2.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                        >
+                          <Send className="h-2.5 w-2.5" /> Open in Messages
+                        </a>
+                        <button
+                          onClick={() => { setActiveSmsReply(null); setSmsReplyText(""); }}
+                          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground/60">AI Rewrite cleans up grammar & phrasing · Opens your native Messages app to send</p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1198,52 +1315,132 @@ function CompletedVisitsPanel() {
 
 function CompletedJobsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<"completed" | "invoiced" | "paid">("completed");
   const { data: jobs, isLoading } = trpc.dashboard.completedJobsThisMonth.useQuery(undefined, { enabled: open });
+  const { data: billing, isLoading: billingLoading } = trpc.dashboard.getBillingStats.useQuery(undefined, { enabled: open });
   const monthName = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+
+  const completedJobs = jobs ?? [];
+  const invoicedJobs = billing?.unpaidJobs ?? [];
+  const paidJobs = (jobs ?? []).filter((j: any) => j.paidAt != null);
+
+  const tabJobs = activeTab === "completed" ? completedJobs : activeTab === "invoiced" ? invoicedJobs : paidJobs;
+
+  const markPaid = trpc.jobs.update.useMutation({
+    onSuccess: () => { trpc.useUtils().dashboard.getBillingStats.invalidate(); toast.success("Marked as paid!"); },
+  });
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckCheck className="h-5 w-5 text-emerald-500" />
-            Completed Jobs — {monthName}
+            Jobs This Month — {monthName}
           </DialogTitle>
           <DialogDescription>
-            {isLoading ? "Loading..." : `${jobs?.length ?? 0} job${(jobs?.length ?? 0) !== 1 ? "s" : ""} completed this month`}
+            {isLoading ? "Loading..." : `${completedJobs.length} completed · ${billing?.invoicedCount ?? 0} invoiced · ${billing?.paidCount ?? 0} paid`}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 mt-2">
-          {isLoading && Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-          {!isLoading && (!jobs || jobs.length === 0) && (
-            <div className="text-center py-10 text-muted-foreground">
-              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p>No completed jobs this month yet.</p>
-            </div>
-          )}
-          {!isLoading && jobs?.map((job) => (
+
+        {/* Summary row */}
+        <div className="grid grid-cols-3 gap-2 my-1">
+          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
+            <p className="text-lg font-bold text-emerald-500">{isLoading ? "—" : completedJobs.length}</p>
+            <p className="text-[10px] text-muted-foreground">Completed</p>
+          </div>
+          <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2 text-center">
+            <p className="text-lg font-bold text-blue-400">{billingLoading ? "—" : (billing?.invoicedCount ?? 0)}</p>
+            <p className="text-[10px] text-muted-foreground">Invoiced</p>
+          </div>
+          <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 px-3 py-2 text-center">
+            <p className="text-lg font-bold text-violet-400">{billingLoading ? "—" : (billing?.paidCount ?? 0)}</p>
+            <p className="text-[10px] text-muted-foreground">Paid</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-border">
+          {(["completed", "invoiced", "paid"] as const).map((tab) => (
             <button
-              key={job.id}
-              className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
-              onClick={() => { onClose(); setLocation(`/jobs/${job.id}`); }}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3 py-2 text-xs font-medium capitalize transition-colors border-b-2 -mb-px ${
+                activeTab === tab
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{job.title}</p>
-                  {job.address && <p className="text-xs text-muted-foreground truncate">{job.address}</p>}
-                </div>
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Completed</Badge>
-                  <span className="text-[11px] text-muted-foreground">
-                    {new Date(job.scheduledStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                </div>
-              </div>
+              {tab === "invoiced" ? "Outstanding" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "invoiced" && invoicedJobs.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[9px] font-bold">{invoicedJobs.length}</span>
+              )}
             </button>
           ))}
         </div>
-        <div className="mt-4 pt-3 border-t border-border">
+
+        {/* Job list */}
+        <div className="flex-1 overflow-y-auto space-y-2 py-2">
+          {(isLoading || billingLoading) && Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+          {!(isLoading || billingLoading) && tabJobs.length === 0 && (
+            <div className="text-center py-10 text-muted-foreground">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">
+                {activeTab === "completed" ? "No completed jobs this month yet." :
+                 activeTab === "invoiced" ? "No outstanding invoices — all paid up!" :
+                 "No payments recorded this month yet."}
+              </p>
+            </div>
+          )}
+          {!(isLoading || billingLoading) && tabJobs.map((job: any) => (
+            <div
+              key={job.id}
+              className="flex items-start justify-between gap-2 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+            >
+              <button
+                className="flex-1 min-w-0 text-left"
+                onClick={() => { onClose(); setLocation(`/jobs/${job.id}`); }}
+              >
+                <p className="font-medium text-sm truncate">{job.title}</p>
+                {job.clientName && <p className="text-xs text-muted-foreground truncate">{job.clientName}</p>}
+                {activeTab === "invoiced" && job.daysOutstanding != null && (
+                  <p className="text-xs text-red-400 mt-0.5">{job.daysOutstanding} day{job.daysOutstanding !== 1 ? "s" : ""} outstanding</p>
+                )}
+                {job.invoiceAmount != null && (
+                  <p className="text-xs text-emerald-500 mt-0.5">${(job.invoiceAmount / 100).toFixed(2)}</p>
+                )}
+              </button>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {activeTab === "completed" && (
+                  <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Completed</Badge>
+                )}
+                {activeTab === "invoiced" && (
+                  <>
+                    <Badge className="bg-red-500/15 text-red-400 border-red-500/30 text-[10px]">Unpaid</Badge>
+                    <Button
+                      size="sm"
+                      className="h-6 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white mt-1"
+                      onClick={() => markPaid.mutate({ id: job.id, paidAt: Date.now() })}
+                      disabled={markPaid.isPending}
+                    >
+                      Mark Paid
+                    </Button>
+                  </>
+                )}
+                {activeTab === "paid" && (
+                  <Badge className="bg-violet-500/15 text-violet-400 border-violet-500/30 text-[10px]">Paid</Badge>
+                )}
+                <span className="text-[11px] text-muted-foreground">
+                  {new Date(job.scheduledStart ?? job.invoicedAt ?? Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="pt-3 border-t border-border">
           <Button variant="outline" size="sm" className="w-full" onClick={() => { onClose(); setLocation("/calendar?status=completed"); }}>
             View all completed jobs
             <ArrowRight className="h-3.5 w-3.5 ml-1.5" />

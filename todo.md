@@ -1032,3 +1032,34 @@
 - [x] Add AI Assistant panel in place of Today's Schedule — analyzes schedule, clients, follow-ups and provides actionable suggestions
 - [x] AI Assistant: backend tRPC procedure that gathers context (today's jobs, pending follow-ups, overdue clients) and streams LLM response
 - [x] AI Assistant: user can ask free-form questions or click quick-action prompts
+
+## Dashboard Calendar — Week View Improvements
+
+- [x] Make Week view the default calendar view (change initial state from "month" to "week")
+- [x] Fix time-slot positioning: use absolute positioning with pixel-based top/height calculated from actual hour rows instead of percentage
+- [x] Click on empty time slot in week view opens New Job form pre-filled with that date and time
+
+## AI Assistant & SMS Reply Improvements
+
+- [x] AI Assistant panel: make it more compact (smaller min-height), move chat message history to the top of the panel above the input
+- [x] AI Assistant panel: quick prompts shown only when no messages exist (already done), ensure layout is tight and scrollable
+- [x] SMS reply area in Follow-Up panel: add AI rewrite button (sparkle icon) next to the send button that rewrites/cleans up the draft text using LLM
+- [x] Backend: add a tRPC procedure (e.g. followUps.rewriteMessage) that takes a draft string and returns a cleaner version
+
+## Invoicing & Payment Tracking
+
+- [x] DB schema: add invoicedAt (bigint nullable) and paidAt (bigint nullable) columns to jobs table
+- [x] DB migration: generate and apply the migration SQL
+- [x] Backend: update job update procedure to accept invoicedAt and paidAt fields
+- [x] Backend: add dashboard.getBillingStats procedure — returns completedThisMonth, invoicedThisMonth, paidThisMonth, and list of invoiced-but-unpaid jobs
+- [x] Job detail page: add "Mark as Invoiced" button that sets invoicedAt timestamp; show invoiced date once set
+- [x] Job detail page: add "Mark as Paid" button (only visible after invoiced) that sets paidAt timestamp; show paid date once set
+- [x] Dashboard: update "Completed This Month" card to show invoiced and paid sub-counts
+- [x] Dashboard: clicking the card opens a modal with three tabs — Completed, Invoiced (unpaid), and Paid — each showing job name, client, amount, and date
+- [x] Outstanding invoices view: list of all invoiced-but-unpaid jobs with client name, job title, job total, days since invoiced, and a "Mark Paid" quick action
+
+## New Job Form — Client Autocomplete
+- [x] Replace the client dropdown in the New Job form with a searchable text input that filters clients as the user types
+- [x] Show a dropdown list of matching clients (name + phone/address) as the user types
+- [x] Clicking a suggestion selects the client and fills the field
+- [x] Keyboard navigation (arrow keys, Enter, Escape) works in the dropdown
