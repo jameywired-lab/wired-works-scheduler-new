@@ -395,3 +395,107 @@ CREATE TABLE IF NOT EXISTS `callLog` (
 	`contactName` varchar(255),
 	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE `jobAssignments` ADD `visitStartedAt` bigint;--> statement-breakpoint
+ALTER TABLE `jobAssignments` ADD `visitCompletedAt` bigint;--> statement-breakpoint
+ALTER TABLE `jobAssignments` ADD `visitNotes` text;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `invoicedAt` bigint;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `paidAt` bigint;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `invoiceAmount` int;--> statement-breakpoint
+ALTER TABLE `jobs` ADD `invoiceNotes` text;--> statement-breakpoint
+ALTER TABLE `followUps` ADD `email` varchar(320);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `jobParts` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`jobId` int NOT NULL,
+	`partId` int NOT NULL,
+	`crewMemberId` int,
+	`quantity` int NOT NULL DEFAULT 1,
+	`unitPrice` decimal(10,2) NOT NULL,
+	`totalPrice` decimal(10,2) NOT NULL,
+	`soldAt` timestamp NOT NULL DEFAULT (now()),
+	`notes` text,
+	CONSTRAINT `jobParts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `parts` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`description` text,
+	`unitPrice` decimal(10,2) NOT NULL DEFAULT '0.00',
+	`isActive` boolean NOT NULL DEFAULT true,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `parts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+ALTER TABLE `jobParts` ADD CONSTRAINT `jobParts_jobId_jobs_id_fk` FOREIGN KEY (`jobId`) REFERENCES `jobs`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `jobParts` ADD CONSTRAINT `jobParts_partId_parts_id_fk` FOREIGN KEY (`partId`) REFERENCES `parts`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `jobParts` ADD CONSTRAINT `jobParts_crewMemberId_users_id_fk` FOREIGN KEY (`crewMemberId`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `salesPipeline` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`clientId` int,
+	`clientName` varchar(255) NOT NULL,
+	`phone` varchar(50),
+	`email` varchar(255),
+	`stage` enum('new_lead','proposal_needed','proposal_sent','follow_up','won','lost') NOT NULL DEFAULT 'new_lead',
+	`notes` text,
+	`estimatedValue` bigint,
+	`reminderAt` bigint,
+	`reminderNote` text,
+	`sourceFollowUpId` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `salesPipeline_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+ALTER TABLE `salesPipeline` ADD CONSTRAINT `salesPipeline_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;
+
+CREATE TABLE IF NOT EXISTS `crewPermissions` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`crewMemberId` int NOT NULL,
+	`canViewCalendar` boolean NOT NULL DEFAULT true,
+	`canViewClients` boolean NOT NULL DEFAULT true,
+	`canCloseOutJobs` boolean NOT NULL DEFAULT true,
+	`canAddNotes` boolean NOT NULL DEFAULT true,
+	`canAddPhotos` boolean NOT NULL DEFAULT true,
+	`canViewProjects` boolean NOT NULL DEFAULT true,
+	`canViewVanInventory` boolean NOT NULL DEFAULT true,
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `crewPermissions_id` PRIMARY KEY(`id`),
+	CONSTRAINT `crewPermissions_crewMemberId_unique` UNIQUE(`crewMemberId`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `crewTasks` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`assignedToCrewMemberId` int NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`description` text,
+	`dueDate` bigint,
+	`isComplete` boolean NOT NULL DEFAULT false,
+	`completedAt` bigint,
+	`createdBy` varchar(255) DEFAULT 'Admin',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `crewTasks_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+ALTER TABLE `crewPermissions` ADD CONSTRAINT `crewPermissions_crewMemberId_crewMembers_id_fk` FOREIGN KEY (`crewMemberId`) REFERENCES `crewMembers`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `crewTasks` ADD CONSTRAINT `crewTasks_assignedToCrewMemberId_crewMembers_id_fk` FOREIGN KEY (`assignedToCrewMemberId`) REFERENCES `crewMembers`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `appNotifications` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`body` text,
+	`type` enum('inbound_sms','inbound_call','task_complete','job_update','general') NOT NULL DEFAULT 'general',
+	`relatedId` int,
+	`relatedType` varchar(64),
+	`isRead` boolean NOT NULL DEFAULT false,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `appNotifications_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `inboundSmsLog` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`openPhoneMessageId` varchar(255),
+	`from` varchar(50) NOT NULL,
+	`to` varchar(50) NOT NULL,
+	`direction` enum('inbound','outbound') NOT NULL DEFAULT 'inbound',
+	`body` text NOT NULL,
+	`clientId` int,
+	`contactName` varchar(255),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `inboundSmsLog_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+ALTER TABLE `inboundSmsLog` ADD CONSTRAINT `inboundSmsLog_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;
