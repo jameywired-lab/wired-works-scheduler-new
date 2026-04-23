@@ -86,11 +86,9 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
     const { type, data } = payload;
     const obj = data.object;
 
-    // Only process inbound events
-    if (obj.direction && obj.direction !== "incoming") return;
-
     const rawPhone = obj.from ?? "";
     const phone = normalisePhone(rawPhone);
+    const isInbound = !obj.direction || obj.direction === "incoming";
 
     // Try to match against an existing client
     const matchedClient = phone ? await getClientByPhone(phone) : undefined;
@@ -103,8 +101,21 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
     const now = Date.now();
 
     if (type === "message.received") {
-      // ── Inbound SMS ──────────────────────────────────────────────────────────
+      // ── SMS (inbound or outbound) ─────────────────────────────────────────
       const body = obj.body?.trim() || "(no message body)";
+
+      // Always log to inboundSmsLog for the Communications page (all directions)
+      await createInboundSmsLog({
+        from: phone || rawPhone,
+        to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
+        direction: isInbound ? "inbound" : "outbound",
+        body,
+        clientId: matchedClient?.id ?? undefined,
+        contactName: contactName ?? undefined,
+      });
+
+      // Only create follow-ups and client communications for inbound messages
+      if (!isInbound) return;
 
       // Log to client communications if we have a matched client
       if (matchedClient?.id) {
@@ -174,16 +185,6 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
         }
       }
 
-      // Always log to inboundSmsLog for the Communications page
-      await createInboundSmsLog({
-        from: phone || rawPhone,
-        to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
-        direction: "inbound",
-        body,
-        clientId: matchedClient?.id ?? undefined,
-        contactName: contactName ?? undefined,
-      });
-
       if (!grouped) {
         await createFollowUp({
           contactName: contactName ?? (phone || "Unknown"),
@@ -221,7 +222,7 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
       await createCallLog({
         from: phone || rawPhone,
         to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
-        direction: "inbound",
+        direction: isInbound ? "inbound" : "outbound",
         status: callStatus,
         duration: obj.duration ?? undefined,
         recordingUrl: obj.voicemailUrl ?? undefined,
