@@ -1117,13 +1117,13 @@
 - [x] railway-db-schema.sql: fixed followUps.type enum to include 'inventory'
 
 ## Bug Fixes & New Features (Apr 23)
-- [ ] Fix follow-up complete task bug (task comes back after completing)
-- [ ] Add crew color field to crewMembers DB table + Users page color picker
-- [ ] Fix Google Maps address autocomplete on new job form
-- [ ] Add OpenPhone contact sync when new client is created
-- [ ] Fix overlapping jobs on calendar (side-by-side columns, crew color coded)
-- [ ] Fix PWA logo/icon on home screen save
-- [ ] Redesign crew home screen: personalized greeting, job swipe cards with map, crew colors
+- [x] Fix follow-up complete task bug (task comes back after completing)
+- [x] Add crew color field to crewMembers DB table + Users page color picker
+- [x] Fix Google Maps address autocomplete on new job form
+- [x] Add OpenPhone contact sync when new client is created
+- [x] Fix overlapping jobs on calendar (side-by-side columns, crew color coded)
+- [x] Fix PWA logo/icon on home screen save
+- [x] Redesign crew home screen: personalized greeting, job swipe cards with map, crew colors
 
 ## Bug Fixes & New Features (Apr 23, 2026)
 - [x] Fix follow-up "complete task" bug — was passing current value instead of toggled value
@@ -1136,3 +1136,12 @@
 - [x] Add crewSchedule.myProfile endpoint to return crew member's own colorHex
 - [x] Add colorHex to getCrewSchedule team member data
 - [x] Railway migration fix: all missing columns added via migrate.ts column patches
+- [x] Fix MySQL reserved keyword error: rename from/to → fromNumber/toNumber in callLog and inboundSmsLog schema, db.ts, openphoneWebhook.ts, CommunicationsPage.tsx
+- [x] Generate Drizzle migration 0033 for fromNumber/toNumber rename
+- [x] Add renamePatches to migrate.ts for Railway DB column rename (from→fromNumber, to→toNumber)
+- [x] Update railway-db-schema.sql to use fromNumber/toNumber in callLog and inboundSmsLog CREATE TABLE statements
+
+- [x] Fix MySQL reserved keyword error: rename from/to to fromNumber/toNumber in callLog and inboundSmsLog schema, db.ts, openphoneWebhook.ts, CommunicationsPage.tsx
+- [x] Generate Drizzle migration 0033 for fromNumber/toNumber rename
+- [x] Add renamePatches to migrate.ts for Railway DB column rename
+- [x] Update railway-db-schema.sql to use fromNumber/toNumber in callLog and inboundSmsLog CREATE TABLE statements

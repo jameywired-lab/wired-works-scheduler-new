@@ -188,10 +188,10 @@ function CallsTab({ filter }: { filter: "all" | "missed" | "voicemail" }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-sm">
-                    {call.contactName ?? formatPhone(call.from)}
+                    {call.contactName ?? formatPhone(call.fromNumber)}
                   </span>
                   {call.contactName && (
-                    <span className="text-xs text-muted-foreground">{formatPhone(call.from)}</span>
+                    <span className="text-xs text-muted-foreground">{formatPhone(call.fromNumber)}</span>
                   )}
                   <Badge
                     variant={call.status === "missed" ? "destructive" : call.status === "voicemail" ? "secondary" : "outline"}

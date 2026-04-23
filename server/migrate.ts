@@ -190,8 +190,8 @@ export async function runMigrations(): Promise<void> {
     await pool.query(`CREATE TABLE IF NOT EXISTS \`callLog\` (
       \`id\` int AUTO_INCREMENT PRIMARY KEY,
       \`openPhoneCallId\` varchar(255),
-      \`from\` varchar(50) NOT NULL,
-      \`to\` varchar(50) NOT NULL,
+      \`fromNumber\` varchar(50) NOT NULL,
+      \`toNumber\` varchar(50) NOT NULL,
       \`direction\` enum('inbound','outbound') NOT NULL DEFAULT 'inbound',
       \`status\` enum('completed','missed','voicemail','no-answer','busy','failed') NOT NULL DEFAULT 'completed',
       \`duration\` int,
@@ -244,9 +244,30 @@ export async function runMigrations(): Promise<void> {
       }
     }
   }
+  // ── Rename patches: rename old column names to new names ──────────────────
+  // These handle the case where Railway DB has old column names from before the rename.
+  // We check if the OLD column exists and the NEW one does NOT, then rename.
+  const renamePatches = [
+    { table: "callLog",       oldCol: "from",  newCol: "fromNumber", sql: "ALTER TABLE `callLog` RENAME COLUMN `from` TO `fromNumber`" },
+    { table: "callLog",       oldCol: "to",    newCol: "toNumber",   sql: "ALTER TABLE `callLog` RENAME COLUMN `to` TO `toNumber`" },
+    { table: "inboundSmsLog", oldCol: "from",  newCol: "fromNumber", sql: "ALTER TABLE `inboundSmsLog` RENAME COLUMN `from` TO `fromNumber`" },
+    { table: "inboundSmsLog", oldCol: "to",    newCol: "toNumber",   sql: "ALTER TABLE `inboundSmsLog` RENAME COLUMN `to` TO `toNumber`" },
+  ];
+  for (const rp of renamePatches) {
+    try {
+      const oldExists = await columnExists(pool, dbName, rp.table, rp.oldCol);
+      const newExists = await columnExists(pool, dbName, rp.table, rp.newCol);
+      if (oldExists && !newExists) {
+        await pool.query(rp.sql);
+        console.log(`[migrate] Renamed: ${rp.table}.${rp.oldCol} → ${rp.newCol}`);
+      }
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string };
+      console.warn(`[migrate] Rename patch failed (${e.code ?? "unknown"}): ${rp.table}.${rp.oldCol} → ${rp.newCol} — ${e.message}`);
+    }
+  }
   // ────────────────────────────────────────────────────────────────────────────
-
-  // ── Backfill: ensure every crew-role user has a crewMember record ──────────
+  // ── Backfill: ensure every crew-role user has a crewMember record ───────────
   // This fixes the case where users were created with role=crew before the
   // auto-create logic was added to createManualUser.
   try {

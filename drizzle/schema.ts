@@ -530,8 +530,8 @@ export type InsertAppNotification = typeof appNotifications.$inferInsert;
 export const callLog = mysqlTable("callLog", {
   id: int("id").autoincrement().primaryKey(),
   openPhoneCallId: varchar("openPhoneCallId", { length: 255 }),
-  from: varchar("from", { length: 50 }).notNull(),
-  to: varchar("to", { length: 50 }).notNull(),
+  fromNumber: varchar("fromNumber", { length: 50 }).notNull(),
+  toNumber: varchar("toNumber", { length: 50 }).notNull(),
   direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull().default("inbound"),
   status: mysqlEnum("status", ["completed", "missed", "voicemail", "no-answer", "busy", "failed"]).notNull().default("completed"),
   duration: int("duration"), // seconds
@@ -548,8 +548,8 @@ export type InsertCallLog = typeof callLog.$inferInsert;
 export const inboundSmsLog = mysqlTable("inboundSmsLog", {
   id: int("id").autoincrement().primaryKey(),
   openPhoneMessageId: varchar("openPhoneMessageId", { length: 255 }),
-  from: varchar("from", { length: 50 }).notNull(),
-  to: varchar("to", { length: 50 }).notNull(),
+  fromNumber: varchar("fromNumber", { length: 50 }).notNull(),
+  toNumber: varchar("toNumber", { length: 50 }).notNull(),
   direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull().default("inbound"),
   body: text("body").notNull(),
   clientId: int("clientId").references(() => clients.id),

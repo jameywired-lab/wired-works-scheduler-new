@@ -106,8 +106,8 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
 
       // Always log to inboundSmsLog for the Communications page (all directions)
       await createInboundSmsLog({
-        from: phone || rawPhone,
-        to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
+        fromNumber: phone || rawPhone,
+        toNumber: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
         direction: isInbound ? "inbound" : "outbound",
         body,
         clientId: matchedClient?.id ?? undefined,
@@ -220,8 +220,8 @@ export async function handleOpenPhoneWebhook(req: Request, res: Response) {
         status === "failed" ? "failed" : "completed";
 
       await createCallLog({
-        from: phone || rawPhone,
-        to: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
+        fromNumber: phone || rawPhone,
+        toNumber: Array.isArray(obj.to) ? (obj.to[0] ?? "") : (obj.to ?? ""),
         direction: isInbound ? "inbound" : "outbound",
         status: callStatus,
         duration: obj.duration ?? undefined,

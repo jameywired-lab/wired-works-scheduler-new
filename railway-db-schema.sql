@@ -384,8 +384,8 @@ ALTER TABLE `followUps` ADD `nextStepsNote` text;
 CREATE TABLE IF NOT EXISTS `callLog` (
 	`id` int AUTO_INCREMENT PRIMARY KEY,
 	`openPhoneCallId` varchar(255),
-	`from` varchar(50) NOT NULL,
-	`to` varchar(50) NOT NULL,
+	`fromNumber` varchar(50) NOT NULL,
+	`toNumber` varchar(50) NOT NULL,
 	`direction` enum('inbound','outbound') NOT NULL DEFAULT 'inbound',
 	`status` enum('completed','missed','voicemail','no-answer','busy','failed') NOT NULL DEFAULT 'completed',
 	`duration` int,
@@ -493,8 +493,8 @@ CREATE TABLE IF NOT EXISTS `appNotifications` (
 CREATE TABLE IF NOT EXISTS `inboundSmsLog` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`openPhoneMessageId` varchar(255),
-	`from` varchar(50) NOT NULL,
-	`to` varchar(50) NOT NULL,
+	`fromNumber` varchar(50) NOT NULL,
+	`toNumber` varchar(50) NOT NULL,
 	`direction` enum('inbound','outbound') NOT NULL DEFAULT 'inbound',
 	`body` text NOT NULL,
 	`clientId` int,

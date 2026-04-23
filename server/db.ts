@@ -1605,7 +1605,7 @@ export async function listInboundSmsLogs(options?: {
   const limit = options?.limit ?? 200;
   if (options?.phone) {
     return db.select().from(inboundSmsLog)
-      .where(or(eq(inboundSmsLog.from, options.phone), eq(inboundSmsLog.to, options.phone)))
+      .where(or(eq(inboundSmsLog.fromNumber, options.phone), eq(inboundSmsLog.toNumber, options.phone)))
       .orderBy(desc(inboundSmsLog.createdAt))
       .limit(limit);
   }
@@ -1620,7 +1620,7 @@ export async function listSmsThreads(): Promise<{ phone: string; contactName: st
   const threads = new Map<string, { phone: string; contactName: string | null; clientId: number | null; lastMessage: string; lastAt: Date; count: number }>();
   for (const row of rows) {
     // The "other" phone is the from number for inbound, to number for outbound
-    const phone = row.direction === "inbound" ? row.from : row.to;
+    const phone = row.direction === "inbound" ? row.fromNumber : row.toNumber;
     if (!threads.has(phone)) {
       threads.set(phone, {
         phone,
