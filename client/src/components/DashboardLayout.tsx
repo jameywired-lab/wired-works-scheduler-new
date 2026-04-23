@@ -61,9 +61,6 @@ const adminNavItems = [
   { icon: FolderOpen, label: "Projects", path: "/projects" },
   { icon: Bell, label: "Follow-Ups", path: "/follow-ups" },
   { icon: Truck, label: "Van Inventory", path: "/van-inventory" },
-  { icon: Mail, label: "Marketing", path: "/marketing" },
-  { icon: TrendingUp, label: "Revenue Report", path: "/revenue-report" },
-  { icon: Users2, label: "Crew", path: "/crew" },
   { icon: Phone, label: "Communications", path: "/communications" },
   { icon: History, label: "Activity Log", path: "/activity-log" },
 ];
@@ -249,6 +246,7 @@ function DashboardLayoutContent({
                   {[
                     { icon: Users2, label: "Users", path: "/users" },
                     { icon: Upload, label: "Import", path: "/import" },
+                    { icon: TrendingUp, label: "Commission", path: "/commission" },
                     { icon: Settings, label: "Settings", path: "/settings" },
                   ].map((item) => {
                     const isActive = location === item.path;

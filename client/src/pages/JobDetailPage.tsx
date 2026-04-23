@@ -51,6 +51,7 @@ import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -74,6 +75,21 @@ export default function JobDetailPage() {
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceNotes, setInvoiceNotes] = useState("");
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+
+  // Parts sold state
+  const [selectedPartId, setSelectedPartId] = useState<string>("");
+  const [partQty, setPartQty] = useState("1");
+  const [partNotes, setPartNotes] = useState("");
+  const { data: partsCatalog } = trpc.parts.list.useQuery();
+  const { data: jobPartsList, refetch: refetchJobParts } = trpc.jobParts.getByJob.useQuery({ jobId });
+  const addJobPart = trpc.jobParts.add.useMutation({
+    onSuccess: () => { refetchJobParts(); setSelectedPartId(""); setPartQty("1"); setPartNotes(""); toast.success("Part added!"); },
+    onError: () => toast.error("Failed to add part."),
+  });
+  const removeJobPart = trpc.jobParts.remove.useMutation({
+    onSuccess: () => { refetchJobParts(); toast.success("Part removed."); },
+    onError: () => toast.error("Failed to remove part."),
+  });
 
   const markInvoiced = trpc.jobs.update.useMutation({
     onSuccess: () => { utils.jobs.getById.invalidate({ id: jobId }); toast.success("Marked as invoiced!"); setShowInvoiceForm(false); },
@@ -878,6 +894,107 @@ export default function JobDetailPage() {
                 {showCredentials ? "Hide" : "Add"} Credentials
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Parts Sold on Job */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-primary" /> Parts Sold
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5 space-y-4">
+          {/* Existing parts */}
+          {(jobPartsList ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No parts sold on this job yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {jobPartsList!.map((jp) => (
+                <div key={jp.id} className="flex items-center justify-between bg-muted/50 border border-border rounded-lg px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{jp.partName ?? "Unknown Part"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Qty {jp.quantity} × ${parseFloat(jp.unitPrice ?? "0").toFixed(2)} = <span className="font-semibold text-foreground">${parseFloat(jp.totalPrice ?? "0").toFixed(2)}</span>
+                      {jp.crewMemberName && <> · {jp.crewMemberName}</>}
+                    </p>
+                    {jp.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{jp.notes}</p>}
+                  </div>
+                  <button
+                    onClick={() => removeJobPart.mutate({ id: jp.id })}
+                    className="ml-3 p-1 rounded hover:bg-destructive/15 transition-colors flex-shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                </div>
+              ))}
+              {/* Total */}
+              <div className="flex justify-end pt-1 border-t border-border">
+                <p className="text-sm font-semibold">
+                  Total Parts: ${(jobPartsList ?? []).reduce((sum, jp) => sum + parseFloat(jp.totalPrice ?? "0"), 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Add part */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2">
+                <Label className="text-xs text-muted-foreground mb-1 block">Part</Label>
+                <Select value={selectedPartId} onValueChange={setSelectedPartId}>
+                  <SelectTrigger className="bg-input border-border text-sm">
+                    <SelectValue placeholder="Select a part…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(partsCatalog ?? []).map((part) => (
+                      <SelectItem key={part.id} value={String(part.id)}>
+                        {part.name} — ${parseFloat(part.unitPrice ?? "0").toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Quantity</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={partQty}
+                  onChange={(e) => setPartQty(e.target.value)}
+                  className="bg-input border-border text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Notes (optional)</Label>
+                <Input
+                  value={partNotes}
+                  onChange={(e) => setPartNotes(e.target.value)}
+                  placeholder="e.g. client requested"
+                  className="bg-input border-border text-sm"
+                />
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!selectedPartId) return;
+                const part = (partsCatalog ?? []).find((p) => String(p.id) === selectedPartId);
+                if (!part) return;
+                addJobPart.mutate({
+                  jobId,
+                  partId: part.id,
+                  quantity: parseInt(partQty) || 1,
+                  unitPrice: part.unitPrice ?? "0",
+                  notes: partNotes || undefined,
+                });
+              }}
+              disabled={addJobPart.isPending || !selectedPartId}
+            >
+              {addJobPart.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
+              Add Part
+            </Button>
           </div>
         </CardContent>
       </Card>

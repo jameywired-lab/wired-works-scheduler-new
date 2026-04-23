@@ -60,6 +60,15 @@ import {
   listClientPhotos,
   createClientPhoto,
   deleteClientPhoto,
+  listParts,
+  listAllParts,
+  createPart,
+  updatePart,
+  deletePart,
+  getJobPartsByJob,
+  addJobPart,
+  removeJobPart,
+  getCommissionReport,
 } from "./db";
 import { sendSms } from "./sms";
 import { invokeLLM } from "./_core/llm";
@@ -1648,7 +1657,116 @@ const crewScheduleRouter = router({
     .query(async ({ input }) => getJobPhotos(input.jobId)),
 });
 
-// ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+//// ─── Parts Catalog Router ──────────────────────────────────────────────────
+const partsRouter = router({
+  list: p.query(async () => listParts()),
+
+  listAll: p.query(async () => listAllParts()),
+
+  create: p
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        unitPrice: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const part = await createPart(input);
+      return part;
+    }),
+
+  update: p
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        unitPrice: z.string().optional(),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      await updatePart(id, data);
+      return { success: true };
+    }),
+
+  delete: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deletePart(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── Job Parts Router ─────────────────────────────────────────────────────────
+const jobPartsRouter = router({
+  getByJob: p
+    .input(z.object({ jobId: z.number() }))
+    .query(async ({ input }) => getJobPartsByJob(input.jobId)),
+
+  add: p
+    .input(
+      z.object({
+        jobId: z.number(),
+        partId: z.number(),
+        crewMemberId: z.number().nullable().optional(),
+        quantity: z.number().int().min(1),
+        unitPrice: z.string(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const result = await addJobPart(input);
+      return result;
+    }),
+
+  remove: p
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await removeJobPart(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── Commission Router ────────────────────────────────────────────────────────
+const commissionRouter = router({
+  report: p
+    .input(
+      z.object({
+        startMs: z.number(),
+        endMs: z.number(),
+      })
+    )
+    .query(async ({ input }) => {
+      const rows = await getCommissionReport(input.startMs, input.endMs);
+      // Group by crew member
+      const byCrewMap = new Map<number | null, {
+        crewMemberId: number | null;
+        crewMemberName: string | null;
+        totalSales: number;
+        items: typeof rows;
+      }>();
+      for (const row of rows) {
+        const key = row.crewMemberId ?? -1;
+        if (!byCrewMap.has(key)) {
+          byCrewMap.set(key, {
+            crewMemberId: row.crewMemberId,
+            crewMemberName: row.crewMemberName ?? "Unknown",
+            totalSales: 0,
+            items: [],
+          });
+        }
+        const entry = byCrewMap.get(key)!;
+        entry.totalSales += parseFloat(row.totalPrice ?? "0");
+        entry.items.push(row);
+      }
+      return Array.from(byCrewMap.values()).sort((a, b) => b.totalSales - a.totalSales);
+    }),
+});
+
+// ─── App Router ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -1689,5 +1807,8 @@ export const appRouter = router({
   crewPermissions: crewPermissionsRouter,
   notifications: notificationsRouter,
   crewSchedule: crewScheduleRouter,
+  parts: partsRouter,
+  jobParts: jobPartsRouter,
+  commission: commissionRouter,
 });
 export type AppRouter = typeof appRouter;

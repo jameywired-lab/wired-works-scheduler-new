@@ -24,6 +24,7 @@ import FollowUpPage from "./pages/FollowUpPage";
 import VanInventoryPage from "./pages/VanInventoryPage";
 import MarketingPage from "./pages/MarketingPage";
 import RevenueReportPage from "./pages/RevenueReportPage";
+import CommissionPage from "./pages/CommissionPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
 import CommunicationsPage from "./pages/CommunicationsPage";
 import CrewHomePage from "./pages/CrewHomePage";
@@ -75,6 +76,7 @@ function ProtectedRoutes() {
         <Route path="/van-inventory" component={VanInventoryPage} />
         <Route path="/marketing" component={MarketingPage} />
         <Route path="/revenue-report" component={RevenueReportPage} />
+        <Route path="/commission" component={CommissionPage} />
         <Route path="/activity-log" component={ActivityLogPage} />
         <Route path="/communications" component={CommunicationsPage} />
         <Route path="/crew-home" component={CrewSchedulePage} />

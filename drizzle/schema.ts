@@ -557,3 +557,31 @@ export const inboundSmsLog = mysqlTable("inboundSmsLog", {
 });
 export type InboundSmsLog = typeof inboundSmsLog.$inferSelect;
 export type InsertInboundSmsLog = typeof inboundSmsLog.$inferInsert;
+
+// ─── Parts Catalog ────────────────────────────────────────────────────────────
+export const parts = mysqlTable("parts", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Part = typeof parts.$inferSelect;
+export type InsertPart = typeof parts.$inferInsert;
+
+// ─── Job Parts Sold ───────────────────────────────────────────────────────────
+export const jobParts = mysqlTable("jobParts", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull().references(() => jobs.id),
+  partId: int("partId").notNull().references(() => parts.id),
+  crewMemberId: int("crewMemberId").references(() => users.id),
+  quantity: int("quantity").notNull().default(1),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("totalPrice", { precision: 10, scale: 2 }).notNull(),
+  soldAt: timestamp("soldAt").defaultNow().notNull(),
+  notes: text("notes"),
+});
+export type JobPart = typeof jobParts.$inferSelect;
+export type InsertJobPart = typeof jobParts.$inferInsert;

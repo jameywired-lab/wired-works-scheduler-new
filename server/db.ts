@@ -61,6 +61,12 @@ import {
   inboundSmsLog,
   InboundSmsLog,
   InsertInboundSmsLog,
+  parts,
+  Part,
+  InsertPart,
+  jobParts,
+  JobPart,
+  InsertJobPart,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1777,4 +1783,139 @@ export async function getCompletedVisits(filter: "today" | "week" | "all" = "tod
     ...r,
     firstPhotoUrl: photoMap[r.jobId] ?? null,
   }));
+}
+
+// ─── Parts Catalog ────────────────────────────────────────────────────────────
+
+export async function listParts(): Promise<Part[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { eq: eqOp, asc } = await import("drizzle-orm");
+  return db.select().from(parts).where(eqOp(parts.isActive, true)).orderBy(asc(parts.name));
+}
+
+export async function listAllParts(): Promise<Part[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { asc } = await import("drizzle-orm");
+  return db.select().from(parts).orderBy(asc(parts.name));
+}
+
+export async function createPart(data: Omit<InsertPart, "id" | "createdAt" | "updatedAt">): Promise<Part> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const [result] = await db.insert(parts).values(data);
+  const { eq: eqOp } = await import("drizzle-orm");
+  const [row] = await db.select().from(parts).where(eqOp(parts.id, (result as any).insertId));
+  return row;
+}
+
+export async function updatePart(id: number, data: Partial<Omit<InsertPart, "id" | "createdAt" | "updatedAt">>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.update(parts).set(data).where(eqOp(parts.id, id));
+}
+
+export async function deletePart(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  // Soft-delete by marking inactive
+  await db.update(parts).set({ isActive: false }).where(eqOp(parts.id, id));
+}
+
+// ─── Job Parts Sold ───────────────────────────────────────────────────────────
+
+export async function getJobPartsByJob(jobId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { eq: eqOp } = await import("drizzle-orm");
+  const rows = await db
+    .select({
+      id: jobParts.id,
+      jobId: jobParts.jobId,
+      partId: jobParts.partId,
+      partName: parts.name,
+      partDescription: parts.description,
+      crewMemberId: jobParts.crewMemberId,
+      crewMemberName: users.name,
+      quantity: jobParts.quantity,
+      unitPrice: jobParts.unitPrice,
+      totalPrice: jobParts.totalPrice,
+      soldAt: jobParts.soldAt,
+      notes: jobParts.notes,
+    })
+    .from(jobParts)
+    .leftJoin(parts, eqOp(jobParts.partId, parts.id))
+    .leftJoin(users, eqOp(jobParts.crewMemberId, users.id))
+    .where(eqOp(jobParts.jobId, jobId))
+    .orderBy(jobParts.soldAt);
+  return rows;
+}
+
+export async function addJobPart(data: {
+  jobId: number;
+  partId: number;
+  crewMemberId?: number | null;
+  quantity: number;
+  unitPrice: string;
+  notes?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const totalPrice = (parseFloat(data.unitPrice) * data.quantity).toFixed(2);
+  const [result] = await db.insert(jobParts).values({
+    jobId: data.jobId,
+    partId: data.partId,
+    crewMemberId: data.crewMemberId ?? null,
+    quantity: data.quantity,
+    unitPrice: data.unitPrice,
+    totalPrice,
+    notes: data.notes ?? null,
+  });
+  return { id: (result as any).insertId, totalPrice };
+}
+
+export async function removeJobPart(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.delete(jobParts).where(eqOp(jobParts.id, id));
+}
+
+// ─── Commission Report ────────────────────────────────────────────────────────
+
+export async function getCommissionReport(startMs: number, endMs: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { eq: eqOp, gte, lte, and, sum, count } = await import("drizzle-orm");
+  const startDate = new Date(startMs);
+  const endDate = new Date(endMs);
+
+  // Get all job parts sold in the date range, grouped by crew member
+  const rows = await db
+    .select({
+      crewMemberId: jobParts.crewMemberId,
+      crewMemberName: users.name,
+      partId: jobParts.partId,
+      partName: parts.name,
+      quantity: jobParts.quantity,
+      unitPrice: jobParts.unitPrice,
+      totalPrice: jobParts.totalPrice,
+      soldAt: jobParts.soldAt,
+      jobId: jobParts.jobId,
+    })
+    .from(jobParts)
+    .leftJoin(parts, eqOp(jobParts.partId, parts.id))
+    .leftJoin(users, eqOp(jobParts.crewMemberId, users.id))
+    .where(
+      and(
+        gte(jobParts.soldAt, startDate),
+        lte(jobParts.soldAt, endDate)
+      )
+    )
+    .orderBy(users.name, jobParts.soldAt);
+
+  return rows;
 }

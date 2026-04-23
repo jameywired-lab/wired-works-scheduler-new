@@ -1079,3 +1079,26 @@
 - [x] Replace Popover/Command client picker in AddFollowUpDialog (FollowUpPage) with the same inline typeahead
 - [x] Selecting a client from the dropdown fills the name, phone, and email fields; typing a non-matching name saves as free text
 - [x] Move the Follow-Up panel above the DashboardCalendar in the dashboard layout
+
+## Sidebar Cleanup & Parts / Commission Feature
+
+- [x] Remove "Crew" nav item from sidebar (crew members are managed under Admin → Users)
+- [x] Remove "Marketing" nav item from sidebar
+- [x] Remove "Revenue Report" nav item from sidebar
+- [x] DB schema: add `parts` table (id, name, description, unitPrice, isActive, createdAt)
+- [x] DB schema: add `jobParts` table (id, jobId, partId, crewMemberId, quantity, unitPrice, totalPrice, soldAt)
+- [x] DB migration: generate and apply migration SQL for parts and jobParts tables
+- [x] Seed parts catalog with example items: Large Flat Mount, Sonos Amp, Flat Surge Protector, Extra TV Install, Power Bridge Kit
+- [x] Backend: parts.list, parts.create, parts.update, parts.delete procedures
+- [x] Backend: jobParts.list (by jobId), jobParts.add, jobParts.remove procedures
+- [x] Job detail page: add "Parts Sold" section below notes — crew can search/add parts with quantity, see running total
+- [x] Job detail page: parts sold section shows part name, qty, unit price, line total, and grand total
+- [ ] Admin: Parts Catalog page — list all parts with price, add/edit/deactivate parts (deferred)
+- [x] Commission report page: weekly/monthly/annual breakdown per crew member showing parts sold, total revenue, and commission amount
+- [x] Commission report: replace the removed Revenue Report nav item with "Commission" under Admin section
+- [ ] Commission report: configurable commission rate (default 10%) per crew member or globally (deferred)
+
+## Bug Fixes
+
+- [x] Calendar: scheduled jobs no longer appear on the week/month view (confirmed working in dev)
+- [x] Dashboard: follow-up list is empty / not loading (confirmed working in dev — was Railway deploy lag)
