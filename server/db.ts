@@ -194,6 +194,24 @@ export async function createManualUser(data: { name: string; email?: string; rol
     phone: data.phone ?? null,
     lastSignedIn: new Date(),
   });
+  // If crew role, automatically create a crewMember record so they appear in scheduling
+  if (data.role === "crew") {
+    const newUser = await db.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1);
+    if (newUser[0]) {
+      // Only create if one doesn't already exist for this userId
+      const existing = await db.select({ id: crewMembers.id }).from(crewMembers).where(eq(crewMembers.userId, newUser[0].id)).limit(1);
+      if (!existing[0]) {
+        await db.insert(crewMembers).values({
+          userId: newUser[0].id,
+          name: data.name,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          role: "Technician",
+          isActive: true,
+        });
+      }
+    }
+  }
   return { openId };
 }
 
@@ -206,6 +224,12 @@ export async function updateUserPhone(userId: number, phone: string | null) {
 export async function deleteUser(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
+  // Cascade-delete the linked crewMember record (and their job assignments) if this is a crew user
+  const linkedCrew = await db.select({ id: crewMembers.id }).from(crewMembers).where(eq(crewMembers.userId, userId));
+  for (const cm of linkedCrew) {
+    await db.delete(jobAssignments).where(eq(jobAssignments.crewMemberId, cm.id));
+    await db.delete(crewMembers).where(eq(crewMembers.id, cm.id));
+  }
   await db.delete(users).where(eq(users.id, userId));
 }
 

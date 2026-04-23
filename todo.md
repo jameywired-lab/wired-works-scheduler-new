@@ -959,3 +959,27 @@
 - [x] CrewCalendarPage: week view and month view of upcoming assigned jobs
 - [x] Crew nav: updated bottom nav and sidebar to show Schedule (/crew-home) and Calendar (/crew-calendar)
 - [x] Route /crew-home → CrewSchedulePage, /crew-job/:id → CrewJobDetailPage, /crew-calendar → CrewCalendarPage
+
+## Crew/Users Unification
+
+- [x] Auto-create crewMember record when a user is created with role=crew (link userId to crewMember)
+- [x] Sync existing crew-role users who are missing crewMember records (startup backfill in migrate.ts)
+- [x] deleteUser now cascade-deletes the linked crewMember record and their job assignments
+- [ ] Crew page: show crew members from the users table (role=crew) instead of a separate crew table
+- [ ] Calendar job assignment: crew dropdown reads from users with role=crew (not separate crewMembers table)
+- [ ] Remove duplicate "Crew" nav section — consolidate into Users page with a Crew tab/filter
+
+## Crew Van Inventory Access
+
+- [x] Van Inventory already in crew sidebar nav (confirmed)
+- [x] VanInventoryPage is accessible to crew role (uses publicProcedure, not admin-gated)
+- [x] Crew can view, search, and filter van inventory items
+
+## Crew Project Access
+
+- [x] Projects already in crew sidebar nav and bottom nav
+- [x] Backend: projects.list and projects.getById procedures accessible to crew (publicProcedure)
+- [x] Backend: projectCredentials.list, projectNotes.list/create/delete, projectPhotos.list/upload/delete all accessible to crew
+- [x] CrewProjectsPage: rewritten as project list with search, status badges, active/other grouping, tap-to-detail
+- [x] CrewProjectDetailPage: full project detail — client info, address (clickable → Google Maps), credentials panel (Show/Hide toggle), milestones, notes list with add/delete, photo grid with camera upload and delete
+- [x] Route /crew-projects → CrewProjectsPage, /crew-project/:id → CrewProjectDetailPage

@@ -19,6 +19,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import CrewJobsPage from "./pages/CrewJobsPage";
 import CrewClientsPage from "./pages/CrewClientsPage";
 import CrewProjectsPage from "./pages/CrewProjectsPage";
+import CrewProjectDetailPage from "./pages/CrewProjectDetailPage";
 import FollowUpPage from "./pages/FollowUpPage";
 import VanInventoryPage from "./pages/VanInventoryPage";
 import MarketingPage from "./pages/MarketingPage";
@@ -69,6 +70,7 @@ function ProtectedRoutes() {
         <Route path="/crew-jobs" component={CrewJobsPage} />
         <Route path="/crew-clients" component={CrewClientsPage} />
         <Route path="/crew-projects" component={CrewProjectsPage} />
+        <Route path="/crew-project/:id" component={CrewProjectDetailPage} />
         <Route path="/follow-ups" component={FollowUpPage} />
         <Route path="/van-inventory" component={VanInventoryPage} />
         <Route path="/marketing" component={MarketingPage} />

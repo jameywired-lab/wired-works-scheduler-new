@@ -228,6 +228,32 @@ export async function runMigrations(): Promise<void> {
   }
   // ────────────────────────────────────────────────────────────────────────────
 
+  // ── Backfill: ensure every crew-role user has a crewMember record ──────────
+  // This fixes the case where users were created with role=crew before the
+  // auto-create logic was added to createManualUser.
+  try {
+    const [crewUsers] = await pool.query(
+      "SELECT id, name, email, phone FROM `users` WHERE role = 'crew'"
+    ) as [Record<string, unknown>[], unknown];
+    for (const u of crewUsers as { id: number; name: string; email: string | null; phone: string | null }[]) {
+      const [existing] = await pool.query(
+        "SELECT id FROM `crewMembers` WHERE userId = ? LIMIT 1",
+        [u.id]
+      ) as [Record<string, unknown>[], unknown];
+      if ((existing as Record<string, unknown>[]).length === 0) {
+        await pool.query(
+          "INSERT INTO `crewMembers` (userId, name, email, phone, role, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'Technician', 1, NOW(), NOW())",
+          [u.id, u.name, u.email ?? null, u.phone ?? null]
+        );
+        console.log(`[migrate] Backfilled crewMember for user: ${u.name} (id=${u.id})`);
+      }
+    }
+  } catch (err: unknown) {
+    const e = err as { message?: string };
+    console.warn(`[migrate] Crew backfill failed: ${e.message}`);
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   await pool.end();
 
   console.log(
