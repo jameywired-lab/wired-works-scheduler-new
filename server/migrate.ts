@@ -117,6 +117,7 @@ export async function runMigrations(): Promise<void> {
         "ER_CANT_DROP_FIELD_OR_KEY", // DROP COLUMN/KEY that doesn't exist
         "ER_FK_DUP_NAME",          // foreign key already exists
         "ER_DUP_ENTRY",            // unique constraint violation on seed data
+        "ER_KEY_COLUMN_DOES_NOT_EXIST", // FK references column not yet added (ordering)
       ];
       if (e.code && ignorable.includes(e.code)) {
         skipped++;

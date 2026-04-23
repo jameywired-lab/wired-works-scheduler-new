@@ -396,6 +396,7 @@ CREATE TABLE IF NOT EXISTS `callLog` (
 	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE `callLog` ADD CONSTRAINT `callLog_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;
 ALTER TABLE `jobAssignments` ADD `visitStartedAt` bigint;--> statement-breakpoint
 ALTER TABLE `jobAssignments` ADD `visitCompletedAt` bigint;--> statement-breakpoint
 ALTER TABLE `jobAssignments` ADD `visitNotes` text;--> statement-breakpoint
