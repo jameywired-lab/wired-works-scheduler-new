@@ -396,6 +396,9 @@ CREATE TABLE IF NOT EXISTS `callLog` (
 	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE `callLog` ADD `contactName` varchar(255);
+ALTER TABLE `callLog` ADD `openPhoneCallId` varchar(255);
+ALTER TABLE `callLog` ADD `clientId` int;
 ALTER TABLE `callLog` ADD CONSTRAINT `callLog_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;
 ALTER TABLE `jobAssignments` ADD `visitStartedAt` bigint;--> statement-breakpoint
 ALTER TABLE `jobAssignments` ADD `visitCompletedAt` bigint;--> statement-breakpoint
@@ -499,4 +502,5 @@ CREATE TABLE IF NOT EXISTS `inboundSmsLog` (
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	CONSTRAINT `inboundSmsLog_id` PRIMARY KEY(`id`)
 );--> statement-breakpoint
+ALTER TABLE `inboundSmsLog` ADD `clientId` int;
 ALTER TABLE `inboundSmsLog` ADD CONSTRAINT `inboundSmsLog_clientId_clients_id_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE no action ON UPDATE no action;

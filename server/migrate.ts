@@ -166,6 +166,21 @@ export async function runMigrations(): Promise<void> {
     { table: "jobAssignments", column: "visitStartedAt",   sql: "ALTER TABLE `jobAssignments` ADD `visitStartedAt` bigint" },
     { table: "jobAssignments", column: "visitCompletedAt", sql: "ALTER TABLE `jobAssignments` ADD `visitCompletedAt` bigint" },
     { table: "jobAssignments", column: "visitNotes",       sql: "ALTER TABLE `jobAssignments` ADD `visitNotes` text" },
+    // callLog columns (table created without these in early deploys)
+    { table: "callLog",       column: "clientId",     sql: "ALTER TABLE `callLog` ADD `clientId` int" },
+    { table: "callLog",       column: "contactName",  sql: "ALTER TABLE `callLog` ADD `contactName` varchar(255)" },
+    { table: "callLog",       column: "openPhoneCallId", sql: "ALTER TABLE `callLog` ADD `openPhoneCallId` varchar(255)" },
+    // inboundSmsLog columns
+    { table: "inboundSmsLog", column: "clientId",     sql: "ALTER TABLE `inboundSmsLog` ADD `clientId` int" },
+    { table: "inboundSmsLog", column: "contactName",  sql: "ALTER TABLE `inboundSmsLog` ADD `contactName` varchar(255)" },
+    { table: "inboundSmsLog", column: "openPhoneMessageId", sql: "ALTER TABLE `inboundSmsLog` ADD `openPhoneMessageId` varchar(255)" },
+    // jobs billing columns
+    { table: "jobs",          column: "invoicedAt",   sql: "ALTER TABLE `jobs` ADD `invoicedAt` bigint" },
+    { table: "jobs",          column: "paidAt",       sql: "ALTER TABLE `jobs` ADD `paidAt` bigint" },
+    { table: "jobs",          column: "invoiceAmount",sql: "ALTER TABLE `jobs` ADD `invoiceAmount` int" },
+    { table: "jobs",          column: "invoiceNotes", sql: "ALTER TABLE `jobs` ADD `invoiceNotes` text" },
+    // followUps email column
+    { table: "followUps",     column: "email",        sql: "ALTER TABLE `followUps` ADD `email` varchar(320)" },
   ];
 
   // Ensure callLog table exists (was missing from initial schema)
