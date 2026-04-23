@@ -1115,3 +1115,24 @@
 - [x] Dashboard: Sales Pipeline stat card (active leads count, links to /sales-pipeline)
 - [x] App.tsx: /sales-pipeline route registered
 - [x] railway-db-schema.sql: fixed followUps.type enum to include 'inventory'
+
+## Bug Fixes & New Features (Apr 23)
+- [ ] Fix follow-up complete task bug (task comes back after completing)
+- [ ] Add crew color field to crewMembers DB table + Users page color picker
+- [ ] Fix Google Maps address autocomplete on new job form
+- [ ] Add OpenPhone contact sync when new client is created
+- [ ] Fix overlapping jobs on calendar (side-by-side columns, crew color coded)
+- [ ] Fix PWA logo/icon on home screen save
+- [ ] Redesign crew home screen: personalized greeting, job swipe cards with map, crew colors
+
+## Bug Fixes & New Features (Apr 23, 2026)
+- [x] Fix follow-up "complete task" bug — was passing current value instead of toggled value
+- [x] Fix Google Maps address autocomplete in new client inline form in job creation modal
+- [x] Add OpenPhone contact sync when new client is created (server/openphone.ts)
+- [x] Calendar: crew-color-based event coloring, overlapping jobs render side-by-side via FullCalendar
+- [x] Add colorHex field to crewMembers schema with color picker in Crew management page
+- [x] PWA icons regenerated with Wired Works logo (icon-192, icon-512, apple-touch-icon)
+- [x] Crew home screen redesign: personalized greeting, today's jobs swipeable cards, crew color coding
+- [x] Add crewSchedule.myProfile endpoint to return crew member's own colorHex
+- [x] Add colorHex to getCrewSchedule team member data
+- [x] Railway migration fix: all missing columns added via migrate.ts column patches

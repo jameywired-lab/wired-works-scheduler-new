@@ -1,34 +1,15 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, MapPin, Users, Clock, ChevronRight, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarDays, MapPin, Users, Clock, ChevronRight, Calendar, CheckCircle2 } from "lucide-react";
 
-// Day band colors — cycles through these for visual separation
-const DAY_COLORS = [
-  "border-blue-500 bg-blue-50 dark:bg-blue-950/30",
-  "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30",
-  "border-violet-500 bg-violet-50 dark:bg-violet-950/30",
-  "border-amber-500 bg-amber-50 dark:bg-amber-950/30",
-  "border-rose-500 bg-rose-50 dark:bg-rose-950/30",
-  "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30",
-  "border-orange-500 bg-orange-50 dark:bg-orange-950/30",
-];
-
-const DAY_HEADER_COLORS = [
-  "bg-blue-500",
-  "bg-emerald-500",
-  "bg-violet-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-cyan-500",
-  "bg-orange-500",
-];
-
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatDate(ts: number | null | undefined) {
   if (!ts) return "";
-  return new Date(ts).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  return new Date(ts).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
 function formatTime(ts: number | null | undefined) {
@@ -49,10 +30,20 @@ function isToday(ts: number | null | undefined) {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }
 
-function isFuture(ts: number | null | undefined) {
-  if (!ts) return true;
-  return new Date(ts) >= new Date();
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 }
+
+function nameToInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+type TeamMember = { crewMemberId: number | null; name: string; colorHex?: string | null };
 
 type ScheduleJob = {
   id: number;
@@ -68,14 +59,130 @@ type ScheduleJob = {
   visitStartedAt: number | null;
   visitCompletedAt: number | null;
   visitNotes: string | null;
-  teamMembers: { crewMemberId: number | null; name: string }[];
+  teamMembers: TeamMember[];
 };
 
+// ─── Job Card ─────────────────────────────────────────────────────────────────
+function JobCard({
+  job,
+  myColor,
+  onClick,
+}: {
+  job: ScheduleJob;
+  myColor: string;
+  onClick: () => void;
+}) {
+  const startTs = job.scheduledStart ? new Date(job.scheduledStart).getTime() : null;
+  const endTs = job.scheduledEnd ? new Date(job.scheduledEnd).getTime() : null;
+  const isStarted = !!job.visitStartedAt;
+  const isCompleted = !!job.visitCompletedAt;
+
+  // Determine left-border color:
+  // - If only me → my color
+  // - If mixed crew → black
+  // - Completed → muted
+  const allColors = Array.from(new Set([myColor, ...job.teamMembers.map((m) => m.colorHex ?? myColor)]));
+  const borderColor = isCompleted
+    ? "#6b7280"
+    : allColors.length > 1
+    ? "#111827"
+    : myColor;
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-card border border-border rounded-xl overflow-hidden flex hover:shadow-md transition-shadow active:scale-[0.99]"
+      style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
+    >
+      <div className="flex-1 px-4 py-3 min-w-0">
+        {/* Title row */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-bold text-sm truncate">{job.title}</p>
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        </div>
+
+        {/* Client */}
+        {job.clientName && (
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{job.clientName}</p>
+        )}
+
+        {/* Time + address */}
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+          {(startTs || endTs) && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              {startTs ? formatTime(startTs) : ""}
+              {startTs && endTs ? " – " : ""}
+              {endTs ? formatTime(endTs) : ""}
+            </span>
+          )}
+          {job.address && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground truncate max-w-[200px]">
+              <MapPin className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{job.address}</span>
+            </span>
+          )}
+        </div>
+
+        {/* Team members */}
+        {job.teamMembers.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <Users className="w-3 h-3 text-muted-foreground" />
+            <div className="flex items-center gap-1">
+              {job.teamMembers.map((m, i) => {
+                const color = m.colorHex ?? "#6366f1";
+                return (
+                  <span
+                    key={i}
+                    title={m.name}
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: 18, height: 18, borderRadius: "50%", backgroundColor: color,
+                      color: "#fff", fontSize: 7, fontWeight: 700, flexShrink: 0,
+                      border: "1px solid rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    {nameToInitials(m.name)}
+                  </span>
+                );
+              })}
+              <span className="text-xs text-muted-foreground ml-1">
+                {job.teamMembers.map((m) => m.name).join(", ")}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Status badges */}
+        <div className="flex gap-1.5 mt-1.5">
+          {isCompleted && (
+            <Badge variant="outline" className="text-xs border-emerald-500 text-emerald-600 gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              Visit complete
+            </Badge>
+          )}
+          {isStarted && !isCompleted && (
+            <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
+              In progress
+            </Badge>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CrewSchedulePage() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const [showPast, setShowPast] = useState(false);
 
+  const { data: myProfile } = trpc.crewSchedule.myProfile.useQuery();
   const { data: schedule = [], isLoading } = trpc.crewSchedule.mySchedule.useQuery();
+
+  const myColor = (myProfile as any)?.colorHex ?? "#6366f1";
+  const firstName = user?.name?.split(" ")[0] ?? "there";
 
   // Convert Date objects to timestamps and sort chronologically
   const jobs: ScheduleJob[] = useMemo(() => {
@@ -86,7 +193,11 @@ export default function CrewSchedulePage() {
     });
   }, [schedule]);
 
-  // Group by date
+  // Today's jobs for the hero section
+  const todayJobs = useMemo(() => jobs.filter((j) => j.scheduledStart && isToday(new Date(j.scheduledStart).getTime())), [jobs]);
+  const completedToday = todayJobs.filter((j) => !!j.visitCompletedAt).length;
+
+  // Group upcoming + past
   const grouped = useMemo(() => {
     const map = new Map<string, { dateKey: string; ts: number; jobs: ScheduleJob[] }>();
     for (const job of jobs) {
@@ -110,6 +221,7 @@ export default function CrewSchedulePage() {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 p-4">
+        <div className="h-32 rounded-2xl bg-muted animate-pulse" />
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
         ))}
@@ -117,135 +229,166 @@ export default function CrewSchedulePage() {
     );
   }
 
-  if (jobs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
-        <CalendarDays className="w-16 h-16 text-muted-foreground/40" />
-        <h2 className="text-xl font-semibold text-muted-foreground">No jobs scheduled</h2>
-        <p className="text-sm text-muted-foreground">Your upcoming jobs will appear here.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold">My Schedule</h1>
-          <p className="text-xs text-muted-foreground">{jobs.length} job{jobs.length !== 1 ? "s" : ""} assigned</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => navigate("/crew-calendar")} className="gap-1.5">
-          <Calendar className="w-4 h-4" />
-          Calendar
-        </Button>
+    <div className="flex flex-col pb-24 min-h-screen bg-background">
+      {/* ── Hero greeting banner ── */}
+      <div
+        className="px-5 pt-8 pb-6 relative overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${myColor}22 0%, ${myColor}08 100%)` }}
+      >
+        {/* Decorative circle */}
+        <div
+          className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-10"
+          style={{ backgroundColor: myColor }}
+        />
+        <p className="text-sm font-medium text-muted-foreground mb-0.5">
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight" style={{ color: myColor }}>
+          {getGreeting()}, {firstName}
+        </h1>
+        {todayJobs.length > 0 ? (
+          <p className="text-sm text-muted-foreground mt-1">
+            {todayJobs.length} visit{todayJobs.length !== 1 ? "s" : ""} today
+            {completedToday > 0 && ` · ${completedToday} complete`}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-1">No visits scheduled today</p>
+        )}
       </div>
 
-      {/* Past jobs toggle */}
-      {pastCount > 0 && !showPast && (
-        <button
-          onClick={() => setShowPast(true)}
-          className="mx-4 mt-3 text-xs text-muted-foreground underline underline-offset-2 text-left"
-        >
-          Show {pastCount} past day{pastCount !== 1 ? "s" : ""}
-        </button>
+      {/* ── Today's jobs — horizontal swipeable strip ── */}
+      {todayJobs.length > 0 && (
+        <div className="px-4 mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-foreground">Today's Visits</h2>
+            <span className="text-xs text-muted-foreground">{completedToday}/{todayJobs.length} done</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none">
+            {todayJobs.map((job) => {
+              const startTs = job.scheduledStart ? new Date(job.scheduledStart).getTime() : null;
+              const endTs = job.scheduledEnd ? new Date(job.scheduledEnd).getTime() : null;
+              const isCompleted = !!job.visitCompletedAt;
+              const isStarted = !!job.visitStartedAt;
+              const allColors = Array.from(new Set([myColor, ...job.teamMembers.map((m) => m.colorHex ?? myColor)]));
+              const cardColor = isCompleted ? "#6b7280" : allColors.length > 1 ? "#111827" : myColor;
+              return (
+                <button
+                  key={job.id}
+                  onClick={() => navigate(`/crew-job/${job.id}`)}
+                  className="snap-start flex-shrink-0 w-64 rounded-2xl p-4 text-left transition-transform active:scale-[0.97] shadow-sm"
+                  style={{ backgroundColor: cardColor + "18", border: `2px solid ${cardColor}40` }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <p className="font-bold text-sm leading-tight truncate flex-1">{job.title}</p>
+                    {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                    {isStarted && !isCompleted && (
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0 mt-1" />
+                    )}
+                  </div>
+                  {job.clientName && (
+                    <p className="text-xs text-muted-foreground truncate mb-1">{job.clientName}</p>
+                  )}
+                  {(startTs || endTs) && (
+                    <p className="text-xs font-medium" style={{ color: cardColor }}>
+                      {startTs ? formatTime(startTs) : ""}
+                      {startTs && endTs ? " – " : ""}
+                      {endTs ? formatTime(endTs) : ""}
+                    </p>
+                  )}
+                  {job.address && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {job.address}
+                    </p>
+                  )}
+                  {job.teamMembers.length > 0 && (
+                    <div className="flex items-center gap-1 mt-2">
+                      {job.teamMembers.map((m, i) => {
+                        const c = m.colorHex ?? "#6366f1";
+                        return (
+                          <span
+                            key={i}
+                            title={m.name}
+                            style={{
+                              display: "inline-flex", alignItems: "center", justifyContent: "center",
+                              width: 16, height: 16, borderRadius: "50%", backgroundColor: c,
+                              color: "#fff", fontSize: 7, fontWeight: 700,
+                            }}
+                          >
+                            {nameToInitials(m.name)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
-      {/* Day groups */}
-      <div className="flex flex-col gap-0 mt-3">
-        {visibleGroups.map((group, groupIdx) => {
-          const colorIdx = groupIdx % DAY_COLORS.length;
-          const today = group.ts > 0 && isToday(group.ts);
-          const dateLabel = group.ts > 0 ? formatDate(group.ts) : "Unscheduled";
+      {/* ── Full schedule list ── */}
+      <div className="px-4 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground">Full Schedule</h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/crew-calendar")} className="gap-1 text-xs h-7">
+            <Calendar className="w-3.5 h-3.5" />
+            Calendar
+          </Button>
+        </div>
 
-          return (
-            <div key={group.dateKey} className="mb-4">
-              {/* Day header */}
-              <div className={`mx-4 rounded-t-xl px-4 py-2 flex items-center gap-2 ${DAY_HEADER_COLORS[colorIdx]}`}>
-                <CalendarDays className="w-4 h-4 text-white flex-shrink-0" />
-                <span className="text-white font-semibold text-sm">{dateLabel}</span>
-                {today && (
-                  <Badge className="ml-auto bg-white/20 text-white border-0 text-xs">Today</Badge>
-                )}
-              </div>
+        {pastCount > 0 && !showPast && (
+          <button
+            onClick={() => setShowPast(true)}
+            className="text-xs text-muted-foreground underline underline-offset-2 mb-3"
+          >
+            Show {pastCount} past day{pastCount !== 1 ? "s" : ""}
+          </button>
+        )}
 
-              {/* Jobs in this day */}
-              <div className={`mx-4 rounded-b-xl border-2 ${DAY_COLORS[colorIdx]} divide-y divide-border/50`}>
-                {group.jobs.map((job) => {
-                  const startTs = job.scheduledStart ? new Date(job.scheduledStart).getTime() : null;
-                  const endTs = job.scheduledEnd ? new Date(job.scheduledEnd).getTime() : null;
-                  const isStarted = !!job.visitStartedAt;
-                  const isCompleted = !!job.visitCompletedAt;
+        {visibleGroups.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <CalendarDays className="w-12 h-12 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">No upcoming jobs scheduled</p>
+          </div>
+        )}
 
-                  return (
-                    <button
-                      key={job.id}
-                      onClick={() => navigate(`/crew-job/${job.id}`)}
-                      className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        <div className="flex flex-col gap-4">
+          {visibleGroups.map((group) => {
+            const today = group.ts > 0 && isToday(group.ts);
+            const dateLabel = group.ts > 0 ? formatDate(group.ts) : "Unscheduled";
+            return (
+              <div key={group.dateKey}>
+                {/* Date header */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {dateLabel}
+                  </span>
+                  {today && (
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
+                      style={{ backgroundColor: myColor }}
                     >
-                      {/* Status dot */}
-                      <div className="mt-1 flex-shrink-0">
-                        {isCompleted ? (
-                          <div className="w-3 h-3 rounded-full bg-emerald-500" title="Completed" />
-                        ) : isStarted ? (
-                          <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" title="In progress" />
-                        ) : (
-                          <div className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600" title="Not started" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-semibold text-sm truncate">{job.title}</p>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        </div>
-
-                        {job.clientName && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{job.clientName}</p>
-                        )}
-
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                          {(startTs || endTs) && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              {startTs ? formatTime(startTs) : ""}
-                              {startTs && endTs ? " – " : ""}
-                              {endTs ? formatTime(endTs) : ""}
-                            </span>
-                          )}
-                          {job.address && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate">{job.address}</span>
-                            </span>
-                          )}
-                        </div>
-
-                        {job.teamMembers.length > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                            <Users className="w-3 h-3" />
-                            {job.teamMembers.map((m) => m.name).join(", ")}
-                          </span>
-                        )}
-
-                        {isCompleted && (
-                          <Badge variant="outline" className="mt-1 text-xs border-emerald-500 text-emerald-600">
-                            Visit complete
-                          </Badge>
-                        )}
-                        {isStarted && !isCompleted && (
-                          <Badge variant="outline" className="mt-1 text-xs border-amber-500 text-amber-600">
-                            In progress
-                          </Badge>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                      Today
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {group.jobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      myColor={myColor}
+                      onClick={() => navigate(`/crew-job/${job.id}`)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

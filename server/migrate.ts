@@ -181,6 +181,8 @@ export async function runMigrations(): Promise<void> {
     { table: "jobs",          column: "invoiceNotes", sql: "ALTER TABLE `jobs` ADD `invoiceNotes` text" },
     // followUps email column
     { table: "followUps",     column: "email",        sql: "ALTER TABLE `followUps` ADD `email` varchar(320)" },
+    // crew color
+    { table: "crewMembers",  column: "colorHex",     sql: "ALTER TABLE `crewMembers` ADD `colorHex` varchar(32) DEFAULT '#6366f1'" },
   ];
 
   // Ensure callLog table exists (was missing from initial schema)

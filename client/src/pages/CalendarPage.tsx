@@ -10,46 +10,48 @@ import { useLocation } from "wouter";
 import { useState, useRef, useMemo } from "react";
 import { Plus } from "lucide-react";
 import JobFormModal from "@/components/JobFormModal";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useMobile";
 
-// Color by job type (primary dimension)
-const JOB_TYPE_COLORS: Record<string, { base: string; muted: string; label: string }> = {
-  service_call: { base: "oklch(0.50 0.18 220)", muted: "oklch(0.42 0.14 220)", label: "Service Call" },
-  sales_call:   { base: "oklch(0.50 0.18 145)", muted: "oklch(0.42 0.14 145)", label: "Sales Call" },
-  project_job:  { base: "oklch(0.50 0.18 295)", muted: "oklch(0.42 0.14 295)", label: "Project Job" },
-};
-
 const CANCELLED_COLOR = "oklch(0.35 0.05 240)";
+const COMPLETED_OPACITY = "cc"; // hex alpha for ~80%
 
-// ─── Crew initials config ─────────────────────────────────────────────────────
-// Maps crew member name fragments → initials + badge color
-// Add more entries here as the team grows
-const CREW_INITIALS: Array<{ match: string; initials: string; color: string }> = [
-  { match: "warren",  initials: "WL", color: "oklch(0.60 0.20 30)"  },  // orange
-  { match: "jason s", initials: "JS", color: "oklch(0.55 0.20 160)" },  // teal
-  { match: "jason",   initials: "JS", color: "oklch(0.55 0.20 160)" },  // teal (fallback)
-  { match: "jf",      initials: "JF", color: "oklch(0.55 0.20 280)" },  // violet (owner)
-];
-
-// Owner initials (JF) — shown when the job has no crew assigned or owner is assigned
-const OWNER_INITIALS = { initials: "JF", color: "oklch(0.55 0.20 280)" };
-
-function getCrewBadge(name: string): { initials: string; color: string } {
-  const lower = name.toLowerCase();
-  for (const entry of CREW_INITIALS) {
-    if (lower.includes(entry.match)) return entry;
-  }
-  // Fallback: derive initials from name
+// Derive initials from a full name
+function nameToInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
-  const initials = parts.length >= 2
-    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    : name.slice(0, 2).toUpperCase();
-  return { initials, color: "oklch(0.50 0.10 240)" };
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
 }
 
-function CrewBadge({ name, size = "sm" }: { name: string; size?: "sm" | "xs" }) {
-  const { initials, color } = getCrewBadge(name);
+type CrewEntry = { crewMemberId: number; crewMemberName: string; colorHex?: string | null };
+
+/** Pick a calendar event background color based on crew assignment:
+ *  - No crew → default blue
+ *  - 1 crew member → their colorHex
+ *  - Multiple crew members with different colors → black (mixed crew)
+ *  - Cancelled → grey
+ */
+function pickEventColor(crew: CrewEntry[], isCancelled: boolean, isCompleted: boolean): string {
+  if (isCancelled) return CANCELLED_COLOR;
+  const colorSet = new Set(crew.map((c) => c.colorHex).filter(Boolean));
+  const colors = Array.from(colorSet);
+  let base: string;
+  if (colors.length === 0) {
+    base = "oklch(0.50 0.18 220)"; // default blue
+  } else if (colors.length === 1) {
+    base = colors[0]!;
+  } else {
+    base = "#1a1a1a"; // multiple different crew colors → black
+  }
+  if (isCompleted) {
+    // Darken slightly for completed
+    return base === "#1a1a1a" ? "#444" : base + COMPLETED_OPACITY;
+  }
+  return base;
+}
+
+function CrewBadge({ name, colorHex, size = "sm" }: { name: string; colorHex?: string | null; size?: "sm" | "xs" }) {
+  const initials = nameToInitials(name);
+  const color = colorHex ?? "oklch(0.50 0.10 240)";
   const dim = size === "xs" ? "14px" : "18px";
   const fontSize = size === "xs" ? "7px" : "8px";
   return (
@@ -77,7 +79,6 @@ function CrewBadge({ name, size = "sm" }: { name: string; size?: "sm" | "xs" }) 
 }
 
 export default function CalendarPage() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [showJobForm, setShowJobForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -96,24 +97,27 @@ export default function CalendarPage() {
     endMs: dateRange.endMs,
   });
 
+  // Fetch crew list for legend
+  const { data: crewList = [] } = trpc.crew.list.useQuery({});
+
   const events: EventInput[] = useMemo(() => {
     return (jobs ?? []).map((job) => {
-      const typeColors = JOB_TYPE_COLORS[job.jobType ?? "service_call"] ?? JOB_TYPE_COLORS.service_call;
+      const crew: CrewEntry[] = (job as any).crew ?? [];
       const isCancelled = job.status === "cancelled";
-      const bgColor = isCancelled ? CANCELLED_COLOR : typeColors.base;
-      const finalColor = job.status === "completed" ? typeColors.muted : bgColor;
+      const isCompleted = job.status === "completed";
+      const bgColor = pickEventColor(crew, isCancelled, isCompleted);
       return {
         id: String(job.id),
         title: job.title,
         start: new Date(job.scheduledStart),
         end: new Date(job.scheduledEnd),
-        backgroundColor: finalColor,
-        borderColor: finalColor,
+        backgroundColor: bgColor,
+        borderColor: bgColor,
         classNames: [`fc-event-${job.status}`, `fc-type-${job.jobType ?? "service_call"}`],
         extendedProps: {
           status: job.status,
           jobType: job.jobType,
-          crew: (job as any).crew ?? [],
+          crew,
         },
       };
     });
@@ -148,38 +152,41 @@ export default function CalendarPage() {
         </Button>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 mb-3">
-        {Object.entries(JOB_TYPE_COLORS).map(([type, { base, label }]) => (
-          <div key={type} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: base }} />
-            {label}
-          </div>
-        ))}
+      {/* Legend — dynamic from crew DB */}
+      <div className="flex flex-wrap gap-3 mb-3 items-center">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "oklch(0.50 0.18 220)" }} />
+          No crew assigned
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#1a1a1a" }} />
+          Mixed crew
+        </div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: CANCELLED_COLOR }} />
           Cancelled
         </div>
-        <div className="flex items-center gap-3 ml-2 border-l border-border pl-3">
-          {[
-            { initials: "JF", color: "oklch(0.55 0.20 280)", label: "JF (you)" },
-            { initials: "WL", color: "oklch(0.60 0.20 30)",  label: "WL (Warren)" },
-            { initials: "JS", color: "oklch(0.55 0.20 160)", label: "JS (Jason)" },
-          ].map(({ initials, color, label }) => (
-            <div key={initials} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span
-                style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: 16, height: 16, borderRadius: "50%", backgroundColor: color,
-                  color: "#fff", fontSize: 8, fontWeight: 700,
-                }}
-              >
-                {initials}
-              </span>
-              {label}
-            </div>
-          ))}
-        </div>
+        {crewList.length > 0 && (
+          <div className="flex items-center gap-3 ml-2 border-l border-border pl-3">
+            {crewList.map((m) => {
+              const color = (m as any).colorHex ?? "oklch(0.50 0.10 240)";
+              return (
+                <div key={m.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: 16, height: 16, borderRadius: "50%", backgroundColor: color,
+                      color: "#fff", fontSize: 8, fontWeight: 700,
+                    }}
+                  >
+                    {nameToInitials(m.name)}
+                  </span>
+                  {m.name}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl p-3 md:p-5">
@@ -211,8 +218,7 @@ export default function CalendarPage() {
           eventTimeFormat={{ hour: "numeric", minute: "2-digit", meridiem: "short" }}
           buttonText={{ today: "Today", month: "Month", week: "Week", day: "Day", list: "List" }}
           eventContent={(info) => {
-            const crew: Array<{ crewMemberId: number; crewMemberName: string }> =
-              info.event.extendedProps.crew ?? [];
+            const crew: CrewEntry[] = info.event.extendedProps.crew ?? [];
             return (
               <div className="px-1 py-0.5 overflow-hidden w-full">
                 <div className="flex items-center gap-1 w-full">
@@ -222,7 +228,7 @@ export default function CalendarPage() {
                   {crew.length > 0 && (
                     <span className="flex items-center gap-0.5 shrink-0">
                       {crew.slice(0, 3).map((c) => (
-                        <CrewBadge key={c.crewMemberId} name={c.crewMemberName} size="xs" />
+                        <CrewBadge key={c.crewMemberId} name={c.crewMemberName} colorHex={c.colorHex} size="xs" />
                       ))}
                     </span>
                   )}

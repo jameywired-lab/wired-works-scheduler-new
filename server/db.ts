@@ -399,15 +399,16 @@ export async function listJobsByDateRange(startMs: number, endMs: number) {
       jobId: jobAssignments.jobId,
       crewMemberId: jobAssignments.crewMemberId,
       crewMemberName: crewMembers.name,
+      colorHex: crewMembers.colorHex,
     })
     .from(jobAssignments)
     .innerJoin(crewMembers, eq(jobAssignments.crewMemberId, crewMembers.id))
     .where(inArray(jobAssignments.jobId, jobIds));
   // Group assignments by jobId
-  const assignmentsByJob = new Map<number, { crewMemberId: number; crewMemberName: string }[]>();
+  const assignmentsByJob = new Map<number, { crewMemberId: number; crewMemberName: string; colorHex?: string | null }[]>();
   for (const a of assignmentRows) {
     if (!assignmentsByJob.has(a.jobId)) assignmentsByJob.set(a.jobId, []);
-    assignmentsByJob.get(a.jobId)!.push({ crewMemberId: a.crewMemberId, crewMemberName: a.crewMemberName ?? "" });
+    assignmentsByJob.get(a.jobId)!.push({ crewMemberId: a.crewMemberId, crewMemberName: a.crewMemberName ?? "", colorHex: a.colorHex });
   }
   return jobRows.map((j) => ({ ...j, crew: assignmentsByJob.get(j.id) ?? [] }));
 }
@@ -1703,16 +1704,16 @@ export async function getCrewSchedule(crewMemberId: number) {
       jobId: jobAssignments.jobId,
       crewMemberId: jobAssignments.crewMemberId,
       crewMemberName: crewMembers.name,
+      colorHex: crewMembers.colorHex,
     })
     .from(jobAssignments)
     .leftJoin(crewMembers, eq(jobAssignments.crewMemberId, crewMembers.id))
     .where(sql`${jobAssignments.jobId} IN (${sql.join(jobIds.map((id) => sql`${id}`), sql`, `)})`);
-
   return jobRows.map((job) => {
     const myAssignment = myAssignments.find((a) => a.jobId === job.id)!;
     const teamMembers = allAssignments
       .filter((a) => a.jobId === job.id && a.crewMemberId !== crewMemberId)
-      .map((a) => ({ crewMemberId: a.crewMemberId, name: a.crewMemberName ?? "Unknown" }));
+      .map((a) => ({ crewMemberId: a.crewMemberId, name: a.crewMemberName ?? "Unknown", colorHex: a.colorHex ?? null }));
     return {
       ...job,
       assignmentId: myAssignment.assignmentId,

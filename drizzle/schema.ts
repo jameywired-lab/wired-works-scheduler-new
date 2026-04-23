@@ -56,6 +56,7 @@ export const crewMembers = mysqlTable("crewMembers", {
   email: varchar("email", { length: 320 }),
   role: varchar("role", { length: 128 }).default("Technician"),
   isActive: boolean("isActive").default(true).notNull(),
+  colorHex: varchar("colorHex", { length: 32 }).default("#6366f1"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

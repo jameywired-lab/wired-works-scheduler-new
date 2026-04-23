@@ -29,9 +29,10 @@ type CrewForm = {
   email: string;
   role: string;
   isActive: boolean;
+  colorHex: string;
 };
 
-const emptyForm: CrewForm = { name: "", phone: "", email: "", role: "", isActive: true };
+const emptyForm: CrewForm = { name: "", phone: "", email: "", role: "", isActive: true, colorHex: "#6366f1" };
 
 type TaskForm = {
   title: string;
@@ -105,6 +106,7 @@ export default function CrewPage() {
       email: member.email ?? "",
       role: member.role ?? "",
       isActive: member.isActive ?? true,
+      colorHex: (member as any).colorHex ?? "#6366f1",
     });
     setEditingId(member.id);
     setShowForm(true);
@@ -425,6 +427,26 @@ export default function CrewPage() {
                 <Label>Email</Label>
                 <Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="john@example.com" />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Calendar Color</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={form.colorHex}
+                  onChange={(e) => setForm((f) => ({ ...f, colorHex: e.target.value }))}
+                  className="w-10 h-10 rounded cursor-pointer border border-border"
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {["#22c55e","#ec4899","#60a5fa","#f59e0b","#8b5cf6","#ef4444","#000000"].map(c => (
+                    <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, colorHex: c }))}
+                      className="w-7 h-7 rounded-full border-2 transition-all"
+                      style={{ backgroundColor: c, borderColor: form.colorHex === c ? "white" : "transparent", outline: form.colorHex === c ? `2px solid ${c}` : "none" }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Shows on calendar events — green=Jason, pink=Warren, blue=Jamey</p>
             </div>
             {editingId && (
               <div className="flex items-center justify-between">

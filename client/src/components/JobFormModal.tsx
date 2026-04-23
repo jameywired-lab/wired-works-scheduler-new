@@ -525,10 +525,11 @@ export default function JobFormModal({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Address</Label>
-                  <Input
+                  <AddressAutocomplete
                     placeholder="123 Main St, City, State"
                     value={newClient.address}
-                    onChange={(e) => setNewClient((n) => ({ ...n, address: e.target.value }))}
+                    onChange={(v) => setNewClient((n) => ({ ...n, address: v }))}
+                    onPlaceSelect={({ formatted }) => setNewClient((n) => ({ ...n, address: formatted }))}
                     className="bg-input border-border h-8 text-sm"
                   />
                 </div>

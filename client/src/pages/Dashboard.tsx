@@ -893,7 +893,7 @@ function FollowUpPanel() {
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={f.isFollowedUp}
-                      onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: f.isFollowedUp })}
+                      onCheckedChange={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: !f.isFollowedUp })}
                       className="mt-0.5 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
@@ -969,7 +969,7 @@ function FollowUpPanel() {
                       </>
                     )}
                     <button
-                      onClick={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: f.isFollowedUp })}
+                      onClick={() => toggleFollowUp.mutate({ id: f.id, isFollowedUp: !f.isFollowedUp })}
                       className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
                     >
                       <CheckCircle2 className="h-2.5 w-2.5" /> Complete Task

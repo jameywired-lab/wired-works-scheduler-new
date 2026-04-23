@@ -1,0 +1,1 @@
+ALTER TABLE `crewMembers` ADD `colorHex` varchar(32) DEFAULT '#6366f1';

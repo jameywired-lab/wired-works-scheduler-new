@@ -112,6 +112,7 @@ import {
 } from "./db";
 import { storagePut } from "./storage";
 import { autoTagClient } from "./autoTag";
+import { syncContactToOpenPhone } from "./openphone";
 import { logActivity, listActivityLog, undoActivity } from "./activityLog";
 import { getTagById } from "./db";
 import { COOKIE_NAME } from "@shared/const";
@@ -156,6 +157,14 @@ const clientsRouter = router({
       const newId = (result as any).insertId as number;
       if (newId) {
         await autoTagClient(newId, input).catch(() => {});
+        // Sync to OpenPhone (fire-and-forget, only if phone provided)
+        if (input.phone) {
+          syncContactToOpenPhone({
+            name: input.name,
+            phone: input.phone,
+            email: input.email || undefined,
+          }).catch(() => {});
+        }
       }
       return { success: true };
     }),
@@ -319,6 +328,7 @@ const crewRouter = router({
         email: z.string().email().optional().or(z.literal("")),
         role: z.string().optional(),
         userId: z.number().optional(),
+        colorHex: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -335,6 +345,7 @@ const crewRouter = router({
         email: z.string().email().optional().or(z.literal("")),
         role: z.string().optional(),
         isActive: z.boolean().optional(),
+        colorHex: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -1599,6 +1610,11 @@ const clientPhotosRouter = router({
 
 // ─── Crew Schedule Router ─────────────────────────────────────────────────────
 const crewScheduleRouter = router({
+  myProfile: p.query(async ({ ctx }) => {
+    if (!ctx.user) return null;
+    const member = await getCrewMemberByUserId(ctx.user.id);
+    return member ?? null;
+  }),
   mySchedule: p.query(async ({ ctx }) => {
     if (!ctx.user) return [];
     const member = await getCrewMemberByUserId(ctx.user.id);
