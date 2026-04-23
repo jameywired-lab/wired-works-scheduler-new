@@ -517,8 +517,7 @@ function AddFollowUpDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const utils = trpc.useUtils();
   const [form, setForm] = useState({ contactName: "", phone: "", email: "", note: "", type: "manual" });
   const [clientId, setClientId] = useState<number | undefined>(undefined);
-  const [clientSearchOpen, setClientSearchOpen] = useState(false);
-  const [clientSearchQuery, setClientSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { data: allClients = [] } = trpc.clients.list.useQuery();
 
   const create = trpc.followUps.create.useMutation({
@@ -527,14 +526,14 @@ function AddFollowUpDialog({ open, onClose }: { open: boolean; onClose: () => vo
       toast.success("Follow-up added");
       setForm({ contactName: "", phone: "", email: "", note: "", type: "manual" });
       setClientId(undefined);
-      setClientSearchQuery("");
+      setDropdownOpen(false);
       onClose();
     },
   });
 
   const filteredClients = allClients.filter((c) =>
-    clientSearchQuery.trim() === "" ||
-    c.name.toLowerCase().includes(clientSearchQuery.toLowerCase())
+    form.contactName.trim() === "" ||
+    c.name.toLowerCase().includes(form.contactName.toLowerCase())
   );
 
   return (
@@ -544,83 +543,45 @@ function AddFollowUpDialog({ open, onClose }: { open: boolean; onClose: () => vo
           <DialogTitle>Add Follow-Up</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          {/* Client autocomplete */}
-          <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal text-left"
-              >
-                <span className={form.contactName ? "text-foreground" : "text-muted-foreground"}>
-                  {form.contactName || "Search or type a contact name…"}
-                </span>
-                <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground ml-2" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[320px] p-0" align="start">
-              <Command shouldFilter={false}>
-                <CommandInput
-                  placeholder="Type a name…"
-                  value={clientSearchQuery}
-                  onValueChange={setClientSearchQuery}
-                />
-                <CommandList>
-                  {clientSearchQuery.trim() !== "" && (
-                    <CommandGroup heading="Use as free text">
-                      <CommandItem
-                        value="__free_text__"
-                        onSelect={() => {
-                          setForm((f) => ({ ...f, contactName: clientSearchQuery }));
-                          setClientId(undefined);
-                          setClientSearchQuery("");
-                          setClientSearchOpen(false);
-                        }}
-                      >
-                        <span className="text-sm">"{clientSearchQuery}"</span>
-                        <span className="ml-1.5 text-xs text-muted-foreground">(new contact)</span>
-                      </CommandItem>
-                    </CommandGroup>
-                  )}
-                  {filteredClients.length > 0 && (
-                    <CommandGroup heading="Existing clients">
-                      {filteredClients.slice(0, 30).map((c) => (
-                        <CommandItem
-                          key={c.id}
-                          value={String(c.id)}
-                          onSelect={() => {
-                            setForm((f) => ({
-                              ...f,
-                              contactName: c.name,
-                              phone: c.phone ?? "",
-                              email: c.email ?? "",
-                            }));
-                            setClientId(c.id);
-                            setClientSearchQuery("");
-                            setClientSearchOpen(false);
-                          }}
-                        >
-                          <Check className={`mr-2 h-4 w-4 shrink-0 ${clientId === c.id ? "opacity-100" : "opacity-0"}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{c.name}</p>
-                            {(c.phone || c.email) && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {[c.phone, c.email].filter(Boolean).join(" · ")}
-                              </p>
-                            )}
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  )}
-                  {clientSearchQuery.trim() === "" && allClients.length === 0 && (
-                    <CommandEmpty>No clients yet.</CommandEmpty>
-                  )}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {/* Client inline typeahead */}
+          <div className="relative">
+            <Input
+              placeholder="Type a contact name…"
+              value={form.contactName}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, contactName: e.target.value, phone: "", email: "" }));
+                setClientId(undefined);
+                setDropdownOpen(true);
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+              autoComplete="off"
+            />
+            {dropdownOpen && filteredClients.length > 0 && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                {filteredClients.slice(0, 25).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2.5 hover:bg-accent transition-colors"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setForm((f) => ({ ...f, contactName: c.name, phone: c.phone ?? "", email: c.email ?? "" }));
+                      setClientId(c.id);
+                      setDropdownOpen(false);
+                    }}
+                  >
+                    <p className="text-sm font-medium text-foreground">{c.name}</p>
+                    {(c.phone || c.email) && (
+                      <p className="text-xs text-muted-foreground">
+                        {[c.phone, c.email].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Phone + Email */}
           <div className="grid grid-cols-2 gap-2">

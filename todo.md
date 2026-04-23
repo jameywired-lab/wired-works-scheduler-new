@@ -1072,3 +1072,10 @@
 - [x] If no match or user types a new name, allow free-text entry (saves as a manual contact name)
 - [x] Works in both the quick-add card (dashboard) and the full Follow-Ups section
 - [x] Selected client is tagged/linked so their follow-up shows their client record
+
+## Follow-Up Form — Inline Typeahead & Dashboard Reorder
+
+- [x] Replace Popover/Command client picker in follow-up add form (dashboard) with a plain text input that shows a dropdown list of matching clients below it as the user types
+- [x] Replace Popover/Command client picker in AddFollowUpDialog (FollowUpPage) with the same inline typeahead
+- [x] Selecting a client from the dropdown fills the name, phone, and email fields; typing a non-matching name saves as free text
+- [x] Move the Follow-Up panel above the DashboardCalendar in the dashboard layout
