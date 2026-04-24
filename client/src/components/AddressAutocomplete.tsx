@@ -19,6 +19,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+// FIX: callbacks stored in refs so the autocomplete effect only runs once
+// and never re-attaches when the parent passes new inline arrow functions.
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MapPin, Loader2 } from "lucide-react";
@@ -97,6 +99,13 @@ export function AddressAutocomplete({
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(() => !!window.google?.maps?.places);
 
+  // Store callbacks in refs — this is the permanent fix so the autocomplete
+  // effect never re-runs when the parent re-renders with new inline functions.
+  const onChangeRef = useRef(onChange);
+  const onPlaceSelectRef = useRef(onPlaceSelect);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
+
   useEffect(() => {
     if (ready) return;
     setLoading(true);
@@ -140,15 +149,16 @@ export function AddressAutocomplete({
       const lat = place.geometry?.location?.lat();
       const lng = place.geometry?.location?.lng();
 
-      onChange(street || formatted);
-      onPlaceSelect?.({ formatted, street: street || formatted, city, state, zip, lat, lng });
+      onChangeRef.current(street || formatted);
+      onPlaceSelectRef.current?.({ formatted, street: street || formatted, city, state, zip, lat, lng });
     });
 
     autocompleteRef.current = ac;
     } catch (err) {
       console.warn("[AddressAutocomplete] Failed to attach autocomplete:", err);
     }
-  }, [ready, onChange, onPlaceSelect]);
+  // Only depends on `ready` — never on callback props (those are read via refs above)
+  }, [ready]);
 
   return (
     <div className="relative">

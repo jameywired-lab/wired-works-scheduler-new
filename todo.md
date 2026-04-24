@@ -1145,3 +1145,5 @@
 - [x] Generate Drizzle migration 0033 for fromNumber/toNumber rename
 - [x] Add renamePatches to migrate.ts for Railway DB column rename
 - [x] Update railway-db-schema.sql to use fromNumber/toNumber in callLog and inboundSmsLog CREATE TABLE statements
+
+- [x] Permanently fix Google Maps address autocomplete regression: store onChange/onPlaceSelect in refs so autocomplete attaches once and never detaches on re-render
